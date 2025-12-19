@@ -9,9 +9,7 @@
 # https://opensource.org/licenses/MIT.
 
 import logging
-import os
 import time
-from pathlib import Path
 from typing import Sequence
 
 import matplotlib.pyplot as plt
@@ -34,6 +32,7 @@ from tbp.monty.frameworks.models.abstract_monty_classes import (
     SensorID,
     SensorObservations,
 )
+from tbp.monty.path import monty_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +59,7 @@ class OmniglotEnvironment(EmbodiedEnvironment):
         self.rotation = qt.from_rotation_vector([np.pi / 2, 0.0, 0.0])
         self.step_num = 0
         self.state = 0
-        if data_path is None:
-            self.data_path = Path(os.environ["MONTY_DATA"]) / "omniglot" / "python"
-        else:
-            self.data_path = Path(data_path)
+        self.data_path = monty_data_path(data_path, "omniglot/python")
         alphabet_path = self.data_path / "images_background"
         self.alphabet_names = [a.name for a in sorted(alphabet_path.glob("[!.]*"))]
         self.current_alphabet = self.alphabet_names[0]
@@ -278,12 +274,7 @@ class SaccadeOnImageEnvironment(EmbodiedEnvironment):
         # the same. Since we don't use this, value doesn't matter much.
         self.rotation = qt.from_rotation_vector([np.pi / 2, 0.0, 0.0])
         self.state = 0
-        if data_path is None:
-            self.data_path = (
-                Path(os.environ["MONTY_DATA"]) / "worldimages" / "labeled_scenes"
-            )
-        else:
-            self.data_path = Path(data_path)
+        self.data_path = monty_data_path(data_path, "worldimages/labeled_scenes")
         self.scene_names = [a.name for a in sorted(self.data_path.glob("[!.]*"))]
         self.current_scene = self.scene_names[0]
         self.scene_version = 0
@@ -571,7 +562,7 @@ class SaccadeOnImageEnvironment(EmbodiedEnvironment):
         # Apply gaussian smoothing transform to depth image
         # Uncomment line below and add import, if needed
         # transform = GaussianSmoothing(agent_id=agent_id, sigma=2, kernel_width=3)
-        # obs = transform(obs, state=state)
+        # obs = transform.call(obs)
 
         transform = DepthTo3DLocations(
             agent_id=agent_id,
@@ -588,7 +579,7 @@ class SaccadeOnImageEnvironment(EmbodiedEnvironment):
             depth_clip_sensors=[0],
             clip_value=1.1,
         )
-        obs_3d = transform(obs, state=state)
+        obs_3d = transform.call(obs, state=state)
         current_scene_point_cloud = obs_3d[agent_id][sensor_id]["semantic_3d"]
         image_shape = self.current_depth_image.shape
         current_scene_point_cloud = current_scene_point_cloud.reshape(
@@ -707,12 +698,7 @@ class SaccadeOnImageFromStreamEnvironment(SaccadeOnImageEnvironment):
         # Letters are always presented upright
         self.rotation = qt.from_rotation_vector([np.pi / 2, 0.0, 0.0])
         self.state = 0
-        if data_path is None:
-            self.data_path = (
-                Path(os.environ["MONTY_DATA"]) / "worldimages" / "world_data_stream"
-            )
-        else:
-            self.data_path = Path(data_path)
+        self.data_path = monty_data_path(data_path, "worldimages/world_data_stream")
         self.scene_names = [a.name for a in sorted(self.data_path.glob("[!.]*"))]
         self.current_scene = 0
 
@@ -811,7 +797,7 @@ def load_img(fn):
 
 def load_motor(fn):
     motor = []
-    with open(fn) as fid:
+    with fn.open() as fid:
         lines = fid.readlines()
     lines = [line.strip() for line in lines]
     for myline in lines:

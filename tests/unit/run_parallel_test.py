@@ -72,10 +72,10 @@ class RunParallelTest(unittest.TestCase):
             {p.name for p in s_param_files}, {p.name for p in p_param_files}
         )
         for sfile, pfile in zip(s_param_files, p_param_files):
-            with open(pfile) as f:
+            with pfile.open() as f:
                 ptarget = f.read()
 
-            with open(sfile) as f:
+            with sfile.open() as f:
                 starget = f.read()
 
             ptarget = json.loads(ptarget)
@@ -171,9 +171,9 @@ class RunParallelTest(unittest.TestCase):
         # 'stepwise_target_object' are derived from the mapping between semantic IDs to
         # names which depend on the number of objects in the environment, and
         # environments only have one object in parallel experiments.
-        for col in ["time", "stepwise_performance", "stepwise_target_object"]:
-            scsv.drop(columns=col, inplace=True)
-            pcsv.drop(columns=col, inplace=True)
+        drop_cols = ["time", "stepwise_performance", "stepwise_target_object"]
+        scsv = scsv.drop(columns=drop_cols)
+        pcsv = pcsv.drop(columns=drop_cols)
 
         self.assertTrue(pcsv.equals(scsv))
 
@@ -201,9 +201,8 @@ class RunParallelTest(unittest.TestCase):
         pcsv_lt = pd.read_csv(parallel_eval_dir_lt / "eval_stats.csv")
 
         # Remove columns that are not the same in the parallel and serial runs.
-        for col in ["time", "stepwise_performance", "stepwise_target_object"]:
-            scsv_lt.drop(columns=col, inplace=True)
-            pcsv_lt.drop(columns=col, inplace=True)
+        scsv_lt = scsv_lt.drop(columns=drop_cols)
+        pcsv_lt = pcsv_lt.drop(columns=drop_cols)
 
         self.assertTrue(pcsv_lt.equals(scsv_lt))
 
@@ -230,9 +229,8 @@ class RunParallelTest(unittest.TestCase):
         scsv_gt = pd.read_csv(eval_dir_gt / "eval_stats.csv")
         pcsv_gt = pd.read_csv(parallel_eval_dir_gt / "eval_stats.csv")
 
-        for col in ["time", "stepwise_performance", "stepwise_target_object"]:
-            scsv_gt.drop(columns=col, inplace=True)
-            pcsv_gt.drop(columns=col, inplace=True)
+        scsv_gt = scsv_gt.drop(columns=drop_cols)
+        pcsv_gt = pcsv_gt.drop(columns=drop_cols)
 
         self.assertTrue(pcsv_gt.equals(scsv_gt))
 

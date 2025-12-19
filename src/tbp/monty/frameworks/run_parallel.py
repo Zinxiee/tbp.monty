@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import os
-import pprint
 import re
 import shutil
 import time
@@ -26,11 +25,11 @@ import torch.multiprocessing as mp
 import wandb
 from omegaconf import DictConfig, OmegaConf
 
-from tbp.monty.frameworks.config_utils.make_env_interface_configs import (
-    PredefinedObjectInitializer,
-)
 from tbp.monty.frameworks.environments.embodied_data import (
     EnvironmentInterfacePerObject,
+)
+from tbp.monty.frameworks.environments.object_init_samplers import (
+    Predefined,
 )
 from tbp.monty.frameworks.experiments.pretraining_experiments import (
     MontySupervisedObjectPretrainingExperiment,
@@ -75,9 +74,10 @@ def cat_files(filenames, outfile):
         print(f"Removing existing file before writing new one: {outfile}")
         outfile.unlink()
 
-    outfile.touch()  # create file that captures output
-    for file in filenames:
-        os.system(f"cat {file} >> {outfile}")
+    with outfile.open("wb") as out_f:
+        for file in filenames:
+            with Path(file).open("rb") as in_f:
+                shutil.copyfileobj(in_f, out_f)
 
 
 def cat_csv(filenames, outfile):
@@ -150,12 +150,12 @@ def move_reproducibility_data(base_dir, parallel_dirs):
         episode0target.rename(outdir / f"eval_episode_{cnt}_target.txt")
 
 
-def print_config(config):
-    """Print config with nice formatting if config_args.print_config is True."""
+def print_config(config: DictConfig) -> None:
+    """Print config with nice formatting."""
     print("\n\n")
     print("Printing config below")
     print("-" * 100)
-    print(pprint.pformat(config))
+    print(OmegaConf.to_yaml(config))
     print("-" * 100)
 
 
@@ -259,6 +259,10 @@ def generate_parallel_eval_configs(
     Create a config for each object and rotation in the experiment. Unlike with parallel
     training episodes, a config is created for each object + rotation separately.
 
+    Notice that no matter what object_init_sampler is specified in the configuration,
+    it is replaced by a Predefined object initializer with parameters that the sampler
+    would generate for that specific episode and epoch.
+
     Args:
         experiment: Config for experiment to be broken into parallel configs.
         name: Name of experiment.
@@ -269,7 +273,6 @@ def generate_parallel_eval_configs(
     sampler = hydra.utils.instantiate(
         experiment.config["eval_env_interface_args"]["object_init_sampler"]
     )
-    sampler.rng = np.random.RandomState(experiment.config["seed"])
     object_names = experiment.config["eval_env_interface_args"]["object_names"]
     # sampler_params = sampler.all_combinations_of_params()
 
@@ -277,15 +280,14 @@ def generate_parallel_eval_configs(
     epoch_count = 0
     episode_count = 0
     n_epochs = experiment.config["n_eval_epochs"]
+    seed = experiment.config["seed"]
 
-    params = sample_params_to_init_args(sampler())
-    start_seed = experiment.config["seed"]
+    params = sample_params_to_init_args(sampler(seed, epoch_count, episode_count))
 
     # Try to mimic the exact workflow instead of guessing
     while epoch_count < n_epochs:
         for obj in object_names:
             new_experiment: Mapping = OmegaConf.to_object(experiment)  # type: ignore[assignment]
-            new_experiment["config"]["seed"] = start_seed + episode_count
 
             # No training
             new_experiment["config"].update(
@@ -310,18 +312,17 @@ def generate_parallel_eval_configs(
 
             new_experiment["config"]["eval_env_interface_args"].update(
                 object_names=[obj],
-                object_init_sampler=PredefinedObjectInitializer(**params),
+                object_init_sampler=Predefined(**params),
             )
 
             new_experiments.append(new_experiment)
             episode_count += 1
-            sampler.post_episode()
-            params = sample_params_to_init_args(sampler())
-
-        sampler.post_epoch()
-        params = sample_params_to_init_args(sampler())
+            params = sample_params_to_init_args(
+                sampler(seed, epoch_count, episode_count)
+            )
 
         epoch_count += 1
+        params = sample_params_to_init_args(sampler(seed, epoch_count, episode_count))
 
     return new_experiments
 
@@ -350,7 +351,6 @@ def generate_parallel_train_configs(experiment: DictConfig, name: str) -> list[M
     sampler = hydra.utils.instantiate(
         experiment.config["train_env_interface_args"]["object_init_sampler"]
     )
-    sampler.rng = np.random.RandomState(experiment.config["seed"])
     object_names = experiment.config["train_env_interface_args"]["object_names"]
     new_experiments = []
 
@@ -366,6 +366,7 @@ def generate_parallel_train_configs(experiment: DictConfig, name: str) -> list[M
         new_experiment["config"]["logging"]["run_name"] = run_name
         new_experiment["config"]["logging"]["output_dir"] = output_dir / name / run_name
         new_experiment["config"]["logging"]["wandb_handlers"] = []
+        new_experiment["config"]["logging"]["log_parallel_wandb"] = False
 
         # Object id, pose parameters for single episode
         new_experiment["config"]["train_env_interface_args"].update(
@@ -561,7 +562,7 @@ def post_parallel_train(experiments: list[Mapping], base_dir: str) -> None:
         post_parallel_profile_cleanup(parallel_dirs, base_dir, "train")
 
     with exp:
-        exp.model.load_state_dict_from_parallel(parallel_dirs, True)
+        exp.model.load_state_dict_from_parallel(parallel_dirs, save=True)
         output_dir = Path(experiments[0]["config"]["logging"]["output_dir"]).parent
         if isinstance(exp, MontySupervisedObjectPretrainingExperiment):
             output_dir = output_dir / "pretrained"
@@ -675,7 +676,7 @@ def run_episodes_parallel(
     print(f"Done running parallel experiments in {end_time - start_time} seconds")
 
     # Keep a record of how long everything takes
-    with open(base_dir / "parallel_log.txt", "w") as f:
+    with (base_dir / "parallel_log.txt").open("w") as f:
         f.write(f"experiment: {experiment_name}\n")
         f.write(f"num_parallel: {num_parallel}\n")
         f.write(f"total_time: {total_time}")

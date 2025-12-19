@@ -79,36 +79,30 @@ def _check_and_sanitize(
     return sanitized_key, sanitized_value
 
 
-def generate_index(docs_dir: str, output_file_path: str) -> str:
+def generate_index(docs_dir: str, output_file_path: Path):
     """Generate index.json file from docs directory.
 
     Args:
         docs_dir: The directory containing markdown files to scan.
         output_file_path: Path where to write the output file.
 
-    Returns:
-        Path to the generated output file.
-
     Raises:
-        ValueError: If docs_dir or output_file_path is empty.
+        ValueError: If docs_dir is empty.
     """
     if _is_empty(docs_dir):
         raise ValueError("docs_dir cannot be empty")
-    if _is_empty(output_file_path):
-        raise ValueError("output_file_path cannot be empty")
 
     logger.info(f"Scanning docs directory: {CYAN}{docs_dir}{RESET}")
 
     entries = process_markdown_files(docs_dir)
 
-    Path(output_file_path).parent.mkdir(exist_ok=True, parents=True)
-    with open(output_file_path, "w", encoding="utf-8") as f:
+    output_file_path.parent.mkdir(exist_ok=True, parents=True)
+    with output_file_path.open("w", encoding="utf-8") as f:
         json.dump(entries, f, indent=2, ensure_ascii=False)
 
     logger.info(
         f"{GREEN}Generated index with {len(entries)} entries: {output_file_path}{RESET}"
     )
-    return output_file_path
 
 
 def process_markdown_files(docs_dir: str) -> list[dict]:

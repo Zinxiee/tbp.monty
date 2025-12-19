@@ -63,7 +63,7 @@ def load_stats(
         print("...loading detailed run statistics...")
         json_file = exp_path / "detailed_run_stats.json"
         try:
-            with open(json_file) as f:
+            with json_file.open() as f:
                 detailed_stats = json.load(f)
         except ValueError:
             detailed_stats = deserialize_json_chunks(json_file)
@@ -124,7 +124,7 @@ def deserialize_json_chunks(json_file, start=0, stop=None, episodes=None):
 
     detailed_json = {}
     stop = stop or np.inf
-    with open(json_file) as f:
+    with Path(json_file).open() as f:
         for line_counter, line in enumerate(f):
             if should_get_episode(start, stop, episodes, line_counter):
                 # NOTE: json logging is only used at inference time and inference
@@ -229,10 +229,7 @@ def get_unique_euler_poses(poses):
     Returns:
         unique_poses: array of unique poses
     """
-    all_poses = []
-    for path_poses in poses:
-        for pose in path_poses:
-            all_poses.append(pose)
+    all_poses = [pose for path_poses in poses for pose in path_poses]
     return np.unique(all_poses, axis=0)
 
 
