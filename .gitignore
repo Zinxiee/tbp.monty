@@ -144,3 +144,12 @@ Session.vim
 
 # hydra
 outputs/
+
+# habitat
+habitat/
+
+# Pretrained Models
+pretrained_models/
+
+# monty runs
+monty_runs/
