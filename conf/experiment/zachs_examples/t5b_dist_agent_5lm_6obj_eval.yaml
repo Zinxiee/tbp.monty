@@ -5,21 +5,21 @@ defaults:
   - /experiment/config/monty/args/clear_monty_args@config.monty_config
   - /experiment/config/monty/args/defaults@config.monty_config.monty_args
   - /experiment/config/monty/learning_modules/clear_learning_module_configs@config.monty_config
-  - /experiment/tutorial/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_0
-  - /experiment/tutorial/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_0.learning_module_args.feature_weights.patch_0
-  - /experiment/tutorial/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_0.learning_module_args.tolerances.patch_0
-  - /experiment/tutorial/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_1
-  - /experiment/tutorial/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_1.learning_module_args.feature_weights.patch_1
-  - /experiment/tutorial/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_1.learning_module_args.tolerances.patch_1
-  - /experiment/tutorial/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_2
-  - /experiment/tutorial/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_2.learning_module_args.feature_weights.patch_2
-  - /experiment/tutorial/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_2.learning_module_args.tolerances.patch_2
-  - /experiment/tutorial/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_3
-  - /experiment/tutorial/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_3.learning_module_args.feature_weights.patch_3
-  - /experiment/tutorial/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_3.learning_module_args.tolerances.patch_3
-  - /experiment/tutorial/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_4
-  - /experiment/tutorial/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_4.learning_module_args.feature_weights.patch_4
-  - /experiment/tutorial/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_4.learning_module_args.tolerances.patch_4
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_0
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_0.learning_module_args.feature_weights.patch_0
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_0.learning_module_args.tolerances.patch_0
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_1
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_1.learning_module_args.feature_weights.patch_1
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_1.learning_module_args.tolerances.patch_1
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_2
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_2.learning_module_args.feature_weights.patch_2
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_2.learning_module_args.tolerances.patch_2
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_3
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_3.learning_module_args.feature_weights.patch_3
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_3.learning_module_args.tolerances.patch_3
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/evidence_lm_config@config.monty_config.learning_module_configs.learning_module_4
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/patch_feature_weights@config.monty_config.learning_module_configs.learning_module_4.learning_module_args.feature_weights.patch_4
+  - /experiment/zachs_examples/dist_agent_5lm_6obj/tolerance_values@config.monty_config.learning_module_configs.learning_module_4.learning_module_args.tolerances.patch_4
   - /experiment/config/monty/motor_system/clear_motor_system_config@config.monty_config
   - /experiment/config/monty/motor_system/informed_goal_state_driven@config.monty_config.motor_system_config
   - /experiment/config/environment/five_lm_mount_habitat@config.env_interface_config
@@ -28,7 +28,7 @@ defaults:
 _target_: tbp.monty.frameworks.experiments.object_recognition_experiments.MontyObjectRecognitionExperiment
 config:
   # load the pre-trained models from this path; this needs to be the same name as used for pretraining
-  model_name_or_path: ${path.expanduser:"~/tbp/results/monty/projects/dist_agent_5lm_6obj_train/pretrained"}
+  model_name_or_path: ${path.expanduser:"~/tbp/results/monty/projects/t5b_dist_agent_5lm_6obj_train/pretrained"}
   n_train_epochs: 1
   min_lms_match: 3 # Terminate when 3 learning modules makes a decision.
   logging:
@@ -36,7 +36,12 @@ config:
     run_name: dist_agent_5lm_6obj_eval
     monty_handlers:
       - ${monty.class:tbp.monty.frameworks.loggers.monty_handlers.BasicCSVStatsHandler}
+      # - ${monty.class:tbp.monty.frameworks.loggers.monty_handlers.DetailedJSONHandler}
+      - ${monty.class:tbp.monty.frameworks.loggers.monty_handlers.ReproduceEpisodeHandler}
     wandb_handlers: []
+    # wandb_handlers:
+    #   - ${monty.class:tbp.monty.frameworks.loggers.wandb_handlers.BasicWandbTableStatsHandler}
+    #   - ${monty.class:tbp.monty.frameworks.loggers.wandb_handlers.BasicWandbChartStatsHandler}
   monty_config:
     monty_args:
       min_eval_steps: 20
@@ -51,6 +56,6 @@ config:
       - spoon
       - fork
     object_init_sampler:
-      _target_: tbp.monty.frameworks.config_utils.make_env_interface_configs.PredefinedObjectInitializer
+      _target_: tbp.monty.frameworks.environments.object_initializers.Predefined
       rotations:
         - ${np.array:[0, 15, 30]} # A previously unseen rotation of the objects.

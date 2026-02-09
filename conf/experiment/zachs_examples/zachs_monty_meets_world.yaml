@@ -1,0 +1,45 @@
+# use pretrained RL model
+# try with multiple LMs and multiple SMs
+
+defaults:
+  - /experiment/config/eval@config
+  - /experiment/config/logging/parallel_evidence_lm@config.logging
+  - /experiment/config/monty/patch_and_view@config.monty_config
+  - /experiment/config/monty/learning_modules/clear_learning_module_configs@config.monty_config
+  - /experiment/config/monty/learning_modules/default_evidence_1lm@config.monty_config.learning_module_configs
+  - /experiment/config/monty/args/clear_monty_args@config.monty_config
+  - /experiment/config/monty/args/defaults@config.monty_config.monty_args
+  - /experiment/config/monty/motor_system/clear_motor_system_config@config.monty_config
+  # the following config moves 20 pixels at a time (this doesn't work very well when reduced to say 8)
+  - /experiment/config/monty/motor_system/informed_no_trans_step_s20@config.monty_config.motor_system_config
+  - /experiment/config/environment/world_image@config.env_interface_config
+  - /experiment/config/environment/init_args/clear_env_init_args@config.env_interface_config
+  - /experiment/config/environment/init_args/monty_world_standard_scenes@config.env_interface_config.env_init_args
+  - /experiment/config/environment_interface/clear_eval_env_interface_args@config
+  - /experiment/config/environment_interface/world_image@config.eval_env_interface_args
+
+_target_: tbp.monty.frameworks.experiments.object_recognition_experiments.MontyObjectRecognitionExperiment
+config:
+  model_name_or_path: ${path.expanduser:${benchmarks.pretrained_dir}/surf_agent_1lm_numenta_lab_obj/pretrained/}
+  n_eval_epochs: 1
+  show_sensor_output: true
+  env_interface_config:
+    env_init_args:
+      data_path: ${path.expanduser:${oc.env:MONTY_DATA}/worldimages/zachs_scenes/} # add your path to the scene folder here
+      patch_size: 30 # change the sensor patch size
+  logging:
+    run_name: my_monty_meets_world
+    wandb_group: my_monty_meets_world
+    # monty_handlers:
+    #   - ${monty.class:tbp.monty.frameworks.loggers.monty_handlers.BasicCSVStatsHandler}
+    #   - ${monty.class:tbp.monty.frameworks.loggers.monty_handlers.ReproduceEpisodeHandler}
+    # wandb_handlers:
+    #   - ${monty.class:tbp.monty.frameworks.loggers.wandb_handlers.BasicWandbTableStatsHandler}
+    #   - ${monty.class:tbp.monty.frameworks.loggers.wandb_handlers.BasicWandbChartStatsHandler}
+  monty_config:
+    monty_args:
+      min_eval_steps: ${benchmarks.min_eval_steps}
+  eval_env_interface_class: ${monty.class:tbp.monty.frameworks.environments.embodied_data.SaccadeOnImageEnvironmentInterface}
+  eval_env_interface_args:
+    scenes: [0, 0, 0] # which scene folder do you take the version from, if all are located in the same folder you can repeat for multiple images: i.e. [0, 0, 0]
+    versions: [0, 1, 2] # Change this for specific versions in the specified scene folder: i.e. [0, 1, 2]

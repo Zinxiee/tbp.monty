@@ -148,8 +148,14 @@ outputs/
 # habitat
 habitat/
 
+# Monty Meets World images
+data/
+
 # Pretrained Models
 pretrained_models/
 
 # monty runs
 monty_runs/
+
+# logs
+logs/
