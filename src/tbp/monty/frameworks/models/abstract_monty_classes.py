@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2021-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -10,20 +10,31 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, NewType
+from typing import Dict, TypedDict
 
 import numpy as np
 import numpy.typing as npt
 
 from tbp.monty.frameworks.agents import AgentID
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
+from tbp.monty.frameworks.models.motor_system_state import AgentState
 from tbp.monty.frameworks.models.states import GoalState
 from tbp.monty.frameworks.sensors import SensorID
 
-Modality = NewType("Modality", str)
-"""Unique identifier for a modality."""
+__all__ = [
+    "AgentObservations",
+    "GoalStateGenerator",
+    "LMMemory",
+    "LearningModule",
+    "Monty",
+    "ObjectModel",
+    "Observations",
+    "SensorModule",
+    "SensorObservations",
+]
 
 
-class SensorObservations(Dict[Modality, npt.NDArray[Any]]):
+class SensorObservations(TypedDict, total=False):
     """Observations from a sensor."""
 
     rgba: npt.NDArray[np.int_]  # TODO: Verify specific type
@@ -31,7 +42,7 @@ class SensorObservations(Dict[Modality, npt.NDArray[Any]]):
     semantic: npt.NDArray[np.int_]  # TODO: Verify specific type
     semantic_3d: npt.NDArray[np.int_]  # TODO: Verify specific type
     sensor_frame_data: npt.NDArray[np.int_]  # TODO: Verify specific type
-    world_camera: npt.NDArray[np.int_]  # TODO: Verify specific type
+    world_camera: npt.NDArray[np.float64]  # TODO: Verify specific type
     pixel_loc: npt.NDArray[np.float64]  # TODO: Verify specific type
     raw: npt.NDArray[np.uint8]
 
@@ -72,6 +83,7 @@ class Monty(metaclass=abc.ABCMeta):
         """
         self.aggregate_sensory_inputs(observation)
         self._step_learning_modules()
+        self._pass_goal_states()
         self._pass_infos_to_motor_system()
         self._set_step_type_and_check_if_done()
         self._post_step()
@@ -150,8 +162,12 @@ class Monty(metaclass=abc.ABCMeta):
     ###
 
     @abc.abstractmethod
-    def pre_episode(self):
-        """Recursively call pre_episode on child classes."""
+    def pre_episode(self, rng: np.random.RandomState) -> None:
+        """Recursively call pre_episode on child classes.
+
+        Args:
+            rng: The random number generator.
+        """
         pass
 
     @abc.abstractmethod
@@ -160,11 +176,14 @@ class Monty(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def set_experiment_mode(self, mode):
+    def set_experiment_mode(self, mode: ExperimentMode) -> None:
         """Set the experiment mode.
 
         Update state variables based on which method (train or evaluate) is being
         called at the experiment level.
+
+        Args:
+            mode: The experiment mode.
         """
         pass
 
@@ -184,8 +203,12 @@ class LearningModule(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def pre_episode(self):
-        """Do things like reset buffers or possible_matches before training."""
+    def pre_episode(self, rng: np.random.RandomState) -> None:
+        """Do things like reset buffers or possible_matches before training.
+
+        Args:
+            rng: The random number generator.
+        """
         pass
 
     @abc.abstractmethod
@@ -194,11 +217,14 @@ class LearningModule(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def set_experiment_mode(self, mode):
+    def set_experiment_mode(self, mode: ExperimentMode) -> None:
         """Set the experiment mode.
 
         Update state variables based on which method (train or evaluate) is being called
         at the experiment level.
+
+        Args:
+            mode: The experiment mode.
         """
         pass
 
@@ -298,7 +324,7 @@ class ObjectModel(metaclass=abc.ABCMeta):
 class GoalStateGenerator(metaclass=abc.ABCMeta):
     """Generate goal-states that other learning modules and motor-systems will attempt.
 
-    Generate goal-states potentially (in the case of LMs) by outputing their own
+    Generate goal-states potentially (in the case of LMs) by outputting their own
     sub-goal-states. Provides a mechanism for implementing hierarchical action policies
     that are informed by world models/hypotheses.
     """
@@ -332,7 +358,7 @@ class SensorModule(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def update_state(self, state):
+    def update_state(self, agent: AgentState):
         pass
 
     @abc.abstractmethod
@@ -345,8 +371,12 @@ class SensorModule(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def pre_episode(self):
-        """This method is called before each episode."""
+    def pre_episode(self, rng: np.random.RandomState) -> None:
+        """This method is called before each episode.
+
+        Args:
+            rng: The random number generator.
+        """
         pass
 
     def propose_goal_states(self) -> list[GoalState]:

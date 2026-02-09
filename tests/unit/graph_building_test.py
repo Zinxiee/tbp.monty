@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2022-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -15,6 +15,8 @@ import hydra
 import pytest
 from omegaconf import DictConfig
 
+from tests import HYDRA_ROOT
+
 pytest.importorskip(
     "habitat_sim",
     reason="Habitat Sim optional dependency not installed.",
@@ -25,7 +27,7 @@ import shutil
 import tempfile
 import unittest
 
-from tbp.monty.frameworks.experiments import (
+from tbp.monty.frameworks.experiments.pretraining_experiments import (
     MontySupervisedObjectPretrainingExperiment,
 )
 from tbp.monty.frameworks.utils.graph_matching_utils import get_correct_k_n
@@ -59,14 +61,19 @@ class GraphBuildingTest(unittest.TestCase):
                 ],
             )
 
-        with hydra.initialize(version_base=None, config_path="../../conf"):
+        with hydra.initialize_config_dir(version_base=None, config_dir=str(HYDRA_ROOT)):
             self.supervised_pre_training_cfg = training_config(
                 "supervised_pre_training"
             )
             self.spth_feat_cfg = training_config("spth_feat")
             self.load_habitat_cfg = loading_config("load_habitat")
             self.load_habitat_for_ppf_cfg = loading_config("load_habitat_for_ppf")
-            self.load_habitat_for_feat_cfg = loading_config("load_habitat_for_feat")
+            self.load_habitat_for_feat_eval_cfg = loading_config(
+                "load_habitat_for_feat_eval"
+            )
+            self.load_habitat_for_feat_train_cfg = loading_config(
+                "load_habitat_for_feat_train"
+            )
 
     def tearDown(self):
         """Code that gets executed after every test."""
@@ -116,8 +123,7 @@ class GraphBuildingTest(unittest.TestCase):
         """
         exp = hydra.utils.instantiate(self.supervised_pre_training_cfg.test)
         with exp:
-            exp.model.set_experiment_mode("train")
-            exp.train()
+            exp.run()
         return exp
 
     def build_and_save_supervised_graph_feat(
@@ -130,8 +136,7 @@ class GraphBuildingTest(unittest.TestCase):
         """
         exp = hydra.utils.instantiate(self.spth_feat_cfg.test)
         with exp:
-            exp.model.set_experiment_mode("train")
-            exp.train()
+            exp.run()
         return exp
 
     def test_get_correct_k_n(self):
@@ -209,7 +214,7 @@ class GraphBuildingTest(unittest.TestCase):
 
     def test_can_load_disp_graph_for_feature_matching(self):
         self.build_and_save_supervised_graph()
-        exp = hydra.utils.instantiate(self.load_habitat_for_feat_cfg.test)
+        exp = hydra.utils.instantiate(self.load_habitat_for_feat_eval_cfg.test)
         with exp:
             for graph_id in exp.model.learning_modules[0].get_all_known_object_ids():
                 graph = exp.model.learning_modules[0].get_graph(
@@ -224,11 +229,11 @@ class GraphBuildingTest(unittest.TestCase):
                     3,
                     "Edge attributes don't store 3d displacements",
                 )
-            exp.evaluate()
+            exp.run()
 
     def test_can_extend_and_save_feat_graph(self):
         self.build_and_save_supervised_graph_feat()
-        exp = hydra.utils.instantiate(self.load_habitat_for_feat_cfg.test)
+        exp = hydra.utils.instantiate(self.load_habitat_for_feat_train_cfg.test)
         with exp:
             for graph_id in exp.model.learning_modules[0].get_all_known_object_ids():
                 graph = exp.model.learning_modules[0].get_graph(
@@ -245,7 +250,7 @@ class GraphBuildingTest(unittest.TestCase):
                     None,
                     "feature at location graph should not contain edges.",
                 )
-            exp.train()
+            exp.run()
 
 
 if __name__ == "__main__":

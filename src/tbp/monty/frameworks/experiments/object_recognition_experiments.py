@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2023-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -15,8 +15,12 @@ import torch
 from tbp.monty.frameworks.environments.embodied_data import (
     SaccadeOnImageEnvironmentInterface,
 )
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
+from tbp.monty.frameworks.experiments.monty_experiment import (
+    MontyExperiment,
+)
 
-from .monty_experiment import MontyExperiment
+__all__ = ["MontyGeneralizationExperiment", "MontyObjectRecognitionExperiment"]
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +32,9 @@ class MontyObjectRecognitionExperiment(MontyExperiment):
     specific terminal states for object recognition. It also adds code for
     handling a matching and an exploration phase during each episode when training.
 
-    Note that this experiment assumes a particular model configuration, in order
-    for the show_observations method to work: a zoomed out "view_finder"
-    rgba sensor and an up-close "patch" depth sensor
+    Note that this experiment assumes a particular model configuration in order
+    for the show_observations method to work: a zoomed-out "view_finder"
+    RGBA sensor and an up-close "patch" depth sensor.
     """
 
     def run_episode(self):
@@ -42,24 +46,40 @@ class MontyObjectRecognitionExperiment(MontyExperiment):
     def pre_episode(self):
         """Pre-episode hook.
 
-        Pre episode where we pass the primary target object, as well as the mapping
-        between semantic ID to labels, both for logging/evaluation purposes.
+        Passes the primary target object and the mapping from semantic IDs to labels
+        to the Monty model for logging and reporting evaluation results.
         """
+        if self.experiment_mode is ExperimentMode.TRAIN:
+            logger.info(
+                f"running train epoch {self.train_epochs} "
+                f"train episode {self.train_episodes}"
+            )
+        else:
+            logger.info(
+                f"running eval epoch {self.eval_epochs} "
+                f"eval episode {self.eval_episodes}"
+            )
+
+        self.reset_episode_rng()
+
         # TODO, eventually it would be better to pass
         # self.env_interface.semantic_id_to_label via an "Observation" object when this
         # is eventually implemented, such that we can ensure this information is never
         # inappropriately accessed and used
         if hasattr(self.env_interface, "semantic_id_to_label"):
+            # TODO: Fix invalid pre_episode signature call
             self.model.pre_episode(
+                self.rng,
                 self.env_interface.primary_target,
                 self.env_interface.semantic_id_to_label,
             )
         else:
-            self.model.pre_episode(self.env_interface.primary_target)
-        self.env_interface.pre_episode()
+            # TODO: Fix invalid pre_episode signature call
+            self.model.pre_episode(self.rng, self.env_interface.primary_target)
+        self.env_interface.pre_episode(self.rng)
 
         self.max_steps = self.max_train_steps
-        if self.model.experiment_mode != "train":
+        if self.experiment_mode is not ExperimentMode.TRAIN:
             self.max_steps = self.max_eval_steps
 
         self.logger_handler.pre_episode(self.logger_args)

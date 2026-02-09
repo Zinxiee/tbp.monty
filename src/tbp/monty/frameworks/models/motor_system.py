@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -9,11 +9,13 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
+from tbp.monty.context import RuntimeContext
 from tbp.monty.frameworks.actions.actions import Action
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
 from tbp.monty.frameworks.models.motor_policies import MotorPolicy
 from tbp.monty.frameworks.models.motor_system_state import MotorSystemState
+
+__all__ = ["MotorSystem"]
 
 
 class MotorSystem:
@@ -32,11 +34,6 @@ class MotorSystem:
         self._policy = policy
         self._state = state
 
-    @property
-    def last_action(self) -> Action:
-        """Returns the last action taken by the motor system."""
-        return self._policy.last_action
-
     def post_episode(self) -> None:
         """Post episode hook."""
         self._policy.post_episode()
@@ -45,7 +42,7 @@ class MotorSystem:
         """Pre episode hook."""
         self._policy.pre_episode()
 
-    def set_experiment_mode(self, mode: Literal["train", "eval"]) -> None:
+    def set_experiment_mode(self, mode: ExperimentMode) -> None:
         """Sets the experiment mode.
 
         Args:
@@ -53,12 +50,15 @@ class MotorSystem:
         """
         self._policy.set_experiment_mode(mode)
 
-    def __call__(self) -> list[Action]:
+    def __call__(self, ctx: RuntimeContext) -> list[Action]:
         """Defines the structure for __call__.
 
         Delegates to the motor policy.
 
+        Args:
+            ctx: The runtime context.
+
         Returns:
             The action to take.
         """
-        return self._policy(self._state)
+        return self._policy(ctx, self._state)

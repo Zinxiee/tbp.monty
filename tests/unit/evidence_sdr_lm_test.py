@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -16,6 +16,7 @@ import unittest
 
 import numpy as np
 
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
 from tbp.monty.frameworks.models.evidence_sdr_matching import (
     EncoderSDR,
     EvidenceSDRGraphLM,
@@ -455,6 +456,7 @@ class EvidenceSDRIntegrationTest(BaseGraphTest):
             Evidence SDR Graph Learning Module.
         """
         return EvidenceSDRGraphLM(
+            rng=np.random.RandomState(),
             max_match_distance=0.005,
             tolerances={
                 "patch": {
@@ -469,8 +471,7 @@ class EvidenceSDRIntegrationTest(BaseGraphTest):
             },
             # set graph size larger since fake obs displacements are meters
             max_graph_size=10,
-            gsg_class=EvidenceGoalStateGenerator,
-            gsg_args=dict(
+            gsg=EvidenceGoalStateGenerator(
                 elapsed_steps_factor=10,
                 min_post_goal_success_steps=5,
                 x_percent_scale_factor=0.75,
@@ -499,8 +500,8 @@ class EvidenceSDRIntegrationTest(BaseGraphTest):
             "quat_rotation": [1, 0, 0, 0],
         }
 
-        lm.mode = "train"
-        lm.pre_episode(primary_target=obj_target)
+        lm.mode = ExperimentMode.TRAIN
+        lm.pre_episode(rng=np.random.RandomState(), primary_target=obj_target)
         for observation in obs:
             lm.exploratory_step([observation])
         lm.detected_object = obj_name
@@ -544,8 +545,8 @@ class EvidenceSDRIntegrationTest(BaseGraphTest):
             "quat_rotation": [1, 0, 0, 0],
         }
 
-        lm.mode = "eval"
-        lm.pre_episode(primary_target=placeholder_target)
+        lm.mode = ExperimentMode.EVAL
+        lm.pre_episode(rng=np.random.RandomState(), primary_target=placeholder_target)
         for observation in obs[:-1]:
             lm.add_lm_processing_to_buffer_stats(lm_processed=True)
             self.match(lm, [observation])

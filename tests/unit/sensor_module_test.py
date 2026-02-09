@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2022-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -10,6 +10,8 @@
 import hydra
 import pytest
 
+from tests import HYDRA_ROOT
+
 pytest.importorskip(
     "habitat_sim",
     reason="Habitat Sim optional dependency not installed.",
@@ -19,13 +21,15 @@ import shutil
 import tempfile
 import unittest
 
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
+
 
 class SensorModuleTest(unittest.TestCase):
     def setUp(self):
         """Code that gets executed before every test."""
         self.output_dir = tempfile.mkdtemp()
 
-        with hydra.initialize(version_base=None, config_path="../../conf"):
+        with hydra.initialize_config_dir(version_base=None, config_dir=str(HYDRA_ROOT)):
             self.base_cfg = hydra.compose(
                 config_name="test",
                 overrides=[
@@ -57,7 +61,8 @@ class SensorModuleTest(unittest.TestCase):
         """Check that correct features are returned by sensor module."""
         exp = hydra.utils.instantiate(self.base_cfg.test)
         with exp:
-            exp.model.set_experiment_mode("train")
+            exp.experiment_mode = ExperimentMode.TRAIN
+            exp.model.set_experiment_mode(exp.experiment_mode)
             exp.pre_epoch()
             exp.pre_episode()
             for step, observation in enumerate(exp.env_interface):
@@ -70,7 +75,8 @@ class SensorModuleTest(unittest.TestCase):
         """Check that correct features are returned by sensor module."""
         exp = hydra.utils.instantiate(self.sensor_feature_cfg.test)
         with exp:
-            exp.model.set_experiment_mode("train")
+            exp.experiment_mode = ExperimentMode.TRAIN
+            exp.model.set_experiment_mode(exp.experiment_mode)
             exp.pre_epoch()
             exp.pre_episode()
             for _, observation in enumerate(exp.env_interface):
@@ -104,9 +110,8 @@ class SensorModuleTest(unittest.TestCase):
     def test_feature_change_sm(self):
         exp = hydra.utils.instantiate(self.feature_change_sensor_cfg.test)
         with exp:
-            exp.train()
+            exp.run()
             # TODO: test that only new features are given to LM
-            exp.evaluate()
 
 
 if __name__ == "__main__":

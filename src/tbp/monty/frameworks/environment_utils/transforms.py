@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2021-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 import numpy as np
 import quaternion as qt
@@ -18,10 +18,8 @@ import scipy
 
 from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
-from tbp.monty.frameworks.models.states import State
-
-if TYPE_CHECKING:
-    from numbers import Number
+from tbp.monty.frameworks.models.motor_system_state import ProprioceptiveState
+from tbp.monty.frameworks.sensors import SensorID
 
 __all__ = [
     "AddNoiseToRawDepthImage",
@@ -36,7 +34,7 @@ __all__ = [
 @dataclass
 class TransformContext:
     rng: np.random.RandomState
-    state: State | None = None
+    state: ProprioceptiveState | None = None
 
 
 class Transform(Protocol):
@@ -93,14 +91,14 @@ class MissingToMaxDepth(Transform):
             Observations, same as input, with missing data modified in place
         """
         # loop over sensor modules
-        for sm in observations[self.agent_id].keys():
+        for sm in observations[self.agent_id]:
             m = np.where(observations[self.agent_id][sm]["depth"] <= self.threshold)
             observations[self.agent_id][sm]["depth"][m] = self.max_depth
         return observations
 
 
 class AddNoiseToRawDepthImage(Transform):
-    """Add gaussian noise to raw sensory input."""
+    """Add Gaussian noise to raw sensory input."""
 
     def __init__(self, agent_id: AgentID, sigma):
         """Initialize the transform.
@@ -121,21 +119,21 @@ class AddNoiseToRawDepthImage(Transform):
     def call(
         self, observations: Observations, rng: np.random.RandomState
     ) -> Observations:
-        """Add gaussian noise to raw sensory input.
+        """Add Gaussian noise to raw sensory input.
 
         Args:
             observations: Observations to modify in place.
             rng: Random number generator.
 
         Returns:
-            Observations, same as input, with added gaussian noise to depth values.
+            Observations, same as the input, with added Gaussian noise to depth values.
 
         Raises:
-            NoDepthSensorPresent: if no depth sensor is present.
+            NoDepthSensorPresent: If no depth sensor is present.
         """
         # loop over sensor modules
-        for sm in observations[self.agent_id].keys():
-            if "depth" in observations[self.agent_id][sm].keys():
+        for sm in observations[self.agent_id]:
+            if "depth" in observations[self.agent_id][sm]:
                 noise = rng.normal(
                     0,
                     self.sigma,
@@ -150,11 +148,11 @@ class AddNoiseToRawDepthImage(Transform):
 
 
 class GaussianSmoothing(Transform):
-    """Deals with gaussian noise on the raw depth image.
+    """Deals with Gaussian noise on the raw depth image.
 
-    This transform is designed to deal with gaussian noise on the raw depth
-    image. It remains to be tested whether it will also help with the kind of noise
-    in a real-world depth camera.
+    This transform is designed to deal with Gaussian noise on the raw depth
+    image. It remains to be tested whether it will also help with real-world
+    depth-camera noise.
     """
 
     def __init__(self, agent_id: AgentID, sigma=2, kernel_width=3):
@@ -163,7 +161,7 @@ class GaussianSmoothing(Transform):
         Args:
             agent_id: agent id of the agent where the transform should be applied.
                 Transform will be applied to all depth sensors of the agent.
-            sigma: sigma of gaussian smoothing kernel. Default is 2.
+            sigma: Sigma of Gaussian smoothing kernel. Default is 2.
             kernel_width: width of the smoothing kernel. Default is 3.
         """
         self.agent_id = agent_id
@@ -178,7 +176,7 @@ class GaussianSmoothing(Transform):
         return self.call(observations)
 
     def call(self, observations: Observations) -> Observations:
-        """Apply gaussian smoothing to depth images.
+        """Apply Gaussian smoothing to depth images.
 
         Args:
             observations: Observations to modify in place.
@@ -190,8 +188,8 @@ class GaussianSmoothing(Transform):
             NoDepthSensorPresent: if no depth sensor is present.
         """
         # loop over sensor modules
-        for sm in observations[self.agent_id].keys():
-            if "depth" in observations[self.agent_id][sm].keys():
+        for sm in observations[self.agent_id]:
+            if "depth" in observations[self.agent_id][sm]:
                 depth_img = observations[self.agent_id][sm]["depth"].copy()
                 padded_img = self.get_padded_img(depth_img, pad_type="edge")
                 filtered_img = scipy.signal.convolve(
@@ -205,10 +203,10 @@ class GaussianSmoothing(Transform):
         return observations
 
     def create_kernel(self):
-        """Create a normalized gaussian kernel.
+        """Create a normalized Gaussian kernel.
 
         Returns:
-            normalized gaussian kernel. Array of size (kernel_width, kernel_width).
+            Normalized Gaussian kernel. Array of size (kernel_width, kernel_width).
         """
         x = np.linspace(-self.pad_size, self.pad_size, self.kernel_width)
         kernel_1d = (
@@ -237,10 +235,11 @@ class GaussianSmoothing(Transform):
         Args:
             img: 2D image to be filtered.
             kernel_renorm: flag that specifies whether kernel values should be
-                renormalized (based on the number on non-NaN values in image window).
+                renormalized (based on the number of non-NaN values in the image
+                window).
 
         Returns:
-            filtered version of the input image.
+            Filtered version of the input image.
         """
         [n_rows, n_cols] = img.shape
         filtered_img = img[
@@ -268,7 +267,7 @@ class DepthTo3DLocations(Transform):
     agent (or world) coordinate (3D).
 
     This transform will add the transformed results as a new observation called
-    "semantic_3d" which will contain the 3d coordinates relative to the agent
+    "semantic_3d" which will contain the 3D coordinates relative to the agent
     (or world) with the semantic ID and 3D location of every object observed::
 
         "semantic_3d" : [
@@ -280,25 +279,25 @@ class DepthTo3DLocations(Transform):
         ]
 
     Attributes:
-        agent_id: Agent ID to get observations from
-        resolution: Camera resolution (H, W)
-        zoom: Camera zoom factor. Defaul 1.0 (no zoom)
-        hfov: Camera HFOV, default 90 degrees
-        semantic_sensor: Semantic sensor id. Default "semantic"
-        depth_sensor: Depth sensor id. Default "depth"
+        agent_id: Agent ID to get observations from.
+        resolution: Camera resolution (H, W).
+        zoom: Camera zoom factor. Default 1.0 (no zoom).
+        hfov: Camera HFOV, default 90 degrees.
+        semantic_sensor: Semantic sensor id. Default "semantic".
+        depth_sensor: Depth sensor id. Default "depth".
         world_coord: Whether to return 3D locations in world coordinates.
             If enabled, then :meth:`__call__` must be called with
             the agent and sensor states in addition to observations.
-            Default True.
+            Defaults to True.
         get_all_points: Whether to return all 3D coordinates or only the ones
             that land on an object.
         depth_clip_sensors: List of sensor indices to which to apply a clipping
             transform where all values > clip_value are set to
             clip_value. Empty list ~ apply to none of them.
-        clip_value: depth parameter for the clipping transform
+        clip_value: Depth parameter for the clipping transform.
 
     Warning:
-        This transformation is only valid for pinhole cameras
+        This transformation is only valid for pinhole cameras.
     """
 
     def __init__(
@@ -364,7 +363,7 @@ class DepthTo3DLocations(Transform):
         return self.call(observations, state=ctx.state)
 
     def call(
-        self, observations: Observations, state: State | None = None
+        self, observations: Observations, state: ProprioceptiveState | None = None
     ) -> Observations:
         """Apply the depth-to-3D-locations transform to sensor observations.
 
@@ -400,9 +399,9 @@ class DepthTo3DLocations(Transform):
            list. More specifically, we know which sensor is the surface agent
            since it's index will be in self.depth_clip_sensors. We only apply
            depth clipping to the surface agent.
-         - surface agents also have their depth and semantic data clipped to a
-           a very short range from the sensor. This is done to more closely model
-           a finger which has short reach.
+         - Surface agents also have their depth and semantic data clipped to
+           a very short range from the sensor. This is done to better match the
+           short reach of a finger.
          - `use_semantic_sensor` is currently only used with multi-object
            experiments, and when this is `True`, the observation dict will have
            an item called "semantic". In the future, we would like to include
@@ -443,7 +442,7 @@ class DepthTo3DLocations(Transform):
             # We need a semantic map that masks off-object pixels. We can use the
             # ground-truth semantic map if it's available. Otherwise, we generate one
             # from the depth map and (temporarily) add it to the observation dict.
-            if "semantic" in agent_obs.keys():
+            if "semantic" in agent_obs:
                 semantic_patch = agent_obs["semantic"]
             else:
                 # The generated map uses depth observations to determine whether
@@ -500,12 +499,12 @@ class DepthTo3DLocations(Transform):
             if self.world_coord and state is not None:
                 # Get agent and sensor states from state dictionary
                 agent_state = state[self.agent_id]
-                depth_state = agent_state["sensors"][sensor_id + ".depth"]
-                agent_rotation = agent_state["rotation"]
+                depth_state = agent_state.sensors[SensorID(sensor_id + ".depth")]
+                agent_rotation = agent_state.rotation
                 agent_rotation_matrix = qt.as_rotation_matrix(agent_rotation)
-                agent_position = agent_state["position"]
-                sensor_rotation = depth_state["rotation"]
-                sensor_position = depth_state["position"]
+                agent_position = agent_state.position
+                sensor_rotation = depth_state.rotation
+                sensor_position = depth_state.position
                 # --- Apply camera transformations to get world coordinates ---
                 # Combine body and sensor rotation (since sensor rotation is relative to
                 # the agent this will give us the sensor rotation in world coordinates)
@@ -558,7 +557,7 @@ class DepthTo3DLocations(Transform):
         and the depth values beyond the clip value (or equal to 0) are set to the clip
         value.
 
-        This function this modifies `depth_patch` and `semantic_patch` in-place.
+        This function modifies `depth_patch` and `semantic_patch` in-place.
 
         Args:
             depth_patch: depth observations
@@ -572,9 +571,9 @@ class DepthTo3DLocations(Transform):
         self,
         depth_patch: np.ndarray,
         semantic_patch: np.ndarray,
-        min_depth_range: Number,
-        default_on_surface_th: Number,
-    ) -> tuple[Number, bool]:
+        min_depth_range: float,
+        default_on_surface_th: float,
+    ) -> tuple[float, bool]:
         """Return a depth threshold if we have a bimodal depth distribution.
 
         If the depth values are in a large enough range (> min_depth_range) we may
@@ -630,7 +629,7 @@ class DepthTo3DLocations(Transform):
         self,
         depth_patch: np.ndarray,
         semantic_patch: np.ndarray,
-        default_on_surface_th: Number,
+        default_on_surface_th: float,
     ) -> np.ndarray:
         """Return surface patch information from heuristics on depth patch.
 
@@ -669,7 +668,7 @@ class DepthTo3DLocations(Transform):
                 is found
 
         Returns:
-            sensor patch shaped info about whether each pixel is on surface of not
+            Sensor-patch-shaped info about whether each pixel is on surface or not.
         """
         # avoid large range when seeing the table (goes up to almost 100 and then
         # just using 8 bins will not work anymore)
@@ -681,7 +680,7 @@ class DepthTo3DLocations(Transform):
         if np.all(depth_patch >= 1.0):
             return np.zeros_like(depth_patch, dtype=bool)
 
-        # Compute the on-suface depth threshold (and whether we need to flip the
+        # Compute the on-surface depth threshold (and whether we need to flip the
         # sign), and apply it to the depth to get the semantic patch.
         th, flip_sign = self.get_on_surface_th(
             depth_patch,

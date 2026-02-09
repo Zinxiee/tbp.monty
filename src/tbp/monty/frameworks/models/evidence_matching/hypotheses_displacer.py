@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -143,7 +143,7 @@ class DefaultHypothesesDisplacer:
         possible_hypotheses: ChannelHypotheses,
         total_hypotheses_count: int,
     ) -> tuple[ChannelHypotheses, HypothesisDisplacerTelemetry]:
-        # Have to do this for all hypotheses so we don't loose the path information
+        # Have to do this for all hypotheses so we don't lose the path information
         rotated_displacements = possible_hypotheses.poses.dot(channel_displacement)
         search_locations = possible_hypotheses.locations + rotated_displacements
 
@@ -200,6 +200,7 @@ class DefaultHypothesesDisplacer:
             evidence=evidence,
             locations=search_locations,
             poses=possible_hypotheses.poses,
+            possible=possible_hypotheses.possible,
         ), HypothesisDisplacerTelemetry(mlh_prediction_error=mlh_prediction_error)
 
     def _calculate_evidence_for_new_locations(
@@ -316,7 +317,7 @@ class DefaultHypothesesDisplacer:
         # radius. It doesn't matter if there are also points stored nearby in the model
         # that are not a good match.
         # Removing the comment weights the evidence by the nodes distance from the
-        # search location. However, epirically this did not seem to help.
+        # search location. However, empirically this did not seem to help.
         # shape=(H,)
         return np.max(
             radius_evidence,  # * node_distance_weights,
@@ -339,7 +340,7 @@ class DefaultHypothesesDisplacer:
             query_features: Observed features.
             node_features: Features at nodes that are being tested.
             input_channel: Input channel for which we want to calculate the
-                pose evidence. This are all input channels that are received at the
+                pose evidence. These are all input channels that are received at the
                 current time step and are also stored in the graph.
             node_distance_weights: Weights for each nodes error (determined by
                 distance to the search location). Currently not used, except for shape.

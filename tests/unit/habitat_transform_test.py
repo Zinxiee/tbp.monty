@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2022-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -20,41 +20,59 @@ from tbp.monty.frameworks.environment_utils.transforms import (
     DepthTo3DLocations,
     MissingToMaxDepth,
 )
+from tbp.monty.frameworks.models.abstract_monty_classes import (
+    AgentObservations,
+    Observations,
+    SensorObservations,
+)
+from tbp.monty.frameworks.models.motor_system_state import (
+    AgentState,
+    ProprioceptiveState,
+    SensorState,
+)
+from tbp.monty.frameworks.sensors import SensorID
 
 AGENT_ID = AgentID("camera")
-SENSOR_ID = "sensor_01"
+SENSOR_ID = SensorID("sensor_01")
 
-TEST_OBS = {
-    AGENT_ID: {
-        SENSOR_ID: {
-            "semantic": np.array(
-                [
-                    [0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 5, 5, 5, 5, 0, 0],
-                    [0, 0, 5, 5, 5, 5, 0, 0],
-                    [0, 0, 5, 5, 5, 5, 0, 0],
-                    [0, 0, 5, 5, 5, 5, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0],
-                ],
-                dtype=int,
-            ),
-            "depth": np.array(
-                [
-                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                    [0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0],
-                    [0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0],
-                    [0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0],
-                    [0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0],
-                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                ]
-            ),
-        }
+TEST_OBS = Observations(
+    {
+        AGENT_ID: AgentObservations(
+            {
+                SENSOR_ID: SensorObservations(
+                    {
+                        "semantic": np.array(
+                            [
+                                [0, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 5, 5, 5, 5, 0, 0],
+                                [0, 0, 5, 5, 5, 5, 0, 0],
+                                [0, 0, 5, 5, 5, 5, 0, 0],
+                                [0, 0, 5, 5, 5, 5, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0],
+                            ],
+                            dtype=int,
+                        ),
+                        "depth": np.array(
+                            [
+                                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                [0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0],
+                                [0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0],
+                                [0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0],
+                                [0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0],
+                                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                            ]
+                        ),
+                    }
+                )
+            }
+        )
     }
-}
+)
+
 
 EXPECTED_SEMANTIC_XY = np.array(
     [
@@ -155,18 +173,20 @@ class HabitatTransformTest(unittest.TestCase):
         md_transform = MissingToMaxDepth(agent_id=AGENT_ID, max_depth=100)
         md_obs = md_transform.call(TEST_OBS)
 
-        mock_state = {
-            AGENT_ID: {
-                "position": agent_position,
-                "rotation": agent_rotation,
-                "sensors": {
-                    f"{SENSOR_ID}.depth": {
-                        "position": sensor_position,
-                        "rotation": sensor_rotation,
-                    }
-                },
+        mock_state = ProprioceptiveState(
+            {
+                AGENT_ID: AgentState(
+                    position=agent_position,
+                    rotation=agent_rotation,
+                    sensors={
+                        SensorID(f"{SENSOR_ID}.depth"): SensorState(
+                            position=sensor_position,
+                            rotation=sensor_rotation,
+                        )
+                    },
+                )
             }
-        }
+        )
 
         transform = DepthTo3DLocations(
             agent_id=AGENT_ID,

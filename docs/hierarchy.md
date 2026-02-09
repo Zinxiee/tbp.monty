@@ -44,6 +44,7 @@
 - [experiment](how-monty-works/experiment.md)
 - [environment-agent](how-monty-works/environment-agent.md)
 - [monty](how-monty-works/monty.md)
+  - [conventions](how-monty-works/monty/conventions.md)
   - [reference-frame-transformations](how-monty-works/monty/reference-frame-transformations.md)
 - [observations-transforms-sensor-modules](how-monty-works/observations-transforms-sensor-modules.md)
 - [learning-module](how-monty-works/learning-module.md)
@@ -76,6 +77,7 @@
   - [typing-guide](contributing/style-guide/typing-guide.md)
 - [guides-for-maintainers](contributing/guides-for-maintainers.md)
   - [triage](contributing/guides-for-maintainers/triage.md)
+- [large-language-model-use](contributing/large-language-model-use.md)
 
 # community: Community
 - [code-of-conduct](community/code-of-conduct.md)

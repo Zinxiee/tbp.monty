@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -32,13 +32,13 @@ class HypothesesUpdaterChannelTelemetry:
 
     hypotheses_updater: dict[str, Any]
     """Any telemetry from the hypotheses updater."""
+
     evidence: npt.NDArray[np.float64]
     """The hypotheses evidence scores."""
-    rotations: npt.NDArray[np.float64]
-    """Rotations of the hypotheses.
 
-    Note that the buffer encoder will encode those as euler "xyz" rotations in degrees.
-    """
+    rotations: npt.NDArray[np.float64]
+    """Rotations of the hypotheses."""
+
     locations: npt.NDArray[np.float64]
     """Locations of the hypotheses."""
 
@@ -101,7 +101,9 @@ class TheoreticalLimitLMLoggingMixin:
         Returns:
             Updated statistics dictionary.
         """
-        stats["max_evidence"] = {k: max(v) for k, v in self.evidence.items()}
+        assert isinstance(self, EvidenceGraphLM)
+
+        stats["max_evidence"] = {k: max(v) for k, v in self.evidence.items() if len(v)}
         stats["target_object_theoretical_limit"] = (
             self._theoretical_limit_target_object_pose_error()
         )
@@ -113,6 +115,8 @@ class TheoreticalLimitLMLoggingMixin:
 
     def _hypotheses_updater_telemetry(self) -> HypothesesUpdaterTelemetry:
         """Returns HypothesesUpdaterTelemetry for all objects and input channels."""
+        assert isinstance(self, EvidenceGraphLM)
+
         stats: HypothesesUpdaterTelemetry = {}
         for graph_id, graph_telemetry in self.hypotheses_updater_telemetry.items():
             stats[graph_id] = {
@@ -136,7 +140,19 @@ class TheoreticalLimitLMLoggingMixin:
         Returns:
             HypothesesUpdaterChannelTelemetry for the given graph ID and input channel.
         """
+        assert isinstance(self, EvidenceGraphLM)
+
         mapper = self.channel_hypothesis_mapping[graph_id]
+
+        if input_channel not in mapper.channels:
+            return HypothesesUpdaterChannelTelemetry(
+                hypotheses_updater=channel_telemetry.copy(),
+                evidence=np.empty(shape=(0,), dtype=np.float64),
+                rotations=np.empty(shape=(0, 3), dtype=np.float64),
+                locations=np.empty(shape=(0, 3), dtype=np.float64),
+                pose_errors=np.empty(shape=(0,), dtype=np.float64),
+            )
+
         channel_rotations = mapper.extract(self.possible_poses[graph_id], input_channel)
         channel_rotations_inv = Rotation.from_matrix(channel_rotations).inv()
         channel_evidence = mapper.extract(self.evidence[graph_id], input_channel)
@@ -147,7 +163,7 @@ class TheoreticalLimitLMLoggingMixin:
         return HypothesesUpdaterChannelTelemetry(
             hypotheses_updater=channel_telemetry.copy(),
             evidence=channel_evidence,
-            rotations=channel_rotations_inv,
+            rotations=channel_rotations_inv.as_euler("xyz", degrees=True),
             locations=channel_locations,
             pose_errors=cast(
                 "npt.NDArray[np.float64]",
@@ -176,9 +192,14 @@ class TheoreticalLimitLMLoggingMixin:
         Returns:
             The minimum achievable rotation error (in radians).
         """
-        hyp_rotations = Rotation.from_matrix(
-            self.possible_poses[self.primary_target]
-        ).inv()
+        assert isinstance(self, EvidenceGraphLM)
+
+        object_possible_poses = self.possible_poses[self.primary_target]
+        if not len(object_possible_poses):
+            return -1
+
+        hyp_rotations = Rotation.from_matrix(object_possible_poses).inv()
+
         target_rotation = Rotation.from_quat(self.primary_target_rotation_quat)
         return compute_pose_error(hyp_rotations, target_rotation)
 
@@ -191,6 +212,8 @@ class TheoreticalLimitLMLoggingMixin:
         Returns:
             The rotation error (in radians).
         """
+        assert isinstance(self, EvidenceGraphLM)
+
         obj_rotation = self.get_mlh_for_object(self.primary_target)["rotation"].inv()
         target_rotation = Rotation.from_quat(self.primary_target_rotation_quat)
         return compute_pose_error(obj_rotation, target_rotation)

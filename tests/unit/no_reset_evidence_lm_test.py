@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -9,6 +9,8 @@
 from __future__ import annotations
 
 import pytest
+
+from tests import HYDRA_ROOT
 
 pytest.importorskip(
     "habitat_sim",
@@ -24,6 +26,7 @@ from typing import Any
 import hydra
 import numpy as np
 
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
 from tests.unit.resources.unit_test_utils import BaseGraphTest
 
 
@@ -33,7 +36,7 @@ class NoResetEvidenceLMTest(BaseGraphTest):
 
         self.output_dir = tempfile.mkdtemp()
 
-        with hydra.initialize(version_base=None, config_path="../../conf"):
+        with hydra.initialize_config_dir(version_base=None, config_dir=str(HYDRA_ROOT)):
             self.pretraining_cfg = hydra.compose(
                 config_name="test",
                 overrides=[
@@ -81,7 +84,7 @@ class NoResetEvidenceLMTest(BaseGraphTest):
         """
         train_exp = hydra.utils.instantiate(self.pretraining_cfg.test)
         with train_exp:
-            train_exp.train()
+            train_exp.run()
 
         eval_exp = hydra.utils.instantiate(self.unsupervised_cfg.test)
         with eval_exp:
@@ -89,7 +92,8 @@ class NoResetEvidenceLMTest(BaseGraphTest):
             pretrained_models = train_exp.model.learning_modules[0].state_dict()
             eval_exp.model.learning_modules[0].load_state_dict(pretrained_models)
 
-            eval_exp.model.set_experiment_mode("eval")
+            eval_exp.experiment_mode = ExperimentMode.EVAL
+            eval_exp.model.set_experiment_mode(eval_exp.experiment_mode)
             eval_exp.pre_epoch()
 
             # first episode

@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2023-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -18,8 +18,12 @@ from scipy.spatial.transform import Rotation
 from tbp.monty.frameworks.environments.embodied_data import (
     SaccadeOnImageEnvironmentInterface,
 )
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
+from tbp.monty.frameworks.experiments.monty_experiment import (
+    MontyExperiment,
+)
 
-from .monty_experiment import MontyExperiment
+__all__ = ["MontySupervisedObjectPretrainingExperiment"]
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +52,7 @@ class MontySupervisedObjectPretrainingExperiment(MontyExperiment):
 
     def setup_experiment(self, config):
         super().setup_experiment(config)
-        if "agents" in config["env_interface_config"]["env_init_args"].keys():
+        if "agents" in config["env_interface_config"]["env_init_args"]:
             self.sensor_pos = np.array(
                 config["env_interface_config"]["env_init_args"]["agents"]["agent_args"][
                     "positions"
@@ -63,9 +67,9 @@ class MontySupervisedObjectPretrainingExperiment(MontyExperiment):
         In a supervised episode we only make exploratory steps (no object recognition
         is attempted) since the target label is provided. The target label and pose
         is then used to update the object model in memory.
-        This can for instance be used to warm-up the training by starting with some
-        models in memory instead of completely from scatch. It also makes testing
-        easier as long as we don't have a good solution to dealing with incomplete
+        For instance, this can be used to warm up the training by starting with some
+        models in memory instead of completely from scratch. It also makes testing
+        easier as long as we don't have a good solution for dealing with incomplete
         objects.
         """
         self.pre_episode()
@@ -146,14 +150,28 @@ class MontySupervisedObjectPretrainingExperiment(MontyExperiment):
 
     def pre_episode(self):
         """Pre episode where we pass target object to the model for logging."""
-        self.model.pre_episode(self.env_interface.primary_target)
-        self.env_interface.pre_episode()
+        if self.experiment_mode is ExperimentMode.TRAIN:
+            logger.info(
+                f"running train epoch {self.train_epochs} "
+                f"train episode {self.train_episodes}"
+            )
+        else:
+            logger.info(
+                f"running eval epoch {self.eval_epochs} "
+                f"eval episode {self.eval_episodes}"
+            )
+
+        self.reset_episode_rng()
+
+        # TODO: Fix invalid pre_episode signature call
+        self.model.pre_episode(self.rng, self.env_interface.primary_target)
+        self.env_interface.pre_episode(self.rng)
 
         self.max_steps = self.max_train_steps  # no eval mode here
 
         self.logger_handler.pre_episode(self.logger_args)
 
-        # if it's the first time this object is shown, save it's location. This is
+        # if it's the first time this object is shown, save its location. This is
         # needed to provide the correct offset from the learned model when supervising.
         current_object = self.env_interface.primary_target["object"]
         if current_object not in self.first_epoch_object_location:
@@ -173,8 +191,9 @@ class MontySupervisedObjectPretrainingExperiment(MontyExperiment):
 
     def train(self):
         """Save state_dict at the end of training."""
+        self.experiment_mode = ExperimentMode.TRAIN
         self.logger_handler.pre_train(self.logger_args)
-        self.model.set_experiment_mode("train")
+        self.model.set_experiment_mode(self.experiment_mode)
         for sm in self.model.sensor_modules:
             sm.save_raw_obs = False
         for _ in range(self.n_train_epochs):
@@ -185,5 +204,5 @@ class MontySupervisedObjectPretrainingExperiment(MontyExperiment):
 
     def evaluate(self):
         """Use experiment just for supervised pretraining -> no eval."""
-        logger.warning("No evalualtion mode for supervised experiment.")
+        logger.warning("No evaluation mode for supervised experiment.")
         pass

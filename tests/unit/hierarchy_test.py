@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -8,6 +8,8 @@
 # https://opensource.org/licenses/MIT.
 
 import pytest
+
+from tests import HYDRA_ROOT
 
 pytest.importorskip(
     "habitat_sim",
@@ -26,18 +28,14 @@ from tbp.monty.frameworks.models.object_model import GridObjectModel
 from tbp.monty.frameworks.utils.logging_utils import (
     load_models_from_dir,
 )
-from tests.unit.resources.unit_test_utils import BaseGraphTest
 
 
-class HierarchyTest(BaseGraphTest):
+class HierarchyTest(unittest.TestCase):
     def setUp(self):
-        """Code that gets executed before every test."""
-        super().setUp()
-
         self.output_dir = Path(tempfile.mkdtemp())
         self.model_path = self.output_dir / "pretrained"
 
-        with hydra.initialize(version_base=None, config_path="../../conf"):
+        with hydra.initialize_config_dir(version_base=None, config_dir=str(HYDRA_ROOT)):
             self.two_lms_heterarchy_cfg = hydra.compose(
                 config_name="test",
                 overrides=[
@@ -70,8 +68,79 @@ class HierarchyTest(BaseGraphTest):
             )
 
     def tearDown(self):
-        """Code that gets executed after every test."""
         shutil.rmtree(self.output_dir)
+
+    def check_hierarchical_lm_train_results(self, train_stats):
+        for episode in range(4):
+            self.assertEqual(
+                train_stats["primary_performance"][episode * 2],
+                "no_match",
+                f"LM0 should not match in episode {episode}",
+            )
+            self.assertEqual(
+                train_stats["primary_performance"][episode * 2 + 1],
+                "no_match",
+                f"LM1 should not match in episode {episode}",
+            )
+
+        for episode in [4, 5]:
+            self.assertEqual(
+                train_stats["primary_performance"][episode * 2],
+                "correct",
+                f"LM0 should detect the correct object in episode {episode}",
+            )
+            self.assertIn(
+                train_stats["primary_performance"][episode * 2 + 1],
+                ["correct", "correct_mlh"],
+                f"LM1 should detect the correct object in episode {episode}"
+                "or have it as its most likely hypothesis.",
+            )
+
+    def check_hierarchical_lm_eval_results(self, eval_stats):
+        for episode in range(3):
+            self.assertEqual(
+                eval_stats["primary_performance"][episode * 2],
+                "correct",
+                f"LM0 should detect the correct object in episode {episode}",
+            )
+            # NOTE: LM1 gets no match (due to incomplete models, especially of LM
+            # input channel). Will not test this here since maybe in the future this
+            # will be better and it is not a feature of the system.
+
+    def check_hierarchical_models(self, models):
+        for model in ["new_object0", "new_object1"]:
+            # Check that graph was extended when recognizing object.
+            self.assertLess(
+                models["0"]["LM_0"][model]["patch_0"].num_nodes,
+                models["2"]["LM_0"][model]["patch_0"].num_nodes,
+                f"LM0 should have more points in the graph for {model} "
+                "after recognizing it and extending the graph.",
+            )
+            # Check LM0 has higher detail model of object thank LM1.
+            self.assertGreater(
+                models["0"]["LM_0"][model]["patch_0"].num_nodes,
+                models["0"]["LM_1"][model]["patch_1"].num_nodes,
+                f"LM0 should have more points in the graph for {model} than LM1 "
+                "since it is receiving higher frequency input and has a smaller "
+                "voxel size.",
+            )
+        # Check that max_nodes_per_graph is applied correctly.
+        for model in models["2"]["LM_0"]:
+            num_nodes = models["2"]["LM_0"][model]["patch_0"].num_nodes
+            self.assertLessEqual(
+                num_nodes,
+                50,
+                "LM0 should have <= max_nodes_per_graph nodes in"
+                f" its graph for {model} but has {num_nodes}",
+            )
+        # Check that LM1 extended its graph to add LM0 as a input channel.
+        channel_keys = models["2"]["LM_1"]["new_object0"].keys()
+        self.assertIn(
+            "learning_module_0",
+            channel_keys,
+            "models in LM1 should store input from LM0 in episode 2 "
+            f"after extending the graph but only store {channel_keys}",
+        )
 
     def test_two_lm_heterarchy_experiment(self):
         """Test two LMs stacked on top of each other.
@@ -112,17 +181,17 @@ class HierarchyTest(BaseGraphTest):
         """
         exp = hydra.utils.instantiate(self.two_lms_heterarchy_cfg.test)
         with exp:
-            exp.train()
-            output_dir = Path(exp.output_dir)
-            train_stats = pd.read_csv(output_dir / "train_stats.csv")
-            self.check_hierarchical_lm_train_results(train_stats)
+            exp.run()
 
-            models = load_models_from_dir(output_dir)
-            self.check_hierarchical_models(models)
+        output_dir = Path(exp.output_dir)
+        train_stats = pd.read_csv(output_dir / "train_stats.csv")
+        self.check_hierarchical_lm_train_results(train_stats)
 
-            exp.evaluate()
-            eval_stats = pd.read_csv(output_dir / "eval_stats.csv")
-            self.check_hierarchical_lm_eval_results(eval_stats)
+        models = load_models_from_dir(output_dir)
+        self.check_hierarchical_models(models)
+
+        eval_stats = pd.read_csv(output_dir / "eval_stats.csv")
+        self.check_hierarchical_lm_eval_results(eval_stats)
 
     def test_semisupervised_stacked_lms_experiment(self):
         """Test two LMs stacked on top of each other with semisupervised learning.
@@ -143,8 +212,7 @@ class HierarchyTest(BaseGraphTest):
         """
         exp = hydra.utils.instantiate(self.two_lms_constrained_cfg.test)
         with exp:
-            exp.model.set_experiment_mode("train")
-            exp.train()
+            exp.run()
             # check that both LMs have learned both objects.
             for lm_idx, lm in enumerate(exp.model.learning_modules):
                 learned_objects = lm.get_all_known_object_ids()
@@ -163,7 +231,6 @@ class HierarchyTest(BaseGraphTest):
 
         exp = hydra.utils.instantiate(self.two_lms_semisupervised_cfg.test)
         with exp:
-            exp.model.set_experiment_mode("train")
             # check that models for both objects are loaded into memory correctly.
             for lm_idx, lm in enumerate(exp.model.learning_modules):
                 for object_id in ["capsule3DSolid", "cubeSolid"]:
@@ -181,7 +248,7 @@ class HierarchyTest(BaseGraphTest):
             lm_0_memory_before_learning = exp.model.learning_modules[
                 0
             ].graph_memory.get_all_models_in_memory()
-            exp.train()
+            exp.run()
             # check that LM_0 models were not updated
             for object_id in ["capsule3DSolid", "cubeSolid"]:
                 updated_graph = exp.model.learning_modules[0].graph_memory.get_graph(
@@ -203,24 +270,16 @@ class HierarchyTest(BaseGraphTest):
 
         exp = hydra.utils.instantiate(self.two_lms_eval_cfg.test)
         with exp:
-            exp.evaluate()
+            exp.run()
             eval_stats = pd.read_csv(Path(exp.output_dir) / "eval_stats.csv")
-            episode = 0
             num_lms = len(exp.model.learning_modules)
-            for lm_id in range(num_lms):
-                self.assertIn(
-                    eval_stats["primary_performance"][episode * 2 + lm_id],
-                    ["correct", "correct_mlh"],
-                    f"LM {lm_id} did not recognize the object on first episode.",
-                )
-            episode = 1
-            for lm_id in range(num_lms):
-                self.assertEqual(
-                    "no_match",
-                    eval_stats["primary_performance"][episode * 2 + lm_id],
-                    "LMs should not recognize object on second episode as it is a "
-                    "previously unseen view.",
-                )
+            for episode in range(2):
+                for lm_id in range(num_lms):
+                    self.assertIn(
+                        eval_stats["primary_performance"][episode * 2 + lm_id],
+                        ["correct", "correct_mlh"],
+                        f"LM {lm_id} did not recognize the object.",
+                    )
             # check that prediction errors are logged
             self.assertIn(
                 "episode_avg_prediction_error",

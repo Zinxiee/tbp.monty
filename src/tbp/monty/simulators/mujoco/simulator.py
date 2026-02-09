@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -14,8 +14,7 @@ from mujoco import MjData, MjModel, MjsBody, MjSpec, mjtGeom
 from typing_extensions import override
 
 from tbp.monty.frameworks.actions.actions import Action
-from tbp.monty.frameworks.agents import AgentID
-from tbp.monty.frameworks.environments.embodied_environment import (
+from tbp.monty.frameworks.environments.environment import (
     ObjectID,
     ObjectInfo,
     QuaternionWXYZ,
@@ -23,6 +22,7 @@ from tbp.monty.frameworks.environments.embodied_environment import (
     VectorXYZ,
 )
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
+from tbp.monty.frameworks.models.motor_system_state import ProprioceptiveState
 from tbp.monty.simulators.simulator import Simulator
 
 
@@ -54,9 +54,6 @@ class MuJoCoSimulator(Simulator):
     def _recompile(self) -> None:
         """Recompile the MuJoCo model while retaining any state data."""
         self.model, self.data = self.spec.recompile(self.model, self.data)
-
-    def initialize_agent(self, agent_id: AgentID, agent_state) -> None:
-        pass
 
     def remove_all_objects(self) -> None:
         self.spec = MjSpec()
@@ -97,17 +94,17 @@ class MuJoCoSimulator(Simulator):
         rotation: QuaternionWXYZ,
         scale: VectorXYZ,
     ) -> None:
-        """Adds a builtin MuJoCo primitive geom to the scene spec.
+        """Adds a built-in MuJoCo primitive geom to the scene spec.
 
         Arguments:
             obj_name: Identifier for the object in the scene, must be unique.
             shape_type: The primitive shape to add.
-            position: Initial position of the object
-            rotation: Initial orientation of the object
-            scale: Initial scale of the object
+            position: Initial position of the object.
+            rotation: Initial orientation of the object.
+            scale: Initial scale of the object.
 
         Raises:
-            UnknownShapeType: when the shape_type is unknown
+            UnknownShapeType: When the shape_type is unknown.
         """
         world_body: MjsBody = self.spec.worldbody
 
@@ -134,20 +131,14 @@ class MuJoCoSimulator(Simulator):
             quat=rotation,
         )
 
-    @property
-    def num_objects(self) -> int:
-        return self._object_count
-
-    @property
-    def states(self) -> None:
-        pass
-
     @override
-    def apply_actions(self, actions: Sequence[Action]) -> Observations:
-        return Observations({})
+    def step(
+        self, actions: Sequence[Action]
+    ) -> tuple[Observations, ProprioceptiveState]:
+        return Observations({}), ProprioceptiveState({})
 
-    def reset(self) -> Observations:
-        return Observations({})
+    def reset(self) -> tuple[Observations, ProprioceptiveState]:
+        return Observations({}), ProprioceptiveState({})
 
     def close(self) -> None:
         pass

@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2022-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -16,7 +16,8 @@ import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
-from tbp.monty.frameworks.environments.embodied_environment import SemanticID
+from tbp.monty.frameworks.environments.environment import SemanticID
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
 from tbp.monty.frameworks.loggers.exp_logger import BaseMontyLogger
 from tbp.monty.frameworks.loggers.graph_matching_loggers import (
     BasicGraphMatchingLogger,
@@ -28,13 +29,15 @@ from tbp.monty.frameworks.models.buffer import FeatureAtLocationBuffer
 from tbp.monty.frameworks.models.goal_state_generation import GraphGoalStateGenerator
 from tbp.monty.frameworks.models.monty_base import MontyBase
 from tbp.monty.frameworks.models.object_model import GraphObjectModel
-from tbp.monty.frameworks.models.states import GoalState
+from tbp.monty.frameworks.models.states import GoalState, State
+
+__all__ = ["GraphLM", "GraphMemory", "MontyForGraphMatching"]
 
 logger = logging.getLogger(__name__)
 
 
 class MontyForGraphMatching(MontyBase):
-    """General Monty model for recognizing object using graphs."""
+    """General Monty model for recognizing objects using graphs."""
 
     LOGGING_REGISTRY: ClassVar[dict[str, type[BaseMontyLogger]]] = {
         # Don't do any formal logging, just save models. Used for pretraining.
@@ -53,7 +56,9 @@ class MontyForGraphMatching(MontyBase):
 
     # =============== Public Interface Functions ===============
     # ------------------- Main Algorithm -----------------------
-    def pre_episode(self, primary_target, semantic_id_to_label=None):
+    def pre_episode(
+        self, rng: np.random.RandomState, primary_target, semantic_id_to_label=None
+    ) -> None:
         """Reset values and call sub-pre_episode functions."""
         self._is_done = False
         self.reset_episode_steps()
@@ -63,10 +68,10 @@ class MontyForGraphMatching(MontyBase):
         self.semantic_id_to_label = semantic_id_to_label
 
         for lm in self.learning_modules:
-            lm.pre_episode(primary_target)
+            lm.pre_episode(rng, primary_target)
 
         for sm in self.sensor_modules:
-            sm.pre_episode()
+            sm.pre_episode(rng)
 
         logger.debug(
             f"Models in memory: {self.learning_modules[0].get_all_known_object_ids()}"
@@ -145,8 +150,6 @@ class MontyForGraphMatching(MontyBase):
                 all_lms_no_match = False
 
         if all_lms_no_match:
-            # Take more exploratory steps if we are building a new graph
-            self.num_exploratory_steps = self.num_exploratory_steps * 10
             # No need to check any other conditions if all LMs have no_match
             return True
 
@@ -177,10 +180,10 @@ class MontyForGraphMatching(MontyBase):
     # ------------------ Getters & Setters ---------------------
 
     def set_is_done(self):
-        """Set the model is_done flag.
+        """Set the model's `is_done` flag.
 
-        Method that e.g. experiment class can use to set model is_done flag if
-        e.g. total number of episode steps possible has been exceeded
+        Method that e.g. experiment classes can use to set the model's flag if
+        e.g. the total number of episode steps possible has been exceeded.
         """
         self._is_done = True
 
@@ -189,7 +192,7 @@ class MontyForGraphMatching(MontyBase):
         lm_dict = {}
         for pdir in parallel_dirs:
             state_dict = torch.load(pdir / "model.pt")
-            for lm in state_dict["lm_dict"].keys():
+            for lm in state_dict["lm_dict"]:
                 if lm not in lm_dict:
                     lm_dict[lm] = dict(
                         graph_memory={},
@@ -298,8 +301,8 @@ class MontyForGraphMatching(MontyBase):
                 receiving_lm_pose = votes_per_lm[i]["sensed_pose_rel_body"]
                 for j in self.lm_to_lm_vote_matrix[i]:
                     lm_object_id_vote = votes_per_lm[j]["object_id_vote"]
-                    for obj in lm_object_id_vote.keys():
-                        if obj in pos_object_id_votes.keys():
+                    for obj in lm_object_id_vote:
+                        if obj in pos_object_id_votes:
                             pos_object_id_votes[obj] += int(lm_object_id_vote[obj])
                             neg_object_id_votes[obj] += int(not lm_object_id_vote[obj])
                         else:
@@ -356,7 +359,7 @@ class MontyForGraphMatching(MontyBase):
                                 lm_rot_vote_transformed.append(search_rot)
 
                         if len(lm_loc_vote_transformed) > 0:
-                            if obj in lm_object_location_votes.keys():
+                            if obj in lm_object_location_votes:
                                 lm_object_location_votes[obj] = np.vstack(
                                     [
                                         lm_object_location_votes[obj],
@@ -385,7 +388,7 @@ class MontyForGraphMatching(MontyBase):
         return combined_votes
 
     def _vote(self):
-        """Use lm_to_lm_vote_matrix to transmit votes between lms."""
+        """Use lm_to_lm_vote_matrix to transmit votes between LMs."""
         if self.lm_to_lm_vote_matrix is not None:
             # Send out votes
             votes_per_lm = []
@@ -439,14 +442,16 @@ class MontyForGraphMatching(MontyBase):
                     # pose_time out. Other terminal states remain the same.
                     self._set_time_outs(global_time_out=False)
 
-                    if self.experiment_mode == "train":
+                    if self.experiment_mode is ExperimentMode.TRAIN:
                         self.switch_to_exploratory_step()
                         for sm in self.sensor_modules:
                             sm.is_exploring = True
 
-                    elif self.experiment_mode == "eval":
-                        if self.matching_steps > self.min_eval_steps:
-                            self._is_done = True
+                    elif (
+                        self.experiment_mode is ExperimentMode.EVAL
+                        and self.matching_steps > self.min_eval_steps
+                    ):
+                        self._is_done = True
 
             else:
                 self.matching_steps -= 1
@@ -467,7 +472,7 @@ class MontyForGraphMatching(MontyBase):
                 # a void without any objects), ensuring that we eventually time-out
                 # according to max_total_steps
 
-    def _pass_input_obs_to_motor_system(self, infos):
+    def _pass_input_obs_to_motor_system(self, percept: State):
         """Pass processed observations to motor system.
 
         Give the motor system all information it needs for its policy to decide the
@@ -477,24 +482,7 @@ class MontyForGraphMatching(MontyBase):
         provides locations associated with tangential movements; this can help ensure we
         e.g. avoid revisiting old locations.
         """
-        self.motor_system._policy.processed_observations = infos
-
-        # TODO M clean up the below when refactoring the surface-agent policy
-        if hasattr(self.motor_system._policy, "tangent_locs"):
-            last_action = self.motor_system._policy.last_action
-
-            if last_action is not None:
-                if last_action.name == "orient_vertical":
-                    # Only append locations associated with performing a tangential
-                    # action, rather than some form of corrective movement; these
-                    # movements are performed immediately after "orient_vertical"
-                    # TODO generalize to multiple sensor modules
-                    self.motor_system._policy.tangent_locs.append(
-                        self.sensor_modules[0].visited_locs[-1]
-                    )
-                    self.motor_system._policy.tangent_norms.append(
-                        self.sensor_modules[0].visited_normals[-1]
-                    )
+        self.motor_system._policy.processed_observations = percept
 
     # ------------------------ Helper --------------------------
     def _set_stepwise_targets(self, lm, sensory_inputs):
@@ -504,7 +492,7 @@ class MontyForGraphMatching(MontyBase):
         learning module, i.e. the class label of the object it is actually receiving
         sensory input from
 
-        TODO seperate this out with the new Observation class; also the LM should
+        TODO separate this out with the new Observation class; also the LM should
         have its own method to update this attribute, rather than the Monty class
         changing this
         TODO: Add unit tests for this
@@ -555,15 +543,19 @@ class MontyForGraphMatching(MontyBase):
 class GraphLM(LearningModule):
     """General Learning Module that contains a graph memory."""
 
-    def __init__(self, initialize_base_modules=True):
+    def __init__(
+        self, rng: np.random.RandomState, initialize_base_modules=True
+    ) -> None:
         """Initialize general Learning Module based on graphs.
 
         Args:
+            rng: The random number generator.
             initialize_base_modules: Provides option to not intialize
                 the base modules if more specialized versions will be initialized in
                 child LMs. Defaults to True.
         """
         super().__init__()
+        self._rng = rng
         self.buffer = FeatureAtLocationBuffer()
         self.buffer.reset()
         self.learning_module_id = "LM_0"
@@ -571,9 +563,11 @@ class GraphLM(LearningModule):
         if initialize_base_modules:
             self.graph_memory = GraphMemory(k=None, graph_delta_thresholds=None)
             self.gsg = GraphGoalStateGenerator(self)
-            self.gsg.reset()
+            self.gsg.parent_lm = self
 
-        self.mode = None  # initialize to neither training nor testing
+        self.mode: ExperimentMode | None = (
+            None  # initialize to neither training nor testing
+        )
         # Dictionaries to tell which objects were involved in building a graph
         # and which graphs correspond to each target object
         self.target_to_graph_id = {}
@@ -595,15 +589,19 @@ class GraphLM(LearningModule):
             self.possible_poses,
         ) = self.graph_memory.get_initial_hypotheses()
 
-    def pre_episode(self, primary_target):
+    def pre_episode(self, rng: np.random.RandomState, primary_target) -> None:
         """Set target object var and reset others from last episode.
 
-        primary_target : the primary target for the learning module/
-            Monty system to recognize (e.g. the object the agent begins on, or an
-            important object in the environment; NB that a learning module can also
-            correctly classify a "stepwise_target", corresponding to the object that
-            it is currently on, while it is attempting to classify the primary_target)
+        Args:
+            rng: The random number generator.
+            primary_target: The primary target for the learning module/
+                Monty system to recognize (e.g. the object the agent begins on, or an
+                important object in the environment; NB that a learning module can also
+                correctly classify a "stepwise_target", corresponding to the object that
+                it is currently on, while it is attempting to classify the
+                primary_target)
         """
+        self._rng = rng
         self.reset()
         self.buffer.reset()
         if self.gsg is not None:
@@ -650,15 +648,15 @@ class GraphLM(LearningModule):
 
     def post_episode(self):
         """If training, update memory after each episode."""
-        if (self.mode == "train") and len(self.buffer) > 0:
+        if self.mode is ExperimentMode.TRAIN and len(self.buffer) > 0:
             logger.info(f"\n---Updating memory of {self.learning_module_id}---")
             self._update_memory()
             self._update_target_graph_mapping(self.detected_object, self.primary_target)
 
     def send_out_vote(self):
-        """Send out list ob objects that are not possible matches.
+        """Send out list of objects that are not possible matches.
 
-        By sending out the negavtive matches we avoid the problem that
+        By sending out the negative matches we avoid the problem that
         every LM needs to know about the same objects. We could think of
         this as more of an inhibitory signal (I know it can't be this
         object so you all don't need to check that anymore).
@@ -718,7 +716,6 @@ class GraphLM(LearningModule):
         possible_matches = self.get_possible_matches()
         # no possible matches
         if len(possible_matches) == 0:
-            self.last_possible_hypotheses = None
             self.set_individual_ts("no_match")
             if (
                 self.buffer.get_num_observations_on_object() > 0
@@ -742,18 +739,12 @@ class GraphLM(LearningModule):
                 logger.info(f"{self.learning_module_id} recognized object {object_id}")
         # > 1 possible match
         else:
-            self.last_possible_hypotheses = None
             logger.info(f"{self.learning_module_id} did not recognize an object yet.")
         return self.terminal_state
 
     # ------------------ Getters & Setters ---------------------
 
-    def set_experiment_mode(self, mode):
-        """Set LM and GM mode to train or eval."""
-        assert mode in [
-            "train",
-            "eval",
-        ], "mode must be either `train` or `eval`"
+    def set_experiment_mode(self, mode: ExperimentMode) -> None:
         self.mode = mode
 
     def set_detected_object(self, terminal_state):
@@ -798,7 +789,7 @@ class GraphLM(LearningModule):
     def get_possible_locations(self):
         possible_paths = self.get_possible_paths()
         possible_locations = {}
-        for obj in possible_paths.keys():
+        for obj in possible_paths:
             possible_paths_obj = np.array(possible_paths[obj])
             if len(possible_paths_obj.shape) > 1:
                 possible_locations[obj] = possible_paths_obj[:, -1]
@@ -824,7 +815,7 @@ class GraphLM(LearningModule):
         poses = self.possible_poses.copy()
         if as_euler:
             all_poses = {}
-            for obj in poses.keys():
+            for obj in poses:
                 euler_poses = []
                 for path in poses[obj]:
                     path_poses = []
@@ -1003,12 +994,12 @@ class GraphLM(LearningModule):
     def _update_target_graph_mapping(self, detected_object, target_object):
         """Update dicts that keep track which graphs were built from which objects."""
         if detected_object is not None:
-            if detected_object not in self.graph_id_to_target.keys():
+            if detected_object not in self.graph_id_to_target:
                 self.graph_id_to_target[detected_object] = {target_object}
             else:
                 self.graph_id_to_target[detected_object].add(target_object)
 
-            if target_object not in self.target_to_graph_id.keys():
+            if target_object not in self.target_to_graph_id:
                 self.target_to_graph_id[target_object] = {detected_object}
             else:
                 self.target_to_graph_id[target_object].add(detected_object)
@@ -1053,18 +1044,18 @@ class GraphLM(LearningModule):
         for state in states:
             input_channel = state.sender_id
             features_to_use[input_channel] = {}
-            for feature in state.morphological_features.keys():
+            for feature in state.morphological_features:
                 # in evidence matching pose_vectors are always added to tolerances
                 # since they are requires for matching.
                 if (
-                    feature in self.tolerances[input_channel].keys()
+                    feature in self.tolerances[input_channel]
                     or feature == "pose_fully_defined"
                 ):
                     features_to_use[input_channel][feature] = (
                         state.morphological_features[feature]
                     )
-            for feature in state.non_morphological_features.keys():
-                if feature in self.tolerances[input_channel].keys():
+            for feature in state.non_morphological_features:
+                if feature in self.tolerances[input_channel]:
                     features_to_use[input_channel][feature] = (
                         state.non_morphological_features[feature]
                     )
@@ -1095,14 +1086,14 @@ class GraphMemory(LMMemory):
     """General GraphMemory that stores & manipulates GraphObjectModel instances.
 
     You can think of the GraphMemory as a library of object models with a librarian
-    managing them. The books ate GraphObjectModel instances. The LearningModule classes
+    managing them. The books are GraphObjectModel instances. The LearningModule classes
     access the information stored in the books and can request books to be added to the
     library.
 
     Subclasses are DisplacementGraphMemory, FeatureGraphMemory and EvidenceGraphMemory.
     """
 
-    def __init__(self, graph_delta_thresholds=None, k=None):
+    def __init__(self, graph_delta_thresholds=None, k=None) -> None:
         """Initialize a graph memory structure. This can then be filled with graphs.
 
         Args:
@@ -1118,7 +1109,7 @@ class GraphMemory(LMMemory):
         """
         self.graph_delta_thresholds = graph_delta_thresholds
         self.k = k
-        self.mode = None
+        self.mode: ExperimentMode | None = None
         self.models_in_memory = {}
 
         # Array representation of features for each graph -> faster matching
@@ -1141,7 +1132,7 @@ class GraphMemory(LMMemory):
         if graph_id is None:
             logger.info("no match found in time, not updating memory")
         else:
-            for input_channel in features.keys():
+            for input_channel in features:
                 (
                     input_channel_features,
                     input_channel_locations,
@@ -1189,7 +1180,7 @@ class GraphMemory(LMMemory):
 
     def initialize_feature_arrays(self):
         for graph_id in self.get_memory_ids():
-            if graph_id not in self.feature_array.keys():
+            if graph_id not in self.feature_array:
                 self.feature_array[graph_id] = {}
                 self.feature_order[graph_id] = {}
             for input_channel in self.get_input_channels_in_graph(graph_id):
@@ -1434,7 +1425,7 @@ class GraphMemory(LMMemory):
         for i, node_id in enumerate(all_node_ids):
             node_features = self.get_features_at_node(graph_id, input_channel, node_id)
             start_idx = 0
-            for feature in node_features.keys():
+            for feature in node_features:
                 if feature in [
                     "pose_vectors",
                     "pose_fully_defined",
@@ -1471,7 +1462,7 @@ class GraphMemory(LMMemory):
         """
         node_features = self.get_features_at_node(graph_id, input_channel, node_id=0)
         feature_array_len = 0
-        for feature in node_features.keys():
+        for feature in node_features:
             if feature in [
                 "pose_vectors",
                 "pose_fully_defined",
@@ -1494,7 +1485,7 @@ class GraphMemory(LMMemory):
         missing_features = np.isnan(features["pose_fully_defined"]).flatten()
         # Remove missing features (contain nan values)
         locations = locations[~missing_features]
-        for feature in features.keys():
+        for feature in features:
             features[feature] = features[feature][~missing_features]
         return features, locations
 

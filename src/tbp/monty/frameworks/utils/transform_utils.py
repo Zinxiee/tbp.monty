@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2022-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -9,7 +9,7 @@
 # https://opensource.org/licenses/MIT.
 
 import numpy as np
-import quaternion  # noqa: F401 required by numpy-quaternion package
+import quaternion as qt
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation
 
@@ -28,12 +28,12 @@ def numpy_to_scipy_quat(quat):
     return np.array((quat[1], quat[2], quat[3], quat[0]))
 
 
-def scipy_to_numpy_quat(quat: np.ndarray) -> np.quaternion:
-    return np.quaternion(quat[3], quat[0], quat[1], quat[2])
+def scipy_to_numpy_quat(quat: np.ndarray) -> qt.quaternion:
+    return qt.quaternion(quat[3], quat[0], quat[1], quat[2])
 
 
 def rotation_as_quat(rot: Rotation, scalar_first: bool = True) -> np.ndarray:
-    """Convert a scipy rotation its quaternion representation.
+    """Convert a scipy rotation to its quaternion representation.
 
     Scipy added a `scalar_first` argument to `Rotation.as_quat` in version 1.14.0.
     (https://scipy.github.io/devdocs/release/1.14.0-notes.html). This function

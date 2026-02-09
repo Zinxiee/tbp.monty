@@ -1,4 +1,4 @@
-# Copyright 2025 Thousand Brains Project
+# Copyright 2025-2026 Thousand Brains Project
 # Copyright 2022-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
@@ -12,10 +12,15 @@ from __future__ import annotations
 import logging
 from typing import ClassVar
 
+import numpy as np
+
+from tbp.monty.frameworks.experiments.mode import ExperimentMode
 from tbp.monty.frameworks.loggers.exp_logger import BaseMontyLogger, TestLogger
 from tbp.monty.frameworks.models.abstract_monty_classes import Monty
 from tbp.monty.frameworks.models.motor_system import MotorSystem
 from tbp.monty.frameworks.utils.communication_utils import get_first_sensory_state
+
+__all__ = ["MontyBase"]
 
 logger = logging.getLogger(__name__)
 
@@ -91,14 +96,16 @@ class MontyBase(Monty):
         # Counters, logging, default step_type
         self.step_type = "matching_step"
         self.is_seeking_match = True  # for consistency with custom monty experiments
-        self.experiment_mode = None  # initialize to neither training nor testing
+        self.experiment_mode: ExperimentMode | None = (
+            None  # initialize to neither training nor testing
+        )
         self.total_steps = 0
-        # number of overall steps. Counts also steps where no LM update was perfomed.
+        # Number of overall steps. Counts also steps where no LM update was performed.
         self.episode_steps = 0
         # Number of steps in which at least 1 LM received information during exploration
         self.exploratory_steps = 0
-        # Number of steps in which at least 1 LM was updated. Is not the same as each
-        # individual LMs number of matching steps
+        # Number of steps in which at least 1 LM was updated. It is not the same as each
+        # individual LM's number of matching steps.
         self.matching_steps = 0
 
         if self.sm_to_lm_matrix is None:
@@ -279,14 +286,12 @@ class MontyBase(Monty):
         # to revisit this with heterarchy if we have some LMs that are being stepped
         # at higher frequencies than others.
 
-        # Currently only use GSG outputs at inference
-        if self.step_type == "matching_step":
-            for lm in self.learning_modules:
-                goal_states = lm.propose_goal_states()
-                self.gsg_outputs.extend(goal_states)
-            for sm in self.sensor_modules:
-                goal_states = sm.propose_goal_states()
-                self.gsg_outputs.extend(goal_states)
+        for lm in self.learning_modules:
+            goal_states = lm.propose_goal_states()
+            self.gsg_outputs.extend(goal_states)
+        for sm in self.sensor_modules:
+            goal_states = sm.propose_goal_states()
+            self.gsg_outputs.extend(goal_states)
 
     def _pass_infos_to_motor_system(self):
         """Pass input observations and goal states to the motor system."""
@@ -307,7 +312,7 @@ class MontyBase(Monty):
                 logger.info(f"finished exploring after {self.exploratory_steps} steps")
 
             elif self.step_type == "matching_step":
-                if self.experiment_mode == "train":
+                if self.experiment_mode is ExperimentMode.TRAIN:
                     self.switch_to_exploratory_step()
                 else:
                     self._is_done = True
@@ -322,8 +327,7 @@ class MontyBase(Monty):
     # Methods (other than step) that interact with the experiment
     ###
 
-    def set_experiment_mode(self, mode):
-        assert mode in ["train", "eval"], "mode must be either `train` or `eval`"
+    def set_experiment_mode(self, mode: ExperimentMode) -> None:
         self.experiment_mode = mode
         self.motor_system.set_experiment_mode(mode)
         self.step_type = "matching_step"
@@ -331,15 +335,15 @@ class MontyBase(Monty):
             lm.set_experiment_mode(mode)
         # for sm in self.sensor_modules: sm.set_experiment_mode() unused & removed
 
-    def pre_episode(self):
+    def pre_episode(self, rng: np.random.RandomState):
         self._is_done = False
         self.reset_episode_steps()
         self.switch_to_matching_step()
         for lm in self.learning_modules:
-            lm.pre_episode()
+            lm.pre_episode(rng)
 
         for sm in self.sensor_modules:
-            sm.pre_episode()
+            sm.pre_episode(rng)
 
     def post_episode(self):
         for lm in self.learning_modules:
@@ -354,7 +358,7 @@ class MontyBase(Monty):
         assert len(state_dict["lm_dict"]) == len(self.learning_modules)
         lm_counter = 0
         lm_dict = state_dict["lm_dict"]
-        for lm_key in lm_dict.keys():
+        for lm_key in lm_dict:
             self.learning_modules[lm_counter].load_state_dict(lm_dict[lm_key])
             lm_counter = lm_counter + 1
 
@@ -444,10 +448,10 @@ class MontyBase(Monty):
     @property
     def min_steps(self):
         if self.step_type == "matching_step":
-            if self.experiment_mode == "train":
+            if self.experiment_mode is ExperimentMode.TRAIN:
                 return self.min_train_steps
 
-            if self.experiment_mode == "eval":
+            if self.experiment_mode is ExperimentMode.EVAL:
                 return self.min_eval_steps
 
         elif self.step_type == "exploratory_step":
