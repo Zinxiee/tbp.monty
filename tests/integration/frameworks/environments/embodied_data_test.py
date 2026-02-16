@@ -59,6 +59,12 @@ POSSIBLE_ACTIONS_DIST = [
 ]
 POSSIBLE_ACTIONS_ABS = [f"{AGENT_ID}.set_yaw", f"{AGENT_ID}.set_sensor_pitch"]
 EXPECTED_STATES: npt.NDArray[np.uint8] = np.arange(0, NUM_STEPS, dtype=np.uint8)
+TEST_DATALOADER_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "unit"
+    / "resources"
+    / "dataloader_test_images"
+)
 
 
 class FakeEnvironmentRel(SimulatedObjectEnvironment):
@@ -189,7 +195,7 @@ class EmbodiedDataTest(unittest.TestCase):
 
         ctx = RuntimeContext(rng)
         for i in range(1, NUM_STEPS):
-            obs_dist, _ = env_interface_dist.step(motor_system_dist(ctx))
+            obs_dist = env_interface_dist.step(ctx)
             print(obs_dist)
             self.assertTrue(
                 np.all(obs_dist[AGENT_ID][SENSOR_ID]["raw"] == EXPECTED_STATES[i])
@@ -199,7 +205,7 @@ class EmbodiedDataTest(unittest.TestCase):
         self.assertTrue(
             np.all(initial_obs[AGENT_ID][SENSOR_ID]["raw"] == EXPECTED_STATES[0])
         )
-        obs_dist, _ = env_interface_dist.step(motor_system_dist(ctx))
+        obs_dist = env_interface_dist.step(ctx)
         self.assertFalse(
             np.all(
                 obs_dist[AGENT_ID][SENSOR_ID]["raw"]
@@ -226,7 +232,7 @@ class EmbodiedDataTest(unittest.TestCase):
 
         ctx = RuntimeContext(rng)
         for i in range(1, NUM_STEPS):
-            obs_abs, _ = env_interface_abs.step(motor_system_abs(ctx))
+            obs_abs = env_interface_abs.step(ctx)
             self.assertTrue(
                 np.all(obs_abs[AGENT_ID][SENSOR_ID]["raw"] == EXPECTED_STATES[i])
             )
@@ -235,7 +241,7 @@ class EmbodiedDataTest(unittest.TestCase):
         self.assertTrue(
             np.all(initial_state[AGENT_ID][SENSOR_ID]["raw"] == EXPECTED_STATES[0])
         )
-        obs_abs, _ = env_interface_abs.step(motor_system_abs(ctx))
+        obs_abs = env_interface_abs.step(ctx)
         self.assertFalse(
             np.all(
                 obs_abs[AGENT_ID][SENSOR_ID]["raw"]
@@ -260,12 +266,17 @@ class EmbodiedDataTest(unittest.TestCase):
             experiment_mode=ExperimentMode.EVAL,
         )
 
-        for i, item in enumerate(env_interface_dist):
+        i = 0
+        ctx = RuntimeContext(rng)
+        while True:
+            obs = env_interface_dist.step(ctx, first=(i == 0))
             self.assertTrue(
-                np.all(item[AGENT_ID][SENSOR_ID]["raw"] == EXPECTED_STATES[i])
+                np.all(obs[AGENT_ID][SENSOR_ID]["raw"] == EXPECTED_STATES[i])
             )
             if i >= NUM_STEPS - 1:
                 break
+
+            i += 1
 
     # @unittest.skip("debugging")
     def test_embodied_env_interface_abs_states(self):
@@ -285,12 +296,17 @@ class EmbodiedDataTest(unittest.TestCase):
             experiment_mode=ExperimentMode.EVAL,
         )
 
-        for i, item in enumerate(env_interface_abs):
+        i = 0
+        ctx = RuntimeContext(rng)
+        while True:
+            obs = env_interface_abs.step(ctx, first=(i == 0))
             self.assertTrue(
-                np.all(item[AGENT_ID][SENSOR_ID]["raw"] == EXPECTED_STATES[i])
+                np.all(obs[AGENT_ID][SENSOR_ID]["raw"] == EXPECTED_STATES[i])
             )
             if i >= NUM_STEPS - 1:
                 break
+
+            i += 1
 
     def check_two_d_patch_obs(self, obs, patch_size, expected_keys):
         for key in expected_keys:
@@ -347,11 +363,12 @@ class EmbodiedDataTest(unittest.TestCase):
 
     def test_saccade_on_image_env_interface(self):
         rng = np.random.RandomState(42)
+        ctx = RuntimeContext(rng)
         sensor_id = SensorID("patch")
         patch_size = 48
         expected_keys = ["depth", "rgba", "pixel_loc"]
 
-        data_path = Path(__file__).parent / "resources" / "dataloader_test_images"
+        data_path = TEST_DATALOADER_PATH
 
         base_policy: BasePolicy = hydra.utils.instantiate(self.policy_cfg_fragment)
         base_policy.agent_id = AGENT_ID
@@ -368,15 +385,19 @@ class EmbodiedDataTest(unittest.TestCase):
             versions=[0, 1],
         )
         env_interface_rel.pre_episode(rng)
-        initial_state = next(env_interface_rel)
+        initial_state = env_interface_rel.step(ctx)
         sensed_data = initial_state[AGENT_ID][sensor_id]
         self.check_two_d_patch_obs(sensed_data, patch_size, expected_keys)
 
-        for i, obs in enumerate(env_interface_rel):
+        i = 0
+        while True:
+            obs = env_interface_rel.step(ctx)
             sensed_data = obs[AGENT_ID][sensor_id]
             self.check_two_d_patch_obs(sensed_data, patch_size, expected_keys)
             if i >= NUM_STEPS - 1:
                 break
+
+            i += 1
 
         env_interface_rel.post_episode()
         self.assertEqual(
@@ -385,24 +406,24 @@ class EmbodiedDataTest(unittest.TestCase):
             "Did not cycle to next scene version.",
         )
         env_interface_rel.pre_episode(rng)
-        for i, obs in enumerate(env_interface_rel):
+        i = 0
+        while True:
+            obs = env_interface_rel.step(ctx)
             sensed_data = obs[AGENT_ID][sensor_id]
             self.check_two_d_patch_obs(sensed_data, patch_size, expected_keys)
             if i >= NUM_STEPS - 1:
                 break
 
+            i += 1
+
     def test_saccade_on_image_stream_env_interface(self):
         rng = np.random.RandomState(42)
+        ctx = RuntimeContext(rng)
         sensor_id = SensorID("patch")
         patch_size = 48
         expected_keys = ["depth", "rgba", "pixel_loc"]
 
-        data_path = (
-            Path(__file__).parent
-            / "resources"
-            / "dataloader_test_images"
-            / "0_numenta_mug"
-        )
+        data_path = TEST_DATALOADER_PATH / "0_numenta_mug"
 
         base_policy: BasePolicy = hydra.utils.instantiate(self.policy_cfg_fragment)
         base_policy.agent_id = AGENT_ID
@@ -415,15 +436,19 @@ class EmbodiedDataTest(unittest.TestCase):
             env=env, rng=rng, motor_system=motor_system_rel
         )
         env_interface_rel.pre_episode(rng)
-        initial_state = next(env_interface_rel)
+        initial_state = env_interface_rel.step(ctx)
         sensed_data = initial_state[AGENT_ID][sensor_id]
         self.check_two_d_patch_obs(sensed_data, patch_size, expected_keys)
 
-        for i, obs in enumerate(env_interface_rel):
+        i = 0
+        while True:
+            obs = env_interface_rel.step(ctx)
             sensed_data = obs[AGENT_ID][sensor_id]
             self.check_two_d_patch_obs(sensed_data, patch_size, expected_keys)
             if i >= NUM_STEPS - 1:
                 break
+
+            i += 1
 
         env_interface_rel.post_episode()
         self.assertEqual(
@@ -431,11 +456,15 @@ class EmbodiedDataTest(unittest.TestCase):
             1,
             "Did not cycle to next scene version.",
         )
-        for i, obs in enumerate(env_interface_rel):
+        i = 0
+        while True:
+            obs = env_interface_rel.step(ctx)
             sensed_data = obs[AGENT_ID][sensor_id]
             self.check_two_d_patch_obs(sensed_data, patch_size, expected_keys)
             if i >= NUM_STEPS - 1:
                 break
+
+            i += 1
 
 
 if __name__ == "__main__":
