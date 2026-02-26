@@ -191,7 +191,7 @@ class EnvironmentInterface:
         self.motor_system._state = MotorSystemState(proprioceptive_state)
 
     def post_episode(self):
-        self.motor_system.post_episode()
+        pass
 
     def pre_epoch(self):
         pass
@@ -517,10 +517,10 @@ class InformedEnvironmentInterface(EnvironmentInterfacePerObject):
                 and actions[0].name != OrientVertical.action_name()
             ):
                 # We are not attempting to find the object, which means that we
-                # are executing the SurfacePolicy.dynamic_call action cycle.
+                # are executing the SurfacePolicy action cycle.
                 # Out of the four actions in the
                 # MoveForward->OrientHorizontal->OrientVertical->MoveTangentially
-                # "subroutine" defined in SurfacePolicy.dynamic_call, we only
+                # "subroutine" defined in SurfacePolicy.__call__, we only
                 # want to send data to the learning module after taking the
                 # OrientVertical action. The other three actions in the cycle
                 # are motor-only to keep the surface agent on the object.
@@ -708,12 +708,6 @@ class InformedEnvironmentInterface(EnvironmentInterfacePerObject):
             self.motor_system._policy.agent_id
         ].motor_only_step = True
 
-        # TODO refactor so that the whole of the hypothesis driven jumps
-        # makes cleaner use of self.motor_system()
-        # Call post_actions (normally taken care of __call__ within
-        # self.motor_system._policy())
-        self.motor_system._policy.post_actions(self.motor_system._policy.actions)
-
         return self._observation
 
     def handle_successful_jump(self):
@@ -731,13 +725,11 @@ class InformedEnvironmentInterface(EnvironmentInterfacePerObject):
             # Results in us seamlessly transitioning into the typical
             # corrective movements (forward or orientation) of the surface-agent
             # policy
-            self.motor_system._policy.actions = [
-                MoveTangentially(
-                    agent_id=self.motor_system._policy.agent_id,
-                    distance=0.0,
-                    direction=(0, 0, 0),
-                )
-            ]
+            self.motor_system._policy.last_surface_policy_action = MoveTangentially(
+                agent_id=self.motor_system._policy.agent_id,
+                distance=0.0,
+                direction=(0, 0, 0),
+            )
 
             # TODO clean up where this is performed, and make variable names more
             #   general
@@ -865,7 +857,6 @@ class OmniglotEnvironmentInterface(EnvironmentInterfacePerObject):
         )
 
     def post_episode(self):
-        self.motor_system.post_episode()
         self.cycle_object()
         self.episodes += 1
 
@@ -960,7 +951,6 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         )
 
     def post_episode(self):
-        self.motor_system.post_episode()
         self.cycle_object()
         self.episodes += 1
 
@@ -1050,7 +1040,6 @@ class SaccadeOnImageFromStreamEnvironmentInterface(SaccadeOnImageEnvironmentInte
         self.change_scene_by_idx(0)
 
     def post_episode(self):
-        self.motor_system.post_episode()
         self.cycle_scene()
         self.episodes += 1
 

@@ -78,26 +78,6 @@ class MotorPolicy(abc.ABC):
     """The abstract scaffold for motor policies."""
 
     @abc.abstractmethod
-    def dynamic_call(
-        self,
-        ctx: RuntimeContext,
-        observations: Observations,
-        state: MotorSystemState | None = None,
-    ) -> MotorPolicyResult:
-        """Use this method when actions are not predefined.
-
-        Args:
-            ctx: The runtime context.
-            observations: The observations from the environment.
-            state: The current state of the motor system.
-                Defaults to None.
-
-        Returns:
-            The motor policy result.
-        """
-        pass
-
-    @abc.abstractmethod
     def get_agent_state(self, state: MotorSystemState) -> AgentState:
         """Get agent state.
 
@@ -127,20 +107,6 @@ class MotorPolicy(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def post_actions(self, actions: list[Action]) -> None:
-        """This post actions hook will automatically be called at the end of __call__.
-
-        Args:
-            actions: The actions to process the hook for.
-        """
-        pass
-
-    @abc.abstractmethod
-    def post_episode(self) -> None:
-        """Post episode hook."""
-        pass
-
-    @abc.abstractmethod
     def pre_episode(self) -> None:
         """Pre episode hook."""
         pass
@@ -150,13 +116,14 @@ class MotorPolicy(abc.ABC):
         """Return a serializable dict with everything needed to save/load policy."""
         pass
 
+    @abc.abstractmethod
     def __call__(
         self,
         ctx: RuntimeContext,
         observations: Observations,
         state: MotorSystemState | None = None,
     ) -> MotorPolicyResult:
-        """Select either dynamic or predefined call.
+        """Invoke motor policy to determine the next actions to take.
 
         Args:
             ctx: The runtime context.
@@ -165,11 +132,9 @@ class MotorPolicy(abc.ABC):
                 Defaults to None.
 
         Returns:
-            The actions to take.
+            The motor policy result.
         """
-        result = self.dynamic_call(ctx, observations, state)
-        self.post_actions(result.actions)
-        return result
+        pass
 
 
 class BasePolicy(MotorPolicy):
@@ -188,10 +153,7 @@ class BasePolicy(MotorPolicy):
         self.agent_id = agent_id
         self.action_sampler = action_sampler
 
-        self.episode_step = 0
-        self.episode_count = 0
-
-    def dynamic_call(
+    def __call__(
         self,
         ctx: RuntimeContext,
         observations: Observations,  # noqa: ARG002
@@ -212,17 +174,8 @@ class BasePolicy(MotorPolicy):
         """
         return MotorPolicyResult([self.action_sampler.sample(self.agent_id, ctx.rng)])
 
-    def post_actions(
-        self,
-        actions: list[Action],  # noqa: ARG002
-    ) -> None:
-        self.episode_step += 1
-
     def pre_episode(self) -> None:
-        self.episode_step = 0
-
-    def post_episode(self):
-        self.episode_count += 1
+        pass
 
     ###
     # Other required abstract methods, methods called by Monty or Environment Interface
@@ -259,10 +212,10 @@ class BasePolicy(MotorPolicy):
         return agent_state.motor_only_step
 
     def state_dict(self):
-        return {"episode_step": self.episode_step}
+        return {}
 
-    def load_state_dict(self, state_dict):
-        self.episode_step = state_dict["episode_step"]
+    def load_state_dict(self, state_dict: dict[str, Any]):
+        pass
 
 
 class PredefinedPolicy(MotorPolicy):
@@ -298,16 +251,16 @@ class PredefinedPolicy(MotorPolicy):
         self.agent_id = agent_id
         self.action_list: list[Action] = PredefinedPolicy.read_action_file(file_name)
         self.episode_step = 0
-        self.episode_count = 0
         self.use_goal_state_driven_actions = False
 
-    def dynamic_call(
+    def __call__(
         self,
         ctx: RuntimeContext,  # noqa: ARG002
         observations: Observations,  # noqa: ARG002
         state: MotorSystemState | None = None,  # noqa: ARG002
     ) -> MotorPolicyResult:
         actions = [self.action_list[self.episode_step % len(self.action_list)]]
+        self.episode_step += 1
         return MotorPolicyResult(actions)
 
     def get_agent_state(self, state: MotorSystemState) -> AgentState:
@@ -317,17 +270,8 @@ class PredefinedPolicy(MotorPolicy):
         agent_state = self.get_agent_state(state)
         return agent_state.motor_only_step
 
-    def post_actions(
-        self,
-        actions: list[Action],  # noqa: ARG002
-    ) -> None:
-        self.episode_step += 1
-
     def pre_episode(self) -> None:
         self.episode_step = 0
-
-    def post_episode(self):
-        self.episode_count += 1
 
     def state_dict(self) -> dict[str, Any]:
         return {"episode_step": self.episode_step}
@@ -423,7 +367,6 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
             **kwargs: Additional keyword arguments.
         """
         super().__init__(**kwargs)
-        self.actions: list[Action] = []
         self.use_goal_state_driven_actions = use_goal_state_driven_actions
         if self.use_goal_state_driven_actions:
             JumpToGoalStateMixin.__init__(self)
@@ -431,6 +374,7 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
         # Observations after passing through sensor modules.
         # Are updated in Monty step method.
         self._processed_observations = None
+        self._undo_action: Action | None = None
 
     @property
     def processed_observations(self) -> State | None:
@@ -442,20 +386,17 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
 
     def pre_episode(self) -> None:
         self._processed_observations = None
+        self._undo_action = None
         if self.use_goal_state_driven_actions:
             JumpToGoalStateMixin.pre_episode(self)
 
         return super().pre_episode()
 
-    ###
-    # Methods that define behavior of __call__
-    ###
-
-    def dynamic_call(
+    def __call__(
         self,
         ctx: RuntimeContext,
-        observations: Observations,
-        state: MotorSystemState | None = None,
+        observations: Observations,  # noqa: ARG002
+        state: MotorSystemState | None = None,  # noqa: ARG002
     ) -> MotorPolicyResult:
         """Return a motor policy result containing the next actions to take.
 
@@ -473,20 +414,22 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
             A MotorPolicyResult that contains the actions to take.
         """
         if self.processed_observations.get_on_object():
-            return super().dynamic_call(ctx, observations, state)
+            action = self.action_sampler.sample(self.agent_id, ctx.rng)
+            self._undo_action = self.fixme_undo_last_action(action)
+            return MotorPolicyResult([action])
 
-        return MotorPolicyResult([self.fixme_undo_last_action()])
+        if self._undo_action is not None:
+            action = self._undo_action
+            self._undo_action = self.fixme_undo_last_action(action)
+            return MotorPolicyResult([action])
+
+        return MotorPolicyResult([])
 
     def fixme_undo_last_action(
         self,
-    ) -> (
-        LookDown | LookUp | TurnLeft | TurnRight | MoveForward | MoveTangentially | None
-    ):
+        last_action: Action,
+    ) -> LookDown | LookUp | TurnLeft | TurnRight | MoveForward | MoveTangentially:
         """Returns an action that undoes last action for supported actions.
-
-        Previous InformedPolicy.dynamic_call() implementation when not on object:
-
-            action, amount = (last_action, -last_amount)
 
         This implementation duplicates the functionality and the implicit
         assumption in the code and configurations that InformedPolicy is working
@@ -495,14 +438,8 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
         - LookDown
         - TurnLeft
         - TurnRight
-
-        Additionally, this implementation adds support for:
         - MoveForward
         - MoveTangentially
-
-        Additional support for the above two actions is due to `-last_amount`
-        working for these actions as well. This maintains the same code functionality
-        during this refactoring.
 
         For other actions, raise ValueError explicitly.
 
@@ -514,12 +451,6 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
         An Action.undo of some sort would be a better solution, however it is not
         yet clear to me what to do for actions that do not support undo.
         """
-        if self.actions:
-            assert len(self.actions) == 1, "Expected one action"
-            last_action = self.actions[0]
-        else:
-            return None
-
         if isinstance(last_action, LookDown):
             return LookDown(
                 agent_id=last_action.agent_id,
@@ -562,13 +493,6 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
 
         raise TypeError(f"Invalid action: {last_action}")
 
-    def post_actions(
-        self,
-        actions: list[Action],
-    ) -> None:
-        self.actions = actions
-        self.episode_step += 1
-
 
 class NaiveScanPolicy(InformedPolicy):
     """Policy that just moves left and right along the object."""
@@ -595,11 +519,7 @@ class NaiveScanPolicy(InformedPolicy):
         self.current_action_id = 0
         self.step_on_action = 0
 
-    ###
-    # Methods that define behavior of __call__
-    ###
-
-    def dynamic_call(
+    def __call__(
         self,
         ctx: RuntimeContext,  # noqa: ARG002
         observations: Observations,  # noqa: ARG002
@@ -701,7 +621,6 @@ class SurfacePolicy(InformedPolicy):
 
     def pre_episode(self) -> None:
         self.tangential_angle = 0
-        self.actions = []
         self.touch_search_amount = 0  # Track how many rotations the agent has made
         # along the horizontal plane searching for an object; when this reaches 360,
         # try searching along the vertical plane, or for 720, performing a random
@@ -839,10 +758,7 @@ class SurfacePolicy(InformedPolicy):
             )
         )
 
-    ###
-    # Methods that define behavior of __call__
-    ###
-    def dynamic_call(
+    def __call__(
         self,
         ctx: RuntimeContext,
         observations: Observations,  # noqa: ARG002
@@ -898,51 +814,14 @@ class SurfacePolicy(InformedPolicy):
             # In this case, we are on the first action, but the object view is already
             # good; therefore initialize the cycle of actions as if we had just
             # moved forward (e.g. to get a good view)
-            self.actions = [
-                self.action_sampler.sample_move_forward(self.agent_id, ctx.rng),
-            ]
-            self.last_surface_policy_action = self.actions[0]
+            self.last_surface_policy_action = self.action_sampler.sample_move_forward(
+                self.agent_id, ctx.rng
+            )
 
         next_action = self.get_next_action(ctx, state)
+        self.last_surface_policy_action = next_action
         actions: list[Action] = [] if next_action is None else [next_action]
         return MotorPolicyResult(actions)
-
-    def post_actions(self, actions: list[Action]) -> None:
-        """Temporary SurfacePolicy post_actions to distinguish types of last action.
-
-        Once TouchObject positioning procedure exists, it will not run through the
-        Monty step loop and will not register any touch object actions as last action.
-
-        Currently, when SurfacePolicy.dynamic_call resumes, it sees the last action
-        of a touch object, which is always MoveForward. As such, the SurfacePolicy
-        resumes by always taking the OrientHorizontal action.
-
-        When the TouchObject positioning procedure is complete, the SurfacePolicy
-        will never see the TouchObject actions, so when it resumes, the last action
-        will be whatever the last action the SurfacePolicy took.
-
-        For now, we specifically track only the SurfacePolicy actions in the
-        last_surface_policy_action attribute, in order to prepare the code
-        for TouchObject positioning procedure.
-
-        Args:
-            actions: The actions that were just taken.
-            state: The current state of the motor system.
-                Defaults to None.
-
-        # TODO: Remove this once TouchObject positioning procedure is implemented
-        """
-        if self.attempting_to_find_object:
-            # When the TouchObject positioning procedure is separated, there
-            # will be no post_action calls when attempting to find the object.
-            return
-
-        super().post_actions(actions)
-        if actions:
-            assert len(actions) == 1, "Expected one action"
-            self.last_surface_policy_action = actions[0]
-        else:
-            self.last_surface_policy_action = None
 
     def _orient_horizontal(self, state: MotorSystemState) -> OrientHorizontal:
         """Orient the agent horizontally.
@@ -1048,8 +927,6 @@ class SurfacePolicy(InformedPolicy):
         Returns:
             Next action in the cycle.
         """
-        # TODO: Revert to last_action = self.actions once TouchObject positioning
-        #       procedure is implemented
         last_action = self.last_surface_policy_action
 
         if isinstance(last_action, MoveForward):
@@ -1368,13 +1245,10 @@ class SurfacePolicyCurvatureInformed(SurfacePolicy):
         if percept is None:
             return
 
-        if self.actions:
-            assert len(self.actions) == 1, "Expected one action"
-            last_action = self.actions[0]
-        else:
+        if self.last_surface_policy_action is None:
             return
 
-        if last_action.name == "orient_vertical":
+        if self.last_surface_policy_action.name == "orient_vertical":
             # Only append locations associated with performing a tangential
             # action, rather than some form of corrective movement; these
             # movements are performed immediately after "orient_vertical"
