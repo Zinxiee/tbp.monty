@@ -34,9 +34,10 @@ from tbp.monty.frameworks.actions.actions import (
     MoveTangentially,
     OrientHorizontal,
     OrientVertical,
+    SetAgentPose,
+    SetSensorRotation,
     TurnLeft,
     TurnRight,
-    VectorXYZ,
 )
 from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.environments.positioning_procedures import (
@@ -48,6 +49,7 @@ from tbp.monty.frameworks.models.states import State
 from tbp.monty.frameworks.sensors import SensorID
 from tbp.monty.frameworks.utils.spatial_arithmetics import get_angle_beefed_up
 from tbp.monty.frameworks.utils.transform_utils import scipy_to_numpy_quat
+from tbp.monty.math import VectorXYZ
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -58,7 +60,6 @@ __all__ = [
     "JumpToGoalStateMixin",
     "MotorPolicy",
     "NaiveScanPolicy",
-    "ObjectNotVisible",
     "SurfacePolicy",
     "SurfacePolicyCurvatureInformed",
 ]
@@ -86,18 +87,6 @@ class MotorPolicy(abc.ABC):
 
         Returns:
             Agent state.
-        """
-        pass
-
-    @abc.abstractmethod
-    def is_motor_only_step(self, state: MotorSystemState) -> bool:
-        """Check if the current step is a motor-only step.
-
-        Args:
-            state: The current state of the motor system.
-
-        Returns:
-            True if the current step is a motor-only step, False otherwise.
         """
         pass
 
@@ -195,22 +184,6 @@ class BasePolicy(MotorPolicy):
         """
         return state[self.agent_id]
 
-    def is_motor_only_step(self, state: MotorSystemState) -> bool:
-        """Check if the current step is a motor-only step.
-
-        TODO: This information is currently stored in motor system state, but
-        should be stored in the policy state instead as it is tracking policy
-        state, not motor system state. This will remove MotorSystemState param.
-
-        Args:
-            state: The current state of the motor system.
-
-        Returns:
-            True if the current step is a motor-only step, False otherwise.
-        """
-        agent_state = self.get_agent_state(state)
-        return agent_state.motor_only_step
-
     def state_dict(self):
         return {}
 
@@ -265,10 +238,6 @@ class PredefinedPolicy(MotorPolicy):
 
     def get_agent_state(self, state: MotorSystemState) -> AgentState:
         return state[self.agent_id]
-
-    def is_motor_only_step(self, state: MotorSystemState) -> bool:
-        agent_state = self.get_agent_state(state)
-        return agent_state.motor_only_step
 
     def pre_episode(self) -> None:
         self.episode_step = 0
@@ -336,10 +305,6 @@ class JumpToGoalStateMixin:
         return None, None
 
 
-class ObjectNotVisible(RuntimeError):
-    """Error raised when the object is not visible."""
-
-
 class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
     """Policy that takes observation as input.
 
@@ -376,6 +341,11 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
         self._processed_observations = None
         self._undo_action: Action | None = None
 
+        self._is_jumping: bool = False
+        self._is_undoing_jump: bool = False
+        self._pre_jump_state: AgentState | None = None
+        self._undo_jump_actions: list[Action] = []
+
     @property
     def processed_observations(self) -> State | None:
         return self._processed_observations
@@ -389,14 +359,14 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
         self._undo_action = None
         if self.use_goal_state_driven_actions:
             JumpToGoalStateMixin.pre_episode(self)
-
+        self._reset_jump_state()
         return super().pre_episode()
 
     def __call__(
         self,
         ctx: RuntimeContext,
-        observations: Observations,  # noqa: ARG002
-        state: MotorSystemState | None = None,  # noqa: ARG002
+        observations: Observations,
+        state: MotorSystemState | None = None,
     ) -> MotorPolicyResult:
         """Return a motor policy result containing the next actions to take.
 
@@ -413,6 +383,12 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
         Returns:
             A MotorPolicyResult that contains the actions to take.
         """
+        if self.use_goal_state_driven_actions:
+            assert state is not None
+            result = self._goal_driven_actions(observations, state)
+            if result is not None:
+                return result
+
         if self.processed_observations.get_on_object():
             action = self.action_sampler.sample(self.agent_id, ctx.rng)
             self._undo_action = self.fixme_undo_last_action(action)
@@ -424,6 +400,72 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
             return MotorPolicyResult([action])
 
         return MotorPolicyResult([])
+
+    def _goal_driven_actions(
+        self, observations: Observations, state: MotorSystemState
+    ) -> MotorPolicyResult | None:
+        """Handle Goal-driven processing and maybe return actions to take.
+
+        Args:
+            observations: The observations from the environment.
+            state: The current state of the motor system.
+
+        Returns:
+            Either a `MotorPolicyResult`, which should be immediately returned by
+            the caller, or `None` which allows the caller to continue execution.
+        """
+        if self._is_jumping:
+            result = self._jump_outcome(observations, state)
+            if result is not None:
+                return result
+
+        if self.driving_goal_state is not None:
+            actions = self._jump(state)
+            return MotorPolicyResult(actions)
+
+        return None
+
+    def _jump_outcome(
+        self,
+        observations: Observations,
+        state: MotorSystemState,
+    ) -> MotorPolicyResult | None:
+        """Handle the outcome of a jump.
+
+        Args:
+            observations: The observations from the environment.
+            state: The current state of the motor system.
+
+        Returns:
+            Either a `MotorPolicyResult`, which should be immediately returned by
+            the caller, or `None` which allows the caller to continue execution.
+        """
+        if self._is_undoing_jump:
+            # TODO: We can stop storing self._pre_jump_state if we give up on this
+            #       assertion.
+            self._assert_undo_jump_was_successful(state)
+            self._reset_jump_state()
+            return None
+
+        if self._should_undo_jump(observations):
+            logger.debug("Returning to previous position")
+            self._is_undoing_jump = True
+            return MotorPolicyResult(self._undo_jump_actions)
+
+        logger.debug(
+            "Object visible, maintaining new pose for hypothesis-testing action"
+        )
+        self._handle_successful_jump()
+        self._reset_jump_state()
+        return None
+
+    def _handle_successful_jump(self) -> None:
+        """Hook for subclasses to do something after a successful jump.
+
+        Note: only here because SurfacePolicy needs to execute logic at this step
+        in the code.
+        """
+        pass
 
     def fixme_undo_last_action(
         self,
@@ -492,6 +534,118 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
             )
 
         raise TypeError(f"Invalid action: {last_action}")
+
+    def _reset_jump_state(self) -> None:
+        """Clear the jump state."""
+        self._is_jumping = False
+        self._is_undoing_jump = False
+        self._pre_jump_state = None
+        self._undo_jump_actions = []
+
+    def _jump(self, state: MotorSystemState) -> list[Action]:
+        """Compute the jump and undo jump actions.
+
+        The undo jump actions are stored in `self._undo_jump_actions`.
+
+        Args:
+            state: The current state of the motor system.
+
+        Returns:
+            A list of jump actions to take.
+        """
+        logger.debug(
+            "Attempting a 'jump' like movement to evaluate an object hypothesis"
+        )
+
+        # Store the current location and orientation of the agent.
+        # If the hypothesis-guided jump is unsuccessful (e.g. to empty space
+        # or inside an object), we return here.
+        self._pre_jump_state = state[self.agent_id]
+
+        # Check that all sensors have identical rotations - this is because actions
+        # currently update them all together; if this changes, the code needs
+        # to be updated;
+        for ii, current_sensor in enumerate(self._pre_jump_state.sensors):
+            if ii == 0:
+                first_sensor = current_sensor
+            assert np.all(
+                self._pre_jump_state.sensors[current_sensor].rotation
+                == self._pre_jump_state.sensors[first_sensor].rotation
+            ), "Sensors are not identical in pose"
+
+        (target_loc, target_np_quat) = self.derive_habitat_goal_state()
+
+        self._is_jumping = True
+
+        # Update observations and motor system-state based on new pose, accounting
+        # for resetting both the agent, as well as the poses of its coupled sensors.
+        # This is necessary for the distant agent, which pivots the camera around
+        # like a ball-and-socket joint; note the surface agent does not
+        # modify this from the unit quaternion and [0, 0, 0] position
+        # anyways; further note this is globally applied to all sensors.
+        actions = [
+            SetAgentPose(
+                agent_id=self.agent_id,
+                location=target_loc,
+                rotation_quat=target_np_quat,
+            ),
+            SetSensorRotation(
+                agent_id=self.agent_id,
+                rotation_quat=qt.one,
+            ),
+        ]
+
+        # Precompute undo actions.
+        # All sensors are updated globally by actions, and are therefore identical.
+        self._undo_jump_actions = [
+            SetAgentPose(
+                agent_id=self.agent_id,
+                location=self._pre_jump_state.position,
+                rotation_quat=self._pre_jump_state.rotation,
+            ),
+            SetSensorRotation(
+                agent_id=self.agent_id,
+                rotation_quat=self._pre_jump_state.sensors[first_sensor].rotation,
+            ),
+        ]
+
+        return actions
+
+    def _should_undo_jump(self, observations: Observations) -> bool:
+        """Check if the jump should be undone.
+
+        Args:
+            observations: The observations from the environment.
+
+        Returns:
+            True if the jump should be undone, False otherwise.
+        """
+        depth_at_center = PositioningProcedure.depth_at_center(
+            agent_id=self.agent_id,
+            observations=observations,
+            sensor_id="view_finder",
+        )
+        should_undo = depth_at_center >= 1.0
+        if should_undo:
+            logger.debug("No object visible from hypothesis jump, or inside object!")
+        return should_undo
+
+    def _assert_undo_jump_was_successful(self, state: MotorSystemState) -> None:
+        assert self._pre_jump_state is not None, "Pre-jump state is not set"
+
+        """Check if the undo jump was successful."""
+        assert np.all(state[self.agent_id].position == self._pre_jump_state.position), (
+            "Failed to return agent to location"
+        )
+        assert np.all(state[self.agent_id].rotation == self._pre_jump_state.rotation), (
+            "Failed to return agent to orientation"
+        )
+
+        for current_sensor in state[self.agent_id].sensors:
+            assert np.all(
+                state[self.agent_id].sensors[current_sensor].rotation
+                == self._pre_jump_state.sensors[current_sensor].rotation
+            ), "Failed to return sensor to orientation"
 
 
 class NaiveScanPolicy(InformedPolicy):
@@ -600,7 +754,7 @@ class SurfacePolicy(InformedPolicy):
         alpha,
         desired_object_distance=0.025,
         **kwargs,
-    ):
+    ) -> None:
         """Initialize policy.
 
         Args:
@@ -615,7 +769,6 @@ class SurfacePolicy(InformedPolicy):
         self.alpha = alpha
         self.desired_object_distance = desired_object_distance
 
-        # TODO: Remove these once TouchObject positioning procedure is implemented
         self.attempting_to_find_object: bool = False
         self.last_surface_policy_action: Action | None = None
 
@@ -630,11 +783,11 @@ class SurfacePolicy(InformedPolicy):
 
         return super().pre_episode()
 
-    def touch_object(
+    def _touch_object(
         self,
         ctx: RuntimeContext,
-        raw_observation,
-        view_sensor_id: str,
+        observations: Observations,
+        view_sensor_id: SensorID,
         state: MotorSystemState,
     ) -> MoveForward | OrientHorizontal | OrientVertical:
         """The surface agent's policy for moving onto an object for sensing it.
@@ -644,7 +797,7 @@ class SurfacePolicy(InformedPolicy):
         model-based policy. In addition, it can be called when the surface agent
         cannot sense the object, e.g. because it has fallen off its surface.
 
-        Currently uses the raw observations returned from the viewfinder via the
+        Currently uses the observations returned from the viewfinder via the
         environment interface, and not the extracted features from the sensor module.
         TODO M refactor this so that all sensory processing is done in the sensor
         module.
@@ -655,7 +808,7 @@ class SurfacePolicy(InformedPolicy):
 
         Args:
             ctx: The runtime context.
-            raw_observation: The raw observation from the simulator.
+            observations: The observations from the environment.
             view_sensor_id: The ID of the viewfinder sensor.
             state: The current state of the motor system.
 
@@ -665,14 +818,14 @@ class SurfacePolicy(InformedPolicy):
         # If the viewfinder sees the object within range, then move to it
         depth_at_center = PositioningProcedure.depth_at_center(
             agent_id=self.agent_id,
-            observation=raw_observation,
+            observations=observations,
             sensor_id=view_sensor_id,
         )
         if depth_at_center < 1.0:
             distance = (
                 depth_at_center
                 - self.desired_object_distance
-                - state[self.agent_id].sensors[SensorID(view_sensor_id)].position[2]
+                - state[self.agent_id].sensors[view_sensor_id].position[2]
             )
             logger.debug(f"Move to touch visible object, forward by {distance}")
 
@@ -761,7 +914,7 @@ class SurfacePolicy(InformedPolicy):
     def __call__(
         self,
         ctx: RuntimeContext,
-        observations: Observations,  # noqa: ARG002
+        observations: Observations,
         state: MotorSystemState | None = None,
     ) -> MotorPolicyResult:
         """Return a motor policy result containing the next actions to take.
@@ -778,10 +931,13 @@ class SurfacePolicy(InformedPolicy):
 
         Returns:
             A MotorPolicyResult that contains the actions to take.
-
-        Raises:
-            ObjectNotVisible: If the object is not visible.
         """
+        if self.use_goal_state_driven_actions:
+            assert state is not None
+            result = self._goal_driven_actions(observations, state)
+            if result is not None:
+                return result
+
         # Check if we have poor visualization of the object
         if (
             self.processed_observations.get_feature_by_name("object_coverage") < 0.1
@@ -796,12 +952,19 @@ class SurfacePolicy(InformedPolicy):
             logger.debug(f"Attempting to find object: {self.attempting_to_find_object}")
             logger.debug("Initiating attempts to touch object")
 
-            # Set attempting_to_find_object to True here so that post_action will
-            # not interfere with self.last_surface_policy_action
-            self.attempting_to_find_object = True
-            raise ObjectNotVisible  # Will result in moving to try to find the object
-            # This is determined by some logic in embodied_data.py, in particular
-            # the next method of InformedEnvironmentInterface
+            assert state is not None
+            action = self._touch_object(
+                ctx,
+                observations,
+                # TODO: Eliminate this hardcoded sensor ID
+                view_sensor_id=SensorID("view_finder"),
+                state=state,
+            )
+            return MotorPolicyResult(actions=[action], motor_only_step=True)
+
+        # Reset touch_object search state so that the next time we fall off the object,
+        # we will try to find the object using its full repertoire of actions.
+        self.touch_search_amount = 0
 
         if self.last_surface_policy_action is None:
             logger.debug(
@@ -819,9 +982,18 @@ class SurfacePolicy(InformedPolicy):
             )
 
         next_action = self.get_next_action(ctx, state)
+
+        # Out of the four actions in the
+        # MoveForward->OrientHorizontal->OrientVertical->MoveTangentially "subroutine"
+        # of self.get_next_action(...), we only want to send data to the learning module
+        # after taking the OrientVertical action. The other three actions in the cycle
+        # are motor-only to keep the surface agent on the object.
+        motor_only_step = (
+            next_action is not None and next_action.name != OrientVertical.action_name()
+        )
         self.last_surface_policy_action = next_action
         actions: list[Action] = [] if next_action is None else [next_action]
-        return MotorPolicyResult(actions)
+        return MotorPolicyResult(actions, motor_only_step=motor_only_step)
 
     def _orient_horizontal(self, state: MotorSystemState) -> OrientHorizontal:
         """Orient the agent horizontally.
@@ -1083,6 +1255,30 @@ class SurfacePolicy(InformedPolicy):
             return -np.degrees(np.arctan(x / z)) if z != 0 else -np.sign(x) * 90.0
         if orienting == "vertical":
             return -np.degrees(np.arctan(y / z)) if z != 0 else -np.sign(y) * 90.0
+
+    def _handle_successful_jump(self) -> None:
+        """Resets the get_next_action state of the surface policy.
+
+        For the surface-agent policy, update last action as if we have just moved
+        tangentially. This results in a seamless transition into the typical
+        corrective movements (forward or orientation) of the surface-agent policy.
+        """
+        self.last_surface_policy_action = MoveTangentially(
+            agent_id=self.agent_id,
+            distance=0.0,
+            direction=(0, 0, 0),
+        )
+
+        # TODO clean up where this is performed, and make variable names more
+        #   general
+        # TODO also only log this when we are doing detailed logging
+        # TODO M clean up these action details loggings; this may need to remain
+        # local to a "motor-system buffer" given that these are model-free
+        # actions that have nothing to do with the LMs
+        # Store logging information about jump success
+        self.action_details["pc_heading"].append("jump")
+        self.action_details["avoidance_heading"].append(False)
+        self.action_details["z_defined_pc"].append(None)
 
 
 class SurfacePolicyCurvatureInformed(SurfacePolicy):

@@ -33,6 +33,7 @@ from omegaconf import DictConfig
 from scipy.spatial.transform import Rotation
 
 from tbp.monty.frameworks.actions.actions import (
+    Action,
     LookDown,
     LookUp,
     MoveForward,
@@ -255,11 +256,11 @@ class PolicyTest(unittest.TestCase):
 
             # Get a first step to allow the surface agent to touch the object
             ctx = RuntimeContext(rng=exp.rng)
-            observation_pre_touch = exp.env_interface.step(ctx, first=True)
-            exp.model.step(ctx, observation_pre_touch)
+            observation_pre_touch, _ = exp.env_interface.step(first=True)
+            actions: list[Action] = exp.model.step(ctx, observation_pre_touch)
 
             # Check initial view post touch-attempt
-            observation_post_touch = exp.env_interface.step(ctx)
+            observation_post_touch, _ = exp.env_interface.step(actions)
 
             # TODO M remove the following train-wreck during refactor
             view = observation_post_touch[exp.model.motor_system._policy.agent_id][
@@ -309,9 +310,10 @@ class PolicyTest(unittest.TestCase):
             # Manually step through part of run_episode function
             step = 0
             ctx = RuntimeContext(rng=exp.rng)
+            actions: list[Action] = []
             while True:
-                observations = exp.env_interface.step(ctx, first=(step == 0))
-                exp.model.step(ctx, observations)
+                observations, _ = exp.env_interface.step(actions, first=(step == 0))
+                actions = exp.model.step(ctx, observations)
 
                 last_action = None
                 action_sequence = exp.model.motor_system.action_sequence
@@ -428,85 +430,88 @@ class PolicyTest(unittest.TestCase):
             # ensure we get back on to it
             step = 0
             ctx = RuntimeContext(rng=exp.rng)
+            actions: list[Action] = []
             while True:
-                observations = exp.env_interface.step(ctx, first=(step == 0))
-                exp.model.step(ctx, observations)
+                observations, _ = exp.env_interface.step(actions, first=(step == 0))
+                actions = exp.model.step(ctx, observations)
 
-                #  Step | Action           | Motor-only? | Obs processed? | Source
-                # ------|------------------|-------------|----------------|-------------
-                #  1    | MoveForward      | True        | False          | __call__
-                #  2    | OrientHorizontal | True        | False          | __call__
-                #  3    | OrientVertical   | False       | True           | __call__
-                #  4    | MoveTangentially | True        | False          | __call__
-                #  5    | MoveForward      | True        | False          | __call__
-                #  6    | OrientHorizontal | True        | False          | __call__
-                #  7    | OrientVertical   | False       | True           | __call__
-                #  8    | MoveTangentially | True        | False          | __call__
-                #  9    | MoveForward      | True        | False          | __call__
-                #  10   | OrientHorizontal | True        | False          | __call__
-                #  11   | OrientVertical   | False       | True           | __call__
-                #  12   | MoveTangentially | True        | False          | __call__
+                #  Step | Action           | Motor-only? | Processed? | Source
+                # ------|------------------|-------------|------------|-------------
+                # start too close to object (MoveForward negative distance)
+                #  1    | MoveForward      | True        | False      | touch_object
+                # correct distance to object
+                #  2    | OrientHorizontal | True        | False      | get_next_action
+                #  3    | OrientVertical   | False       | True       | get_next_action
+                #  4    | MoveTangentially | True        | False      | get_next_action
+                #  5    | MoveForward      | True        | False      | get_next_action
+                #  6    | OrientHorizontal | True        | False      | get_next_action
+                #  7    | OrientVertical   | False       | True       | get_next_action
+                #  8    | MoveTangentially | True        | False      | get_next_action
+                #  9    | MoveForward      | True        | False      | get_next_action
+                #  10   | OrientHorizontal | True        | False      | get_next_action
+                #  11   | OrientVertical   | False       | True       | get_next_action
+                #  12   | MoveTangentially | True        | False      | get_next_action
                 # falls off object
-                #  13   | OrientHorizontal | True        | False          | touch_object
-                #  14   | OrientHorizontal | True        | False          | touch_object
-                #  15   | OrientHorizontal | True        | False          | touch_object
-                #  16   | OrientHorizontal | True        | False          | touch_object
-                #  17   | OrientHorizontal | True        | False          | touch_object
-                #  18   | OrientHorizontal | True        | False          | touch_object
-                #  19   | OrientHorizontal | True        | False          | touch_object
-                #  20   | OrientHorizontal | True        | False          | touch_object
-                #  21   | OrientHorizontal | True        | False          | touch_object
-                #  22   | OrientHorizontal | True        | False          | touch_object
-                #  23   | OrientHorizontal | True        | False          | touch_object
-                #  24   | OrientHorizontal | True        | False          | touch_object
-                #  25   | OrientVertical   | True        | False          | touch_object
-                #  26   | MoveForward      | True        | False          | touch_object
+                #  13   | OrientHorizontal | True        | False      | touch_object
+                #  14   | OrientHorizontal | True        | False      | touch_object
+                #  15   | OrientHorizontal | True        | False      | touch_object
+                #  16   | OrientHorizontal | True        | False      | touch_object
+                #  17   | OrientHorizontal | True        | False      | touch_object
+                #  18   | OrientHorizontal | True        | False      | touch_object
+                #  19   | OrientHorizontal | True        | False      | touch_object
+                #  20   | OrientHorizontal | True        | False      | touch_object
+                #  21   | OrientHorizontal | True        | False      | touch_object
+                #  22   | OrientHorizontal | True        | False      | touch_object
+                #  23   | OrientHorizontal | True        | False      | touch_object
+                #  24   | OrientHorizontal | True        | False      | touch_object
+                #  25   | OrientVertical   | True        | False      | touch_object
+                #  26   | MoveForward      | True        | False      | touch_object
                 # back on object
-                #  27   | MoveForward      | True        | False          | __call__
-                #  28   | OrientHorizontal | True        | False          | __call__
-                #  29   | OrientVertical   | False       | True           | __call__
-                #  30   | MoveTangentially | True        | False          | __call__
+                #  27   | MoveForward      | True        | False      | get_next_action
+                #  28   | OrientHorizontal | True        | False      | get_next_action
+                #  29   | OrientVertical   | False       | True       | get_next_action
+                #  30   | MoveTangentially | True        | False      | get_next_action
                 # falls off object
-                #  31   | OrientHorizontal | True        | False          | touch_object
-                #  32   | OrientHorizontal | True        | False          | touch_object
-                #  33   | OrientHorizontal | True        | False          | touch_object
-                #  34   | OrientHorizontal | True        | False          | touch_object
-                #  35   | OrientHorizontal | True        | False          | touch_object
-                #  36   | OrientHorizontal | True        | False          | touch_object
-                #  37   | OrientHorizontal | True        | False          | touch_object
-                #  38   | OrientHorizontal | True        | False          | touch_object
-                #  39   | OrientHorizontal | True        | False          | touch_object
-                #  40   | OrientHorizontal | True        | False          | touch_object
-                #  41   | OrientHorizontal | True        | False          | touch_object
-                #  42   | OrientHorizontal | True        | False          | touch_object
-                #  43   | OrientVertical   | True        | False          | touch_object
-                #  44   | MoveForward      | True        | False          | touch_object
+                #  31   | OrientHorizontal | True        | False      | touch_object
+                #  32   | OrientHorizontal | True        | False      | touch_object
+                #  33   | OrientHorizontal | True        | False      | touch_object
+                #  34   | OrientHorizontal | True        | False      | touch_object
+                #  35   | OrientHorizontal | True        | False      | touch_object
+                #  36   | OrientHorizontal | True        | False      | touch_object
+                #  37   | OrientHorizontal | True        | False      | touch_object
+                #  38   | OrientHorizontal | True        | False      | touch_object
+                #  39   | OrientHorizontal | True        | False      | touch_object
+                #  40   | OrientHorizontal | True        | False      | touch_object
+                #  41   | OrientHorizontal | True        | False      | touch_object
+                #  42   | OrientHorizontal | True        | False      | touch_object
+                #  43   | OrientVertical   | True        | False      | touch_object
+                #  44   | MoveForward      | True        | False      | touch_object
                 # back on object
-                #  45   | MoveForward      | True        | False          | __call__
-                #  46   | OrientHorizontal | True        | False          | __call__
-                #  47   | OrientVertical   | False       | True           | __call__
-                #  48   | MoveTangentially | True        | False          | __call__
+                #  45   | MoveForward      | True        | False      | get_next_action
+                #  46   | OrientHorizontal | True        | False      | get_next_action
+                #  47   | OrientVertical   | False       | True       | get_next_action
+                #  48   | MoveTangentially | True        | False      | get_next_action
                 # falls off object
-                #  49   | OrientHorizontal | True        | False          | touch_object
-                #  50   | OrientHorizontal | True        | False          | touch_object
-                #  51   | OrientHorizontal | True        | False          | touch_object
-                #  52   | OrientHorizontal | True        | False          | touch_object
-                #  53   | OrientHorizontal | True        | False          | touch_object
-                #  54   | OrientHorizontal | True        | False          | touch_object
-                #  56   | OrientHorizontal | True        | False          | touch_object
-                #  57   | OrientHorizontal | True        | False          | touch_object
-                #  58   | OrientHorizontal | True        | False          | touch_object
-                #  59   | OrientHorizontal | True        | False          | touch_object
-                #  60   | OrientHorizontal | True        | False          | touch_object
-                #  61   | OrientVertical   | True        | False          | touch_object
-                #  62   | MoveForward      | True        | False          | touch_object
+                #  49   | OrientHorizontal | True        | False      | touch_object
+                #  50   | OrientHorizontal | True        | False      | touch_object
+                #  51   | OrientHorizontal | True        | False      | touch_object
+                #  52   | OrientHorizontal | True        | False      | touch_object
+                #  53   | OrientHorizontal | True        | False      | touch_object
+                #  54   | OrientHorizontal | True        | False      | touch_object
+                #  56   | OrientHorizontal | True        | False      | touch_object
+                #  57   | OrientHorizontal | True        | False      | touch_object
+                #  58   | OrientHorizontal | True        | False      | touch_object
+                #  59   | OrientHorizontal | True        | False      | touch_object
+                #  60   | OrientHorizontal | True        | False      | touch_object
+                #  61   | OrientVertical   | True        | False      | touch_object
+                #  62   | MoveForward      | True        | False      | touch_object
                 # back on object
-                #  63   | MoveForward      | True        | False          | __call__
-                #  64   | OrientHorizontal | True        | False          | __call__
-                #  65   | OrientVertical   | False       | True           | __call__
-                #  66   | MoveTangentially | True        | False          | __call__
+                #  63   | MoveForward      | True        | False      | get_next_action
+                #  64   | OrientHorizontal | True        | False      | get_next_action
+                #  65   | OrientVertical   | False       | True       | get_next_action
+                #  66   | MoveTangentially | True        | False      | get_next_action
                 # falls off object
-                #  67   | OrientHorizontal | True        | False          | touch_object
+                #  67   | OrientHorizontal | True        | False      | touch_object
 
                 # Motor-only touch_object steps
                 if (
@@ -568,9 +573,10 @@ class PolicyTest(unittest.TestCase):
 
             step = 0
             ctx = RuntimeContext(rng=exp.rng)
+            actions: list[Action] = []
             while True:
-                observations = exp.env_interface.step(ctx, first=(step == 0))
-                exp.model.step(ctx, observations)
+                observations, _ = exp.env_interface.step(actions, first=(step == 0))
+                actions = exp.model.step(ctx, observations)
                 exp.post_step(step, observations)
 
                 if step == 3:  # Surface agent should have re-oriented
