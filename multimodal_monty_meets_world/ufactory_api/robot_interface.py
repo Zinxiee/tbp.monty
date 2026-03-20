@@ -62,7 +62,15 @@ class RobotInterface:
 
     def move_arm(self, x, y, z, roll, pitch, yaw):
         """
-        Send a move command safely.
+        Send a Cartesian move command safely.
+
+        Args:
+            x: X position in millimeters, in robot base frame.
+            y: Y position in millimeters, in robot base frame.
+            z: Z position in millimeters, in robot base frame.
+            roll: Rotation about X axis in degrees.
+            pitch: Rotation about Y axis in degrees.
+            yaw: Rotation about Z axis in degrees.
         """
         print(f"Commanding Move to: {x}, {y}, {z}")
         with self._lock:

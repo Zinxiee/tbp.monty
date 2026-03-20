@@ -24,6 +24,7 @@ from tbp.monty.frameworks.actions.actions import (
     LookDown,
     LookUp,
     OrientVertical,
+    SetAgentPose,
     TurnLeft,
     TurnRight,
 )
@@ -31,6 +32,7 @@ from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
 from tbp.monty.frameworks.models.motor_policies import (
     BasePolicy,
+    InformedPolicy,
     PredefinedPolicy,
     SurfacePolicyCurvatureInformed,
 )
@@ -217,6 +219,62 @@ class PredefinedPolicyReadActionFileTest(unittest.TestCase):
             first_occurrence = returned_actions[i]
             second_occurrence = returned_actions[i + cycle_length]
             self.assertEqual(first_occurrence, second_occurrence)
+
+
+class GoalPoseEmissionTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.agent_id = AgentID("agent_id_goal_pose")
+
+        self.policy = InformedPolicy(
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=self.agent_id,
+            use_goal_state_driven_actions=True,
+        )
+
+        self.state = MotorSystemState(
+            {
+                self.agent_id: AgentState(
+                    sensors={
+                        SensorID("view_finder"): SensorState(
+                            position=(0.0, 0.0, 0.0),
+                            rotation=(1.0, 0.0, 0.0, 0.0),
+                        )
+                    },
+                    position=(0.0, 0.0, 0.0),
+                    rotation=(1.0, 0.0, 0.0, 0.0),
+                )
+            }
+        )
+
+        self.goal_state = State(
+            location=np.array([0.1, 0.2, 0.3]),
+            morphological_features={
+                "pose_vectors": np.array([[0.0, 0.0, -1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+                "pose_fully_defined": True,
+            },
+            non_morphological_features={},
+            confidence=1.0,
+            use_state=True,
+            sender_id="patch",
+            sender_type="SM",
+        )
+
+    def test_goal_driven_jump_populates_goal_pose(self) -> None:
+        self.policy.set_driving_goal_state(self.goal_state)
+
+        result = self.policy._goal_driven_actions(
+            observations=Observations(),
+            state=self.state,
+        )
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertIsNotNone(result.goal_pose)
+        assert result.goal_pose is not None
+        target_loc, _ = result.goal_pose
+        nptest.assert_allclose(target_loc, np.array([0.1, 0.2, 0.3]))
+
+        self.assertTrue(any(isinstance(action, SetAgentPose) for action in result.actions))
 
 
 if __name__ == "__main__":

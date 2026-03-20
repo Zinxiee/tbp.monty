@@ -69,10 +69,20 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MotorPolicyResult:
-    """Result of a motor policy."""
+    """Result of a motor policy.
+
+    Attributes:
+        actions: Relative motor actions for the environment interface.
+        motor_only_step: Whether this step should be treated as motor-only.
+        goal_pose: Optional absolute target pose in environment coordinates.
+            The format is ``(location, rotation_quaternion)`` where ``location`` is
+            a 3-vector in meters and ``rotation_quaternion`` is in numpy-quaternion
+            ``[w, x, y, z]`` convention.
+    """
 
     actions: list[Action] = field(default_factory=list)
     motor_only_step: bool = False
+    goal_pose: tuple[np.ndarray, qt.quaternion] | None = None
 
 
 class MotorPolicy(abc.ABC):
@@ -420,8 +430,8 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
                 return result
 
         if self.driving_goal_state is not None:
-            actions = self._jump(state)
-            return MotorPolicyResult(actions)
+            actions, goal_pose = self._jump(state)
+            return MotorPolicyResult(actions=actions, goal_pose=goal_pose)
 
         return None
 
@@ -450,7 +460,17 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
         if self._should_undo_jump(observations):
             logger.debug("Returning to previous position")
             self._is_undoing_jump = True
-            return MotorPolicyResult(self._undo_jump_actions)
+            goal_pose = None
+            if self._pre_jump_state is not None:
+                goal_pose = (
+                    np.asarray(self._pre_jump_state.position, dtype=float),
+                    self._pre_jump_state.rotation,
+                )
+
+            return MotorPolicyResult(
+                actions=self._undo_jump_actions,
+                goal_pose=goal_pose,
+            )
 
         logger.debug(
             "Object visible, maintaining new pose for hypothesis-testing action"
@@ -542,7 +562,9 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
         self._pre_jump_state = None
         self._undo_jump_actions = []
 
-    def _jump(self, state: MotorSystemState) -> list[Action]:
+    def _jump(
+        self, state: MotorSystemState
+    ) -> tuple[list[Action], tuple[np.ndarray, qt.quaternion]]:
         """Compute the jump and undo jump actions.
 
         The undo jump actions are stored in `self._undo_jump_actions`.
@@ -551,7 +573,10 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
             state: The current state of the motor system.
 
         Returns:
-            A list of jump actions to take.
+                        Tuple containing:
+                        - A list of jump actions to take.
+                        - The absolute jump goal pose in environment coordinates as
+                            ``(location_meters, quaternion_wxyz)``.
         """
         logger.debug(
             "Attempting a 'jump' like movement to evaluate an object hypothesis"
@@ -574,6 +599,10 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
             ), "Sensors are not identical in pose"
 
         (target_loc, target_np_quat) = self.derive_habitat_goal_state()
+        assert target_loc is not None, "Driving goal state must provide a target location"
+        assert (
+            target_np_quat is not None
+        ), "Driving goal state must provide a target orientation"
 
         self._is_jumping = True
 
@@ -609,7 +638,9 @@ class InformedPolicy(BasePolicy, JumpToGoalStateMixin):
             ),
         ]
 
-        return actions
+        goal_pose = (np.asarray(target_loc, dtype=float), target_np_quat)
+
+        return actions, goal_pose
 
     def _should_undo_jump(self, observations: Observations) -> bool:
         """Check if the jump should be undone.
