@@ -12,6 +12,7 @@ from .models import (
     HttpFrame,
     LensCoefficients,
 )
+from .monty_adapter import CameraIntrinsics, MaixsenseMontyObservationAdapter
 from .usb_client import MaixsenseA010USB
 from .http_client import MaixsenseA010HTTP
 
@@ -21,6 +22,8 @@ __all__ = [
     "FrameConfig",
     "HttpFrame",
     "LensCoefficients",
+    "CameraIntrinsics",
+    "MaixsenseMontyObservationAdapter",
     "MaixsenseA010USB",
     "MaixsenseA010HTTP",
 ]

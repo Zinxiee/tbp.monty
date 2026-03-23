@@ -10,7 +10,7 @@ defaults:
   - /experiment/config/monty/args/clear_monty_args@config.monty_config
   - /experiment/config/monty/args/defaults@config.monty_config.monty_args
   - /experiment/config/monty/motor_system/clear_motor_system_config@config.monty_config
-  # the following config moves 20 pixels at a time (this doesn't work very well when reduced to say 8)
+  # the following config moves 8 pixels at a time
   - /experiment/config/monty/motor_system/informed_no_trans_step_s8@config.monty_config.motor_system_config
   - /experiment/config/environment/world_image@config.env_interface_config
   - /experiment/config/environment/init_args/clear_env_init_args@config.env_interface_config

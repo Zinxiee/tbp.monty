@@ -51,6 +51,44 @@ frame = client.get_frame()
 print(frame.frame_id, frame.depth.shape if frame.depth is not None else None)
 ```
 
+## Monty CameraSM integration (phase 1 adapter)
+
+Use `MaixsenseMontyObservationAdapter` to convert Maixsense depth frames into the
+observation keys consumed by Monty `CameraSM` (`depth`, `rgba`, `semantic_3d`,
+`sensor_frame_data`, `world_camera`). This lets you reuse CameraSM feature
+extraction without creating a new SensorModule class.
+
+```python
+import numpy as np
+
+from maixsense_a010_api import (
+    CameraIntrinsics,
+    MaixsenseA010USB,
+    MaixsenseMontyObservationAdapter,
+)
+
+# Example intrinsics. Prefer values from HTTP /getinfo lens coefficients.
+intrinsics = CameraIntrinsics(fx=105.0, fy=105.0, cx=50.0, cy=50.0)
+adapter = MaixsenseMontyObservationAdapter(intrinsics)
+
+with MaixsenseA010USB(port="/dev/ttyUSB0", baudrate=921600) as sensor:
+    for frame in sensor.iter_frames(timeout_s=5):
+        # Observation dict compatible with CameraSM.step(...)
+        observation = adapter.from_usb_frame(
+            frame,
+            world_camera=np.eye(4),
+            unit=0,
+        )
+        # camera_sm.step(ctx, observation)
+```
+
+Adapter notes:
+
+- CameraSM assumes square patches; the adapter center-crops non-square depth by default.
+- If `rgba` is omitted, a placeholder opaque RGBA image is synthesized.
+- If `semantic` is omitted, semantics are inferred from valid depth (`depth > 0`).
+- If depth units differ, use `from_depth_m(...)` or adjust conversion in adapter calls.
+
 ## Notes
 
 - USB frame payload is parsed as a depth-index image (`uint8`) matching the COMTool MetaSenseLite parser.
