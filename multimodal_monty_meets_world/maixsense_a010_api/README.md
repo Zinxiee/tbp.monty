@@ -62,14 +62,14 @@ extraction without creating a new SensorModule class.
 import numpy as np
 
 from maixsense_a010_api import (
-    CameraIntrinsics,
+    MaixsenseA010HTTP,
     MaixsenseA010USB,
-    MaixsenseMontyObservationAdapter,
+    create_adapter_from_http_calibration,
 )
 
-# Example intrinsics. Prefer values from HTTP /getinfo lens coefficients.
-intrinsics = CameraIntrinsics(fx=105.0, fy=105.0, cx=50.0, cy=50.0)
-adapter = MaixsenseMontyObservationAdapter(intrinsics)
+# Fetch lens coefficients once over HTTP, then reuse adapter in streaming loop.
+http = MaixsenseA010HTTP("192.168.233.1", 80)
+adapter = create_adapter_from_http_calibration(http)
 
 with MaixsenseA010USB(port="/dev/ttyUSB0", baudrate=921600) as sensor:
     for frame in sensor.iter_frames(timeout_s=5):
@@ -79,7 +79,7 @@ with MaixsenseA010USB(port="/dev/ttyUSB0", baudrate=921600) as sensor:
             world_camera=np.eye(4),
             unit=0,
         )
-        # camera_sm.step(ctx, observation)
+        # observed_state = camera_sm.step(ctx, observation)
 ```
 
 Adapter notes:
@@ -88,6 +88,12 @@ Adapter notes:
 - If `rgba` is omitted, a placeholder opaque RGBA image is synthesized.
 - If `semantic` is omitted, semantics are inferred from valid depth (`depth > 0`).
 - If depth units differ, use `from_depth_m(...)` or adjust conversion in adapter calls.
+
+Run the end-to-end phase-1 wiring demo:
+
+```bash
+python -m maixsense_a010_api.example_monty_integration --port /dev/ttyUSB0 --seconds 10
+```
 
 ## Notes
 

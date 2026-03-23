@@ -199,6 +199,41 @@ class MaixsenseMontyObservationAdapter:
         }
 
 
+def create_adapter_from_http_calibration(
+    http_client,
+    *,
+    crop_center_to_square: bool = True,
+    min_valid_depth_m: float = 1e-6,
+) -> MaixsenseMontyObservationAdapter:
+    """Create a Monty adapter using Maixsense HTTP-reported lens coefficients.
+
+    Args:
+        http_client: Object with a `get_lens_coefficients()` method (for example,
+            `MaixsenseA010HTTP`).
+        crop_center_to_square: Whether non-square frames should be center-cropped
+            for CameraSM compatibility.
+        min_valid_depth_m: Minimum depth used to synthesize semantic validity.
+
+    Returns:
+        Configured `MaixsenseMontyObservationAdapter`.
+
+    Raises:
+        RuntimeError: If lens coefficients are unavailable from the device.
+    """
+    lens = http_client.get_lens_coefficients()
+    if lens is None:
+        raise RuntimeError(
+            "Could not retrieve lens coefficients from Maixsense HTTP /getinfo."
+        )
+
+    intrinsics = CameraIntrinsics.from_lens_coefficients(lens)
+    return MaixsenseMontyObservationAdapter(
+        intrinsics,
+        crop_center_to_square=crop_center_to_square,
+        min_valid_depth_m=min_valid_depth_m,
+    )
+
+
 def _ensure_world_camera(world_camera: Optional[np.ndarray]) -> np.ndarray:
     if world_camera is None:
         return np.eye(4, dtype=np.float64)
