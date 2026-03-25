@@ -1,6 +1,7 @@
 import threading
 import time
 import copy
+import numpy as np
 from xarm.wrapper import XArmAPI
 
 class RobotInterface:
@@ -13,7 +14,11 @@ class RobotInterface:
         # Shared memory for the "Subconscious"
         self._latest_data = {
             "joints": [],
-            "end_effector": []
+            "end_effector": [],
+            "api_status": {
+                "joint_code": -1,
+                "position_code": -1,
+            },
         }
         
         # Threading tools
@@ -47,7 +52,16 @@ class RobotInterface:
                 # Update the shared memory
                 self._latest_data = {
                     "joints": angles,
-                    "end_effector": pos
+                    "end_effector": pos,
+                    "api_status": {
+                        "joint_code": code_j,
+                        "position_code": code_p,
+                    },
+                }
+            else:
+                self._latest_data["api_status"] = {
+                    "joint_code": code_j,
+                    "position_code": code_p,
                 }
             
             # Sleep slightly to prevent CPU overheating (100Hz)
@@ -63,6 +77,7 @@ class RobotInterface:
     def move_arm(self, x, y, z, roll, pitch, yaw):
         """
         Send a Cartesian move command safely.
+        XYZ fixed angle coordinate system with extrinsic rotations in roll-pitch-yaw order.
 
         Args:
             x: X position in millimeters, in robot base frame.
@@ -77,3 +92,69 @@ class RobotInterface:
             # wait=False is CRITICAL here. 
             # It tells the robot: "Start moving, but give me control of Python back immediately."
             self.arm.set_position(x=x, y=y, z=z, roll=roll, pitch=pitch, yaw=yaw, speed=100, wait=False)
+
+    def is_api_healthy(self):
+        """Return True when the arm appears ready to accept commands."""
+        status = self._latest_data.get("api_status", {})
+        if status.get("joint_code", -1) != 0 or status.get("position_code", -1) != 0:
+            return False
+
+        error_code = getattr(self.arm, "error_code", 0)
+        if error_code not in (0, None):
+            return False
+
+        return True
+
+    def get_joint_limit_margin_rad(self, joint_limits_rad):
+        """Return minimum absolute distance to nearest configured joint limit."""
+        joints = np.asarray(self._latest_data.get("joints", []), dtype=float)
+        limits = np.asarray(joint_limits_rad, dtype=float)
+
+        if joints.size == 0 or limits.ndim != 2 or limits.shape[1] != 2:
+            return float("inf")
+
+        check_count = min(joints.shape[0], limits.shape[0])
+        lower = limits[:check_count, 0]
+        upper = limits[:check_count, 1]
+        active_joints = joints[:check_count]
+
+        margin_to_lower = active_joints - lower
+        margin_to_upper = upper - active_joints
+        return float(np.min(np.minimum(margin_to_lower, margin_to_upper)))
+
+    def configure_payload(self, mass_kg, center_of_gravity_mm):
+        """Set payload metadata for safer dynamics and limit handling."""
+        cog_mm = np.asarray(center_of_gravity_mm, dtype=float).tolist()
+        with self._lock:
+            return_code = self.arm.set_tcp_load(weight=mass_kg, center_of_gravity=cog_mm)
+        return return_code == 0
+
+    def is_target_pose_feasible(self, x, y, z, roll, pitch, yaw):
+        """Best-effort IK feasibility query for a Cartesian target.
+
+        Returns True when no explicit IK API is available, allowing deployment to
+        proceed while still supporting feasibility checks when the SDK exposes one.
+        """
+        if not hasattr(self.arm, "get_inverse_kinematics"):
+            return True
+
+        try:
+            with self._lock:
+                code, _angles = self.arm.get_inverse_kinematics(
+                    pose=[x, y, z, roll, pitch, yaw],
+                    input_is_radian=False,
+                    return_is_radian=True,
+                )
+            return code == 0
+        except TypeError:
+            # Keep compatibility with SDK variants that use a different signature.
+            return True
+
+    def stop_motion(self, reason):
+        """Stop or pause motion when safety checks reject a command."""
+        print(f"Safety stop requested: {reason}")
+        with self._lock:
+            if hasattr(self.arm, "emergency_stop"):
+                self.arm.emergency_stop()
+            else:
+                self.arm.set_state(4)
