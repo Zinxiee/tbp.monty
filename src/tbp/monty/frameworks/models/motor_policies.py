@@ -942,6 +942,103 @@ class SurfacePolicy(InformedPolicy):
             )
         )
 
+    def _compute_goal_pose_from_action(
+        self,
+        state: MotorSystemState,
+        action: Action,
+    ) -> tuple[np.ndarray, qt.quaternion] | None:
+        """Compute the goal pose that would result from executing an action.
+        
+        Converts a relative motor action with agent-frame parameters into an 
+        absolute goal pose in environment coordinates, accounting for rotation 
+        and translation.
+        
+        Args:
+            state: The current motor system state.
+            action: The action to execute (MoveForward, OrientHorizontal, 
+                    OrientVertical, or MoveTangentially).
+        
+        Returns:
+            Tuple of (location_m, rotation_quat_wxyz) or None if action
+            does not produce a goal pose.
+        """
+        agent_state = state[self.agent_id]
+        current_pos = np.array(agent_state.position, dtype=float)
+        current_quat = agent_state.rotation
+        
+        # Convert quaternion to scipy format for rotation operations
+        quat_xyzw = scipy_to_numpy_quat(current_quat)
+        agent_rot = rot.from_quat(quat_xyzw)
+        
+        if isinstance(action, MoveForward):
+            # Move forward in agent's forward direction (positive Z in agent frame)
+            agent_forward = np.array([0.0, 0.0, 1.0])
+            world_forward = agent_rot.apply(agent_forward)
+            goal_pos = current_pos + world_forward * action.distance
+            goal_quat = current_quat
+            
+        elif isinstance(action, MoveTangentially):
+            # Move in the provided direction (already in world frame)
+            direction = np.array(action.direction, dtype=float)
+            goal_pos = current_pos + direction * action.distance
+            goal_quat = current_quat
+            
+        elif isinstance(action, OrientHorizontal):
+            # Rotate around Z (vertical) axis by rotation_degrees
+            # Then move in the rotated frame (left and forward)
+            
+            # Create rotation around Z axis in agent frame
+            rotation_radians = np.radians(action.rotation_degrees)
+            z_rotation = rot.from_rotvec([0.0, 0.0, rotation_radians])
+            
+            # Compose: agent_rot * z_rotation
+            new_agent_rot = agent_rot * z_rotation
+            
+            # Compute movement in the NEW agent frame
+            # Left distance: negative X in agent frame, forward distance: positive Z
+            agent_left = np.array([-1.0, 0.0, 0.0])
+            agent_forward = np.array([0.0, 0.0, 1.0])
+            
+            world_left_movement = new_agent_rot.apply(agent_left) * action.left_distance
+            world_forward_movement = new_agent_rot.apply(agent_forward) * action.forward_distance
+            
+            goal_pos = current_pos + world_left_movement + world_forward_movement
+            
+            # Convert new_agent_rot back to quaternion
+            quat_xyzw = new_agent_rot.as_quat()
+            goal_quat = qt.quaternion(quat_xyzw[3], quat_xyzw[0], quat_xyzw[1], quat_xyzw[2])
+            
+        elif isinstance(action, OrientVertical):
+            # Rotate around X (left) axis by rotation_degrees
+            # Then move in the rotated frame (down and forward)
+            
+            # Create rotation around X axis in agent frame
+            rotation_radians = np.radians(action.rotation_degrees)
+            x_rotation = rot.from_rotvec([rotation_radians, 0.0, 0.0])
+            
+            # Compose: agent_rot * x_rotation
+            new_agent_rot = agent_rot * x_rotation
+            
+            # Compute movement in the NEW agent frame
+            # Down distance: negative Y in agent frame, forward distance: positive Z
+            agent_down = np.array([0.0, -1.0, 0.0])
+            agent_forward = np.array([0.0, 0.0, 1.0])
+            
+            world_down_movement = new_agent_rot.apply(agent_down) * action.down_distance
+            world_forward_movement = new_agent_rot.apply(agent_forward) * action.forward_distance
+            
+            goal_pos = current_pos + world_down_movement + world_forward_movement
+            
+            # Convert new_agent_rot back to quaternion
+            quat_xyzw = new_agent_rot.as_quat()
+            goal_quat = qt.quaternion(quat_xyzw[3], quat_xyzw[0], quat_xyzw[1], quat_xyzw[2])
+            
+        else:
+            # Unknown action type
+            return None
+        
+        return (goal_pos, goal_quat)
+
     def __call__(
         self,
         ctx: RuntimeContext,
@@ -961,7 +1058,8 @@ class SurfacePolicy(InformedPolicy):
                 Defaults to None.
 
         Returns:
-            A MotorPolicyResult that contains the actions to take.
+            A MotorPolicyResult that contains the actions to take and optionally
+            a goal pose in environment coordinates.
         """
         if self.use_goal_state_driven_actions:
             assert state is not None
@@ -991,6 +1089,7 @@ class SurfacePolicy(InformedPolicy):
                 view_sensor_id=SensorID("view_finder"),
                 state=state,
             )
+            # Don't emit goal pose during search; we don't know where we'll end up
             return MotorPolicyResult(actions=[action], motor_only_step=True)
 
         # Reset touch_object search state so that the next time we fall off the object,
@@ -1014,6 +1113,11 @@ class SurfacePolicy(InformedPolicy):
 
         next_action = self.get_next_action(ctx, state)
 
+        # Compute goal pose if we have an action and valid state
+        goal_pose = None
+        if next_action is not None and state is not None:
+            goal_pose = self._compute_goal_pose_from_action(state, next_action)
+
         # Out of the four actions in the
         # MoveForward->OrientHorizontal->OrientVertical->MoveTangentially "subroutine"
         # of self.get_next_action(...), we only want to send data to the learning module
@@ -1024,7 +1128,7 @@ class SurfacePolicy(InformedPolicy):
         )
         self.last_surface_policy_action = next_action
         actions: list[Action] = [] if next_action is None else [next_action]
-        return MotorPolicyResult(actions, motor_only_step=motor_only_step)
+        return MotorPolicyResult(actions=actions, motor_only_step=motor_only_step, goal_pose=goal_pose)
 
     def _orient_horizontal(self, state: MotorSystemState) -> OrientHorizontal:
         """Orient the agent horizontally.
