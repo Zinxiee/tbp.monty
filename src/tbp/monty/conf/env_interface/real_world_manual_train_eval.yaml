@@ -1,0 +1,11 @@
+# @package experiment.config
+
+do_train: true
+train_env_interface_class: ${monty.class:tbp.monty.frameworks.environments.real_world_interface.RealWorldEnvironmentInterface}
+train_env_interface_args:
+  use_goal_pose_dispatch: true
+
+do_eval: true
+eval_env_interface_class: ${monty.class:tbp.monty.frameworks.environments.real_world_interface.RealWorldEnvironmentInterface}
+eval_env_interface_args:
+  use_goal_pose_dispatch: true

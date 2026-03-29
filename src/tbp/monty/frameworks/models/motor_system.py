@@ -15,7 +15,7 @@ from tbp.monty.context import RuntimeContext
 from tbp.monty.frameworks.actions.actions import Action
 from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
-from tbp.monty.frameworks.models.motor_policies import MotorPolicy
+from tbp.monty.frameworks.models.motor_policies import MotorPolicy, MotorPolicyResult
 from tbp.monty.frameworks.models.motor_system_state import (
     MotorSystemState,
     ProprioceptiveState,
@@ -41,10 +41,15 @@ class MotorSystem:
         # TODO: When the motor system is encapsulated within Monty, then motor_only_step
         #       attribute should be moved to Monty itself instead.
         self.motor_only_step = False
+        self._last_policy_result: MotorPolicyResult | None = None
 
     @property
     def action_sequence(self) -> list[tuple[list[Action], dict[AgentID, Any] | None]]:
         return self._action_sequence
+
+    @property
+    def last_policy_result(self) -> MotorPolicyResult | None:
+        return self._last_policy_result
 
     def pre_episode(self) -> None:
         """Pre episode hook."""
@@ -77,6 +82,7 @@ class MotorSystem:
         """
         motor_system_state = MotorSystemState(proprioceptive_state)
         policy_result = self._policy(ctx, observations, motor_system_state)
+        self._last_policy_result = policy_result
         self.motor_only_step = policy_result.motor_only_step
 
         state_copy = motor_system_state.convert_motor_state()

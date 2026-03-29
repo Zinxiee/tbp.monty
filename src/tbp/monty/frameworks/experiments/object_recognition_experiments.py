@@ -136,6 +136,7 @@ class MontyObjectRecognitionExperiment(MontyExperiment):
                     )
                 else:
                     actions = self.model.step(ctx, observations, proprioceptive_state)
+                self._pass_last_motor_policy_result_to_env_interface()
             except StopIteration:
                 # TODO: StopIteration is being thrown by NaiveScanPolicy to signal
                 #       episode termination. This is a holdover from when we used
@@ -154,6 +155,12 @@ class MontyObjectRecognitionExperiment(MontyExperiment):
                 return step
 
             step += 1
+
+    def _pass_last_motor_policy_result_to_env_interface(self) -> None:
+        """Pass latest motor policy metadata to env interface when supported."""
+        setter = getattr(self.env_interface, "set_last_motor_policy_result", None)
+        if callable(setter):
+            setter(self.model.last_motor_policy_result)
 
 
 class MontyGeneralizationExperiment(MontyObjectRecognitionExperiment):

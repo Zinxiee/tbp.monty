@@ -21,6 +21,7 @@ from tbp.monty.frameworks.models.abstract_monty_classes import (
     RuntimeContext,
 )
 from tbp.monty.frameworks.models.motor_system import MotorSystem
+from tbp.monty.frameworks.models.motor_policies import MotorPolicyResult
 from tbp.monty.frameworks.models.motor_system_state import ProprioceptiveState
 from tbp.monty.frameworks.utils.communication_utils import get_first_sensory_state
 
@@ -138,6 +139,7 @@ class MontyBase(Monty):
             )
 
         self._actions: list[Action] = []
+        self._last_motor_policy_result: MotorPolicyResult | None = None
 
     def step(
         self,
@@ -335,6 +337,7 @@ class MontyBase(Monty):
         proprioceptive_state: ProprioceptiveState,
     ) -> None:
         self._actions = self.motor_system(ctx, observations, proprioceptive_state)
+        self._last_motor_policy_result = self.motor_system.last_policy_result
 
     def _set_step_type_and_check_if_done(self):
         """Check terminal conditions and decide if we change the step type.
@@ -467,6 +470,10 @@ class MontyBase(Monty):
     @property
     def is_motor_only_step(self):
         return self.motor_system.motor_only_step
+
+    @property
+    def last_motor_policy_result(self) -> MotorPolicyResult | None:
+        return self._last_motor_policy_result
 
     @property
     def is_done(self):

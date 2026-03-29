@@ -68,3 +68,17 @@ class MontyBasePrivateTest(unittest.TestCase):
             }
         )
         self.assertEqual(set(self.monty_base.gsg_outputs), expected)
+
+    def test_step_motor_system_caches_last_policy_result(self) -> None:
+        expected_result = sentinel.motor_policy_result
+        self.monty_base.motor_system.return_value = [sentinel.action]
+        self.monty_base.motor_system.last_policy_result = expected_result
+
+        self.monty_base._step_motor_system(
+            ctx=sentinel.ctx,
+            observations=sentinel.observations,
+            proprioceptive_state=sentinel.proprioceptive_state,
+        )
+
+        self.assertEqual(self.monty_base._actions, [sentinel.action])
+        self.assertIs(self.monty_base.last_motor_policy_result, expected_result)
