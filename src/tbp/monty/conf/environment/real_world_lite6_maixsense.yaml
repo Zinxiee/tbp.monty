@@ -1,0 +1,72 @@
+# @package experiment.config.environment
+
+env_init_func: ${monty.class:tbp.monty.frameworks.environments.real_world_environment.RealWorldLite6A010Environment}
+env_init_args:
+  # Hardware object construction via Hydra instantiation.
+  robot_interface:
+    _target_: multimodal_monty_meets_world.factory.create_robot_interface
+    ip_address: 192.168.1.159
+    start_listener: true
+
+  sensor_client:
+    _target_: multimodal_monty_meets_world.factory.create_usb_frame_client
+    port: /dev/sipeed
+    baudrate: 921600
+    timeout: 0.05
+    validate_checksum: true
+    checksum_policy: compatible
+
+  observation_adapter:
+    _target_: multimodal_monty_meets_world.factory.create_observation_adapter
+    # Intrinsics: either use manufacturer calibration or fetch from HTTP /getinfo.
+    # Placeholder values below are conservative estimates for Maixsense A010.
+    # To get calibrated values: use create_adapter_from_http_calibration or set these from known calibration.
+    fx: 230.0
+    fy: 230.0
+    cx: 160.0
+    cy: 120.0
+    crop_center_to_square: true
+    min_valid_depth_m: 1.0e-6
+
+  # goal_adapter will be instantiated in RealWorldLite6A010Environment.__init__
+  # after robot_interface is available.
+  goal_adapter: null
+  
+  # Goal adapter configuration (used during init if goal_adapter is null).
+  goal_adapter_config:
+    world_to_robot_translation_m: [0.0, 0.0, 0.0]  # Identity: world frame = robot base frame.
+    world_to_robot_rotation_dict:
+      w: 1.0
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    link6_to_sensor_translation_m: [0.0, -0.060, 0.0135]
+    link6_to_sensor_rotation_dict:
+      w: 1.0
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    workspace_min_xyz_m: [0.10, -0.35, 0.02]
+    workspace_max_xyz_m: [0.70, 0.35, 0.45]
+    max_translation_step_m: 0.08
+    max_rotation_step_deg: 20.0
+    orientation_min_euler_deg: [-180.0, -120.0, -180.0]
+    orientation_max_euler_deg: [180.0, 120.0, 180.0]
+    convergence_timeout_s: 1.2
+    convergence_position_tolerance_mm: 5.0
+    payload_mass_kg: 0.070
+    euler_sequence: xyz
+    euler_degrees: true
+
+  agent_id: ${monty.agent_id:agent_id_0}
+  sensor_id: patch
+  # Home pose in robot-base frame: [x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg]
+  home_pose_mm_deg: [300.0, 0.0, 250.0, 180.0, 0.0, 0.0]
+  settle_time_s: 0.25
+  require_object_swap_confirmation: true
+  object_swap_prompt: "Swap/position the object, then press Enter to continue: "
+  # World frame is assumed to match robot base frame for v1.
+  sensor_translation_m: [0.0, 0.0, 0.0]
+  sensor_rotation_wxyz: [1.0, 0.0, 0.0, 0.0]
+  depth_unit: 0
+transform: null

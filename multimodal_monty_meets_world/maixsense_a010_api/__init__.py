@@ -18,6 +18,11 @@ from .monty_adapter import (
     create_adapter_from_http_calibration,
 )
 from .usb_client import MaixsenseA010USB
+from .usb_frame_client import (
+    A010UsbFrameClient,
+    SensorConnectionError,
+    SensorTimeoutError,
+)
 from .http_client import MaixsenseA010HTTP
 
 __all__ = [
@@ -30,5 +35,8 @@ __all__ = [
     "MaixsenseMontyObservationAdapter",
     "create_adapter_from_http_calibration",
     "MaixsenseA010USB",
+    "A010UsbFrameClient",
+    "SensorConnectionError",
+    "SensorTimeoutError",
     "MaixsenseA010HTTP",
 ]
