@@ -14,8 +14,8 @@ import quaternion as qt
 
 # Import with try-except for graceful degradation if modules not in path.
 try:
-    from ufactory_api.robot_interface import RobotInterface
-    from ufactory_api.monty_goal_adapter import (
+    from .ufactory_api.robot_interface import RobotInterface
+    from .ufactory_api.monty_goal_adapter import (
         MontyGoalToRobotAdapter,
         WorldToRobotTransform,
         Link6ToSensorTransform,
@@ -29,8 +29,8 @@ except ImportError as e:
     )
 
 try:
-    from maixsense_a010_api.usb_frame_client import A010UsbFrameClient
-    from maixsense_a010_api.monty_adapter import (
+    from .maixsense_a010_api.usb_frame_client import A010UsbFrameClient
+    from .maixsense_a010_api.monty_adapter import (
         MaixsenseMontyObservationAdapter,
         CameraIntrinsics,
     )
