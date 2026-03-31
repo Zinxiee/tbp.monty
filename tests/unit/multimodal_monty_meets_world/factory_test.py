@@ -81,8 +81,10 @@ class TestCreateUsbFrameClient:
             
             mock_client_class.assert_called_once()
             call_args = mock_client_class.call_args
-            assert call_args[1]["port"] == "/dev/sipeed"
+            assert call_args[1]["port"] in {"/dev/sipeed", "/dev/ttyUSB0"}
             assert call_args[1]["baudrate"] == 921600
+            assert call_args[1]["auto_configure_stream"] is True
+            assert call_args[1]["stream_display_mode"] == 3
 
     def test_accepts_custom_port_and_baudrate(self) -> None:
         """Verify custom port and baudrate are passed."""
@@ -113,6 +115,26 @@ class TestCreateUsbFrameClient:
             call_args = mock_client_class.call_args
             assert call_args[1]["validate_checksum"] is False
             assert call_args[1]["checksum_policy"] == "strict"
+
+    def test_resolves_sipeed_symlink_to_primary_data_tty(self) -> None:
+        """Verify /dev/sipeed resolves to ttyUSB0 for dual-interface devices."""
+        target_port = "/dev/ttyUSB1"
+
+        mock_ports = [
+            mock.Mock(device="/dev/ttyUSB1", hwid="USB VID:PID=0403:6010 SER=ABC LOCATION=1-1:1.1"),
+            mock.Mock(device="/dev/ttyUSB0", hwid="USB VID:PID=0403:6010 SER=ABC LOCATION=1-1:1.0"),
+        ]
+
+        with mock.patch("multimodal_monty_meets_world.factory.os.path.islink", return_value=True), mock.patch(
+            "multimodal_monty_meets_world.factory.os.path.realpath", return_value=target_port
+        ), mock.patch("multimodal_monty_meets_world.factory.os.path.exists", return_value=True), mock.patch(
+            "multimodal_monty_meets_world.factory.serial.tools.list_ports.comports",
+            return_value=mock_ports,
+        ), mock.patch("multimodal_monty_meets_world.factory.A010UsbFrameClient") as mock_client_class:
+            create_usb_frame_client(port="/dev/sipeed")
+
+            call_args = mock_client_class.call_args
+            assert call_args[1]["port"] == "/dev/ttyUSB0"
 
 
 class TestCreateObservationAdapter:
@@ -224,6 +246,12 @@ class TestCreateGoalAdapter:
                 max_translation_step_m=0.05,
                 max_rotation_step_deg=15.0,
                 convergence_timeout_s=2.0,
+                min_command_interval_s=0.01,
+                wait_for_min_command_interval=False,
+                wait_until_ready=False,
+                wait_until_ready_timeout_s=1.5,
+                wait_until_ready_poll_s=0.05,
+                safety_profile="very_relaxed",
                 payload_mass_kg=0.1,
             )
             
@@ -235,6 +263,12 @@ class TestCreateGoalAdapter:
             assert safety_config.max_translation_step_m == 0.05
             assert safety_config.max_rotation_step_deg == 15.0
             assert safety_config.convergence_timeout_s == 2.0
+            assert safety_config.min_command_interval_s == 0.01
+            assert safety_config.wait_for_min_command_interval is False
+            assert safety_config.wait_until_ready is False
+            assert safety_config.wait_until_ready_timeout_s == 1.5
+            assert safety_config.wait_until_ready_poll_s == 0.05
+            assert safety_config.safety_profile == "very_relaxed"
             assert safety_config.payload_mass_kg == 0.1
 
     def test_euler_convention(self) -> None:

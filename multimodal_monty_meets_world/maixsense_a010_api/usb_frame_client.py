@@ -44,6 +44,9 @@ class A010UsbFrameClient:
         timeout: float = 0.05,
         validate_checksum: bool = True,
         checksum_policy: str = "compatible",
+        auto_configure_stream: bool = False,
+        stream_display_mode: int | None = 3,
+        stream_startup_delay_s: float = 0.10,
     ):
         """Initialize USB frame client.
         
@@ -62,6 +65,10 @@ class A010UsbFrameClient:
             checksum_policy=checksum_policy,
         )
         self._connected = False
+        self._auto_configure_stream = auto_configure_stream
+        self._stream_display_mode = stream_display_mode
+        self._stream_startup_delay_s = max(float(stream_startup_delay_s), 0.0)
+        self._stream_configured = False
     
     def is_open(self) -> bool:
         """Check if USB connection is open."""
@@ -97,10 +104,22 @@ class A010UsbFrameClient:
                     f"{self._usb_client._port}: {e}"
                 ) from e
         
+        if self._auto_configure_stream and not self._stream_configured:
+            try:
+                if self._stream_display_mode is not None:
+                    self._usb_client.set_display_mode(self._stream_display_mode)
+                if self._stream_startup_delay_s > 0:
+                    time.sleep(self._stream_startup_delay_s)
+                self._stream_configured = True
+            except Exception as e:
+                raise SensorConnectionError(
+                    "Failed to configure Maixsense A010 stream startup settings: "
+                    f"{e}"
+                ) from e
+
         # Poll for frames until timeout.
         start_time = time.monotonic()
-        deadline = start_time + timeout_s
-        
+
         try:
             for frame in self._usb_client.iter_frames(
                 timeout_s=timeout_s,
@@ -128,6 +147,7 @@ class A010UsbFrameClient:
                 pass  # Log but don't re-raise during cleanup.
             finally:
                 self._connected = False
+                self._stream_configured = False
     
     def __enter__(self) -> A010UsbFrameClient:
         """Context manager entry."""

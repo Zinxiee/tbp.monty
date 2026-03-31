@@ -8,9 +8,15 @@ Intended for use with hydra.utils.instantiate() in experiment/environment config
 
 from __future__ import annotations
 
+import os
 from typing import Optional, Any
 import numpy as np
 import quaternion as qt
+
+try:
+    import serial.tools.list_ports
+except ImportError:  # pragma: no cover - serial is expected in runtime env
+    serial = None
 
 # Import with try-except for graceful degradation if modules not in path.
 try:
@@ -27,6 +33,48 @@ except ImportError as e:
         "Failed to import ufactory_api modules. Ensure they are in PYTHONPATH. "
         f"Error: {e}"
     )
+
+
+def _resolve_maixsense_port(port: str) -> str:
+    if port != "/dev/sipeed":
+        return port
+
+    if not os.path.islink(port):
+        return port
+
+    target = os.path.realpath(port)
+    if not target.endswith("ttyUSB1"):
+        return port
+
+    candidate = "/dev/ttyUSB0"
+    if not os.path.exists(candidate):
+        return port
+
+    if serial is None:
+        return candidate
+
+    try:
+        ports = {p.device: p for p in serial.tools.list_ports.comports()}
+        target_info = ports.get(target)
+        candidate_info = ports.get(candidate)
+    except Exception:
+        return candidate
+
+    if target_info is None or candidate_info is None:
+        return candidate
+
+    target_hwid = getattr(target_info, "hwid", "")
+    candidate_hwid = getattr(candidate_info, "hwid", "")
+
+    if "VID:PID=0403:6010" not in target_hwid or "VID:PID=0403:6010" not in candidate_hwid:
+        return port
+
+    target_serial = target_hwid.split("SER=")[-1].split()[0] if "SER=" in target_hwid else ""
+    candidate_serial = candidate_hwid.split("SER=")[-1].split()[0] if "SER=" in candidate_hwid else ""
+    if target_serial and candidate_serial and target_serial == candidate_serial:
+        return candidate
+
+    return port
 
 try:
     from .maixsense_a010_api.usb_frame_client import A010UsbFrameClient
@@ -69,6 +117,9 @@ def create_usb_frame_client(
     timeout: float = 0.05,
     validate_checksum: bool = True,
     checksum_policy: str = "compatible",
+    auto_configure_stream: bool = True,
+    stream_display_mode: int | None = 3,
+    stream_startup_delay_s: float = 0.10,
 ) -> A010UsbFrameClient:
     """Create a USB frame client for Maixsense A010 sensor.
     
@@ -78,16 +129,24 @@ def create_usb_frame_client(
         timeout: Low-level serial read timeout in seconds.
         validate_checksum: Whether to validate frame checksums.
         checksum_policy: Checksum validation strictness ("compatible" or "strict").
-    
+        auto_configure_stream: If True, sends stream startup command on first frame request.
+        stream_display_mode: Display mode bitmask for startup command (3 enables LCD+USB).
+        stream_startup_delay_s: Delay after startup command before frame polling.
+
     Returns:
         Initialized A010UsbFrameClient instance.
     """
+    resolved_port = _resolve_maixsense_port(port)
+
     return A010UsbFrameClient(
-        port=port,
+        port=resolved_port,
         baudrate=baudrate,
         timeout=timeout,
         validate_checksum=validate_checksum,
         checksum_policy=checksum_policy,
+        auto_configure_stream=auto_configure_stream,
+        stream_display_mode=stream_display_mode,
+        stream_startup_delay_s=stream_startup_delay_s,
     )
 
 
@@ -98,6 +157,8 @@ def create_observation_adapter(
     cy: float,
     crop_center_to_square: bool = True,
     min_valid_depth_m: float = 1e-6,
+    max_valid_depth_m: float | None = None,
+    semantic_zero_bottom_fraction: float = 0.0,
 ) -> MaixsenseMontyObservationAdapter:
     """Create an observation adapter for Maixsense A010 frames.
     
@@ -108,6 +169,8 @@ def create_observation_adapter(
         cy: Principal point y-coordinate in pixels.
         crop_center_to_square: If True, crop to centered square patch.
         min_valid_depth_m: Minimum valid depth in meters.
+        max_valid_depth_m: Optional maximum valid depth in meters.
+        semantic_zero_bottom_fraction: Fraction of bottom rows masked in semantic map.
     
     Returns:
         Initialized MaixsenseMontyObservationAdapter instance.
@@ -117,6 +180,8 @@ def create_observation_adapter(
         intrinsics=intrinsics,
         crop_center_to_square=crop_center_to_square,
         min_valid_depth_m=min_valid_depth_m,
+        max_valid_depth_m=max_valid_depth_m,
+        semantic_zero_bottom_fraction=semantic_zero_bottom_fraction,
     )
 
 
@@ -134,9 +199,16 @@ def create_goal_adapter(
     orientation_max_euler_deg: Optional[list | np.ndarray] = None,
     convergence_timeout_s: float = 1.2,
     convergence_position_tolerance_mm: float = 5.0,
-    payload_mass_kg: float = 0.070,
+    min_command_interval_s: float = 0.05,
+    wait_for_min_command_interval: bool = True,
+    wait_until_ready: bool = True,
+    wait_until_ready_timeout_s: float = 2.0,
+    wait_until_ready_poll_s: float = 0.02,
+    safety_profile: str = "strict",
+    payload_mass_kg: float = 0.056,
     euler_sequence: str = "xyz",
     euler_degrees: bool = True,
+    debug_logging: bool = False,
 ) -> MontyGoalToRobotAdapter:
     """Create a goal-pose-to-robot adapter with safety configuration.
     
@@ -154,9 +226,16 @@ def create_goal_adapter(
         orientation_max_euler_deg: Maximum Euler angles [roll, pitch, yaw].
         convergence_timeout_s: Time to wait for goal convergence.
         convergence_position_tolerance_mm: Position tolerance for convergence check.
+        min_command_interval_s: Minimum interval between commands.
+        wait_for_min_command_interval: If True, wait for interval instead of rejecting.
+        wait_until_ready: If True, poll for robot readiness before dispatch.
+        wait_until_ready_timeout_s: Max time to wait for readiness.
+        wait_until_ready_poll_s: Poll interval for readiness checks.
+        safety_profile: Safety profile name ("strict" or "very_relaxed").
         payload_mass_kg: Estimated end-effector payload mass.
         euler_sequence: Euler angle sequence for conversion ("xyz" for extrinsic).
         euler_degrees: If True, Euler angles are in degrees.
+        debug_logging: If True, emits transform/safety diagnostic logs.
     
     Returns:
         Initialized MontyGoalToRobotAdapter instance.
@@ -231,6 +310,12 @@ def create_goal_adapter(
         orientation_max_euler_deg=orientation_max_euler_deg,
         convergence_timeout_s=convergence_timeout_s,
         convergence_position_tolerance_mm=convergence_position_tolerance_mm,
+        min_command_interval_s=min_command_interval_s,
+        wait_for_min_command_interval=wait_for_min_command_interval,
+        wait_until_ready=wait_until_ready,
+        wait_until_ready_timeout_s=wait_until_ready_timeout_s,
+        wait_until_ready_poll_s=wait_until_ready_poll_s,
+        safety_profile=safety_profile,
         payload_mass_kg=payload_mass_kg,
     )
     
@@ -245,4 +330,5 @@ def create_goal_adapter(
         link6_to_sensor=link6_to_sensor,
         safety_config=safety_config,
         euler_convention=euler_convention,
+        debug_logging=debug_logging,
     )

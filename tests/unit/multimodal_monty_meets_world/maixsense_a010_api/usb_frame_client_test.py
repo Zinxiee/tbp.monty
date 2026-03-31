@@ -114,6 +114,7 @@ class TestA010UsbFrameClient:
     def test_context_manager(self) -> None:
         """Verify context manager enter/exit."""
         client = A010UsbFrameClient()
+        client._connected = True
         
         with mock.patch.object(client._usb_client, "close") as mock_close:
             with client as ctx:
@@ -171,3 +172,40 @@ class TestA010UsbFrameClient:
             assert f2 == frame2
             # Connect should only be called once (lazy init).
             mock_connect.assert_called_once()
+
+    def test_auto_configure_stream_runs_once(self) -> None:
+        """Verify stream startup command is sent only once across calls."""
+        client = A010UsbFrameClient(auto_configure_stream=True, stream_display_mode=3)
+        frame1 = mock.MagicMock(spec=A010UsbFrame, frame_id=1)
+        frame2 = mock.MagicMock(spec=A010UsbFrame, frame_id=2)
+
+        with mock.patch.object(client._usb_client, "connect") as mock_connect, mock.patch.object(
+            client._usb_client, "set_display_mode"
+        ) as mock_set_display, mock.patch.object(
+            client._usb_client, "iter_frames"
+        ) as mock_iter:
+            mock_iter.side_effect = [iter([frame1]), iter([frame2])]
+
+            client.get_frame(timeout_s=0.5)
+            client.get_frame(timeout_s=0.5)
+
+            mock_connect.assert_called_once()
+            mock_set_display.assert_called_once_with(3)
+
+    def test_close_resets_stream_configured_state(self) -> None:
+        """Verify close clears stream configured marker for reconnect."""
+        client = A010UsbFrameClient(auto_configure_stream=True, stream_display_mode=3)
+        frame = mock.MagicMock(spec=A010UsbFrame, frame_id=1)
+
+        with mock.patch.object(client._usb_client, "connect"), mock.patch.object(
+            client._usb_client, "set_display_mode"
+        ), mock.patch.object(client._usb_client, "iter_frames", return_value=iter([frame])):
+            client.get_frame(timeout_s=0.2)
+
+        assert client._stream_configured is True
+
+        client._connected = True
+        with mock.patch.object(client._usb_client, "close"):
+            client.close()
+
+        assert client._stream_configured is False

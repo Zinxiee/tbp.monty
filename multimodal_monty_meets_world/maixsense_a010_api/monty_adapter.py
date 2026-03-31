@@ -53,10 +53,18 @@ class MaixsenseMontyObservationAdapter:
         *,
         crop_center_to_square: bool = True,
         min_valid_depth_m: float = 1e-6,
+        max_valid_depth_m: float | None = None,
+        semantic_zero_bottom_fraction: float = 0.0,
     ) -> None:
         self._intrinsics = intrinsics
         self._crop_center_to_square = crop_center_to_square
         self._min_valid_depth_m = min_valid_depth_m
+        self._max_valid_depth_m = (
+            None if max_valid_depth_m is None else float(max_valid_depth_m)
+        )
+        self._semantic_zero_bottom_fraction = float(
+            np.clip(semantic_zero_bottom_fraction, 0.0, 0.95)
+        )
 
     @property
     def intrinsics(self) -> CameraIntrinsics:
@@ -182,7 +190,13 @@ class MaixsenseMontyObservationAdapter:
             semantic,
             depth,
             min_valid_depth_m=self._min_valid_depth_m,
+            max_valid_depth_m=self._max_valid_depth_m,
         )
+        if self._semantic_zero_bottom_fraction > 0.0:
+            semantic_mask = _zero_semantic_bottom_rows(
+                semantic_mask,
+                self._semantic_zero_bottom_fraction,
+            )
 
         sensor_xyz = _unproject_depth_to_sensor_xyz(depth, self._intrinsics)
         sensor_xyz4 = np.column_stack([sensor_xyz, semantic_mask.reshape(-1)])
@@ -204,6 +218,8 @@ def create_adapter_from_http_calibration(
     *,
     crop_center_to_square: bool = True,
     min_valid_depth_m: float = 1e-6,
+    max_valid_depth_m: float | None = None,
+    semantic_zero_bottom_fraction: float = 0.0,
 ) -> MaixsenseMontyObservationAdapter:
     """Create a Monty adapter using Maixsense HTTP-reported lens coefficients.
 
@@ -213,6 +229,8 @@ def create_adapter_from_http_calibration(
         crop_center_to_square: Whether non-square frames should be center-cropped
             for CameraSM compatibility.
         min_valid_depth_m: Minimum depth used to synthesize semantic validity.
+        max_valid_depth_m: Optional maximum depth used to synthesize semantic validity.
+        semantic_zero_bottom_fraction: Fraction of bottom rows to zero in semantic mask.
 
     Returns:
         Configured `MaixsenseMontyObservationAdapter`.
@@ -231,6 +249,8 @@ def create_adapter_from_http_calibration(
         intrinsics,
         crop_center_to_square=crop_center_to_square,
         min_valid_depth_m=min_valid_depth_m,
+        max_valid_depth_m=max_valid_depth_m,
+        semantic_zero_bottom_fraction=semantic_zero_bottom_fraction,
     )
 
 
@@ -287,10 +307,15 @@ def _normalize_rgba(rgba: Optional[np.ndarray], shape: tuple[int, int]) -> np.nd
 
 
 def _normalize_semantic(
-    semantic: Optional[np.ndarray], depth_m: np.ndarray, min_valid_depth_m: float = 1e-6
+    semantic: Optional[np.ndarray],
+    depth_m: np.ndarray,
+    min_valid_depth_m: float = 1e-6,
+    max_valid_depth_m: float | None = None,
 ) -> np.ndarray:
     if semantic is None:
         valid = np.isfinite(depth_m) & (depth_m > min_valid_depth_m)
+        if max_valid_depth_m is not None:
+            valid = valid & (depth_m < max_valid_depth_m)
         return valid.astype(np.int32)
 
     sem = np.asarray(semantic)
@@ -303,6 +328,20 @@ def _normalize_semantic(
         sem = sem[..., 0]
 
     return (sem > 0).astype(np.int32)
+
+
+def _zero_semantic_bottom_rows(semantic_mask: np.ndarray, bottom_fraction: float) -> np.ndarray:
+    if bottom_fraction <= 0.0:
+        return semantic_mask
+
+    masked = np.array(semantic_mask, copy=True)
+    rows = masked.shape[0]
+    cut_rows = int(np.floor(rows * bottom_fraction))
+    if cut_rows <= 0:
+        return masked
+
+    masked[rows - cut_rows :, :] = 0
+    return masked
 
 
 def _unproject_depth_to_sensor_xyz(
