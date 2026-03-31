@@ -121,7 +121,7 @@ goal_adapter_config:
   max_rotation_step_deg: 20.0                # Max rotation (degrees)
   convergence_timeout_s: 1.2                 # Wait for move completion
   convergence_position_tolerance_mm: 5.0     # Position reached tolerance
-  payload_mass_kg: 0.070                     # Gripper + object estimate
+  payload_mass_kg: 0.056                     # Gripper + object estimate
 ```
 
 **Verify workspace:** Place object at corners and edges; confirm safe reachability.

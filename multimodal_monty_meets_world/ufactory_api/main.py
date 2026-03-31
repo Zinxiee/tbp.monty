@@ -28,7 +28,7 @@ safety_config = SafetyConfig(
     max_rotation_step_deg=20.0,
     orientation_min_euler_deg=np.array([-180.0, -120.0, -180.0], dtype=float),
     orientation_max_euler_deg=np.array([180.0, 120.0, 180.0], dtype=float),
-    payload_mass_kg=0.070,
+    payload_mass_kg=0.056,
     payload_center_of_gravity_mm=np.array([0.0, -60.0, 13.5], dtype=float),
 )
 
