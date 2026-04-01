@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised_probe_baseline
+
+experiment:
+  config:
+    train_env_interface_args:
+      use_goal_pose_dispatch: false
+    eval_env_interface_args:
+      use_goal_pose_dispatch: false
+    logging:
+      run_name: real_world_lite6_maixsense_unsupervised_probe_no_goal_dispatch

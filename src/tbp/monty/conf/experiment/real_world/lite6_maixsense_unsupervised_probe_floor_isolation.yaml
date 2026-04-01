@@ -1,0 +1,15 @@
+# @package _global_
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised_probe_baseline
+
+experiment:
+  config:
+    environment:
+      env_init_args:
+        observation_adapter:
+          min_valid_depth_m: 0.02
+          max_valid_depth_m: 0.80
+          semantic_zero_bottom_fraction: 0.30
+    logging:
+      run_name: real_world_lite6_maixsense_unsupervised_probe_floor_isolation
