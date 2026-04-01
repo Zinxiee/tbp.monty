@@ -48,7 +48,10 @@ from tbp.monty.frameworks.models.motor_system_state import AgentState, MotorSyst
 from tbp.monty.frameworks.models.states import State
 from tbp.monty.frameworks.sensors import SensorID
 from tbp.monty.frameworks.utils.spatial_arithmetics import get_angle_beefed_up
-from tbp.monty.frameworks.utils.transform_utils import scipy_to_numpy_quat
+from tbp.monty.frameworks.utils.transform_utils import (
+    numpy_to_scipy_quat,
+    scipy_to_numpy_quat,
+)
 from tbp.monty.math import VectorXYZ
 
 if TYPE_CHECKING:
@@ -948,7 +951,7 @@ class SurfacePolicy(InformedPolicy):
         current_quat = agent_state.rotation
         
         # Convert quaternion to scipy format for rotation operations
-        quat_xyzw = scipy_to_numpy_quat(current_quat)
+        quat_xyzw = numpy_to_scipy_quat(current_quat)
         agent_rot = rot.from_quat(quat_xyzw)
         
         if isinstance(action, MoveForward):
@@ -961,6 +964,9 @@ class SurfacePolicy(InformedPolicy):
         elif isinstance(action, MoveTangentially):
             # Move in the provided direction (already in world frame)
             direction = np.array(action.direction, dtype=float)
+            direction_norm = np.linalg.norm(direction)
+            if direction_norm > 0:
+                direction = direction / direction_norm
             goal_pos = current_pos + direction * action.distance
             goal_quat = current_quat
             
@@ -1017,7 +1023,7 @@ class SurfacePolicy(InformedPolicy):
         else:
             # Unknown action type
             return None
-        
+
         return (goal_pos, goal_quat)
 
     def __call__(

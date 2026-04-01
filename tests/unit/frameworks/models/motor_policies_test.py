@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import numpy.testing as nptest
+import quaternion as qt
 
 from tbp.monty.context import RuntimeContext
 from tbp.monty.frameworks.actions.action_samplers import UniformlyDistributedSampler
@@ -30,12 +31,19 @@ from tbp.monty.frameworks.actions.actions import (
 )
 from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
+from tbp.monty.frameworks.models.motor_system_state import (
+    AgentState,
+    MotorSystemState,
+    SensorState,
+)
 from tbp.monty.frameworks.models.motor_policies import (
     InformedPolicy,
     PredefinedPolicy,
     SurfacePolicyCurvatureInformed,
 )
 from tbp.monty.frameworks.models.states import State
+from tbp.monty.frameworks.sensors import SensorID
+from tbp.monty.frameworks.utils.transform_utils import numpy_to_scipy_quat
 
 
 class SurfacePolicyCurvatureInformedTest(unittest.TestCase):
@@ -227,6 +235,10 @@ class GoalPoseEmissionTest(unittest.TestCase):
         nptest.assert_allclose(target_loc, np.array([0.1, 0.2, 0.3]))
 
         self.assertTrue(any(isinstance(action, SetAgentPose) for action in result.actions))
+
+    def test_numpy_to_scipy_quat_accepts_numpy_quaternion(self) -> None:
+        quat_xyzw = numpy_to_scipy_quat(qt.one)
+        nptest.assert_allclose(quat_xyzw, np.array([0.0, 0.0, 0.0, 1.0]))
 
 
 if __name__ == "__main__":

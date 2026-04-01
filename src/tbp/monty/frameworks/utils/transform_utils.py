@@ -25,7 +25,15 @@ def numpy_to_scipy_quat(quat):
     Returns:
         A quaternion in xyzw format
     """
-    return np.array((quat[1], quat[2], quat[3], quat[0]))
+    if isinstance(quat, qt.quaternion):
+        quat = qt.as_float_array(quat)
+    else:
+        quat = np.asarray(quat, dtype=float)
+
+    if quat.shape != (4,):
+        raise ValueError(f"Expected quaternion shape (4,), got {quat.shape}")
+
+    return np.array((quat[1], quat[2], quat[3], quat[0]), dtype=float)
 
 
 def scipy_to_numpy_quat(quat: np.ndarray) -> qt.quaternion:
