@@ -67,7 +67,7 @@ env_init_args:
     euler_sequence: xyz
     euler_degrees: true
 
-  agent_id: ${monty.agent_id:agent_id_0}
+  agent_id: agent_id_0
   sensor_id: patch
   # Home pose in robot-base frame: [x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg]
   home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
