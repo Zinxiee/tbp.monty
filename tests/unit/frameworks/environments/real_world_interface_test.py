@@ -89,6 +89,21 @@ def _obs_state_pair():
 
 
 class RealWorldEnvironmentInterfaceTest(unittest.TestCase):
+    def test_exposes_primary_target_for_experiment_contract(self) -> None:
+        env = _FakeEnv()
+        interface = RealWorldEnvironmentInterface(
+            env=env,
+            rng=sentinel.rng,
+            seed=42,
+            experiment_mode=ExperimentMode.TRAIN,
+            transform=None,
+            use_goal_pose_dispatch=True,
+        )
+
+        self.assertEqual(interface.primary_target["object"], "real_world_target")
+        self.assertEqual(interface.primary_target["semantic_id"], 0)
+        self.assertEqual(interface.semantic_id_to_label[0], "real_world_target")
+
     def test_step_passes_last_motor_policy_result_when_enabled(self) -> None:
         env = _FakeEnv()
         interface = RealWorldEnvironmentInterface(

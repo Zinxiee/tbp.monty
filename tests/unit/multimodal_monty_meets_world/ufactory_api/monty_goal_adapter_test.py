@@ -23,6 +23,9 @@ class _FakeRobotInterface:
     def __init__(self) -> None:
         self.last_command: tuple[float, float, float, float, float, float] | None = None
         self.feasible = True
+        self.healthy = True
+        self.wait_until_ready_result = True
+        self.wait_until_ready_calls = 0
         self.sense_state = {
             "joints": [0.0] * 6,
             "end_effector": [300.0, 0.0, 200.0, 0.0, 0.0, 0.0],
@@ -37,7 +40,18 @@ class _FakeRobotInterface:
         return self.sense_state
 
     def is_api_healthy(self):
-        return True
+        return self.healthy
+
+    def wait_until_ready(self, timeout_s=2.0, poll_interval_s=0.02):
+        self.wait_until_ready_calls += 1
+        return self.wait_until_ready_result
+
+    def get_api_health_snapshot(self):
+        return {
+            "joint_code": 0 if self.healthy else -1,
+            "position_code": 0 if self.healthy else -1,
+            "error_code": 0 if self.healthy else 23,
+        }
 
     def get_joint_limit_margin_rad(self, _joint_limits_rad):
         return 1.0
@@ -150,8 +164,69 @@ class MontyGoalToRobotAdapterTest(unittest.TestCase):
         dispatched = adapter.dispatch_motor_policy_result(result)
 
         self.assertFalse(dispatched)
-        self.assertEqual(robot.stop_reason, "ik_infeasible")
+        assert robot.stop_reason is not None
+        self.assertTrue(robot.stop_reason.startswith("ik_infeasible"))
         self.assertIsNone(robot.last_command)
+
+    def test_dispatch_rejected_when_wait_until_ready_times_out(self) -> None:
+        robot = _FakeRobotInterface()
+        robot.wait_until_ready_result = False
+        robot.healthy = False
+        adapter = self.module.MontyGoalToRobotAdapter(
+            robot=robot,
+            world_to_robot=self.module.identity_world_to_robot_transform(),
+            safety_config=self.module.SafetyConfig(wait_until_ready_timeout_s=0.0),
+        )
+
+        result = MotorPolicyResult(goal_pose=(np.array([0.3, 0.0, 0.2]), qt.one))
+        dispatched = adapter.dispatch_motor_policy_result(result)
+
+        self.assertFalse(dispatched)
+        self.assertEqual(robot.wait_until_ready_calls, 1)
+        assert robot.stop_reason is not None
+        self.assertTrue(robot.stop_reason.startswith("robot_not_ready_timeout"))
+
+    def test_command_interval_waits_instead_of_rejecting(self) -> None:
+        robot = _FakeRobotInterface()
+        adapter = self.module.MontyGoalToRobotAdapter(
+            robot=robot,
+            world_to_robot=self.module.identity_world_to_robot_transform(),
+            safety_config=self.module.SafetyConfig(
+                workspace_min_xyz_m=np.array([0.0, -1.0, 0.0]),
+                workspace_max_xyz_m=np.array([1.0, 1.0, 1.0]),
+                min_command_interval_s=0.05,
+                wait_for_min_command_interval=True,
+            ),
+        )
+
+        result = MotorPolicyResult(goal_pose=(np.array([0.3, 0.0, 0.2]), qt.one))
+        self.assertTrue(adapter.dispatch_motor_policy_result(result))
+        self.assertTrue(adapter.dispatch_motor_policy_result(result))
+
+        assert robot.stop_reason is None
+        assert robot.last_command is not None
+
+    def test_very_relaxed_profile_bypasses_translation_step_rejection(self) -> None:
+        robot = _FakeRobotInterface()
+        adapter = self.module.MontyGoalToRobotAdapter(
+            robot=robot,
+            world_to_robot=self.module.identity_world_to_robot_transform(),
+            safety_config=self.module.SafetyConfig(
+                max_translation_step_m=0.001,
+                safety_profile="very_relaxed",
+            ),
+        )
+
+        self.assertTrue(
+            adapter.dispatch_motor_policy_result(
+                MotorPolicyResult(goal_pose=(np.array([0.3, 0.0, 0.2]), qt.one))
+            )
+        )
+        self.assertTrue(
+            adapter.dispatch_motor_policy_result(
+                MotorPolicyResult(goal_pose=(np.array([0.6, 0.0, 0.2]), qt.one))
+            )
+        )
 
 
 if __name__ == "__main__":

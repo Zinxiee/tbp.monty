@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -14,6 +15,8 @@ if TYPE_CHECKING:
     from robot_interface import RobotInterface
 else:
     RobotInterface = Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -75,7 +78,12 @@ class SafetyConfig:
     convergence_timeout_s: float = 1.2
     convergence_position_tolerance_mm: float = 5.0
     min_command_interval_s: float = 0.05
-    payload_mass_kg: float = 0.070 # TODO: update with actual payload mass
+    wait_for_min_command_interval: bool = True
+    wait_until_ready: bool = True
+    wait_until_ready_timeout_s: float = 2.0
+    wait_until_ready_poll_s: float = 0.02
+    safety_profile: str = "strict"
+    payload_mass_kg: float = 0.056
     payload_center_of_gravity_mm: np.ndarray = field(
         default_factory=lambda: np.array([0.0, -60.0, 13.5], dtype=float)
     )
@@ -106,16 +114,19 @@ class MontyGoalToRobotAdapter:
         link6_to_sensor: Link6ToSensorTransform | None = None,
         safety_config: SafetyConfig | None = None,
         euler_convention: EulerConvention | None = None,
+        debug_logging: bool = False,
     ) -> None:
         self.robot = robot
         self.world_to_robot = world_to_robot
         self.link6_to_sensor = link6_to_sensor or identity_link6_to_sensor_transform()
         self.safety_config = safety_config or SafetyConfig()
         self.euler_convention = euler_convention or EulerConvention()
+        self.debug_logging = bool(debug_logging)
 
         self._last_command_timestamp_s: float | None = None
         self._last_command_position_m: np.ndarray | None = None
         self._last_command_quat_wxyz: qt.quaternion | None = None
+        self.last_rejection_details: dict[str, Any] | None = None
 
         self._configure_payload_from_safety_config()
 
@@ -137,12 +148,46 @@ class MontyGoalToRobotAdapter:
         rotation_quat_wxyz: qt.quaternion,
     ) -> bool:
         """Convert a world-frame pose to robot command and dispatch move_arm."""
+        self.last_rejection_details = None
+        self._log_debug(
+            "SEND_WORLD_GOAL",
+            world_location_m=np.round(np.asarray(location_m, dtype=float), 6).tolist(),
+            world_quat_wxyz=np.round(qt.as_float_array(rotation_quat_wxyz), 6).tolist(),
+        )
+
+        ready, ready_reason = self._wait_until_robot_ready()
+        if not ready:
+            self.last_rejection_details = {
+                "reason_code": "robot_not_ready",
+                "details": ready_reason,
+            }
+            self._log_debug("REJECT_ROBOT_NOT_READY", details=ready_reason)
+            self.robot.stop_motion(reason=ready_reason)
+            return False
+
+        interval_ok, interval_reason = self._enforce_command_interval()
+        if not interval_ok:
+            self.last_rejection_details = {
+                "reason_code": "command_interval",
+                "details": interval_reason,
+            }
+            self._log_debug("REJECT_COMMAND_INTERVAL", details=interval_reason)
+            self.robot.stop_motion(reason=interval_reason)
+            return False
+
         robot_position_m, robot_quat_wxyz = self._world_pose_to_robot_pose(
             location_m=location_m,
             rotation_quat_wxyz=rotation_quat_wxyz,
         )
         roll_deg, pitch_deg, yaw_deg = self._quat_to_command_euler_deg(robot_quat_wxyz)
         x_mm, y_mm, z_mm = (robot_position_m * 1000.0).tolist()
+        self._log_debug(
+            "TRANSFORMED_ROBOT_GOAL",
+            robot_position_m=np.round(np.asarray(robot_position_m, dtype=float), 6).tolist(),
+            robot_quat_wxyz=np.round(qt.as_float_array(robot_quat_wxyz), 6).tolist(),
+            robot_euler_deg=np.round(np.asarray([roll_deg, pitch_deg, yaw_deg], dtype=float), 3).tolist(),
+            robot_position_mm=np.round(np.asarray([x_mm, y_mm, z_mm], dtype=float), 3).tolist(),
+        )
 
         safety_ok, reason = self._run_safety_checks(
             target_position_m=robot_position_m,
@@ -151,6 +196,11 @@ class MontyGoalToRobotAdapter:
             target_pose_mm_deg=(x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg),
         )
         if not safety_ok:
+            self.last_rejection_details = {
+                "reason_code": reason.split(" ", 1)[0] if reason else "unknown",
+                "details": reason,
+            }
+            self._log_debug("REJECT_SAFETY", details=reason)
             self.robot.stop_motion(reason=reason)
             return False
 
@@ -161,6 +211,11 @@ class MontyGoalToRobotAdapter:
             roll=roll_deg,
             pitch=pitch_deg,
             yaw=yaw_deg,
+        )
+        self._log_debug(
+            "COMMAND_DISPATCHED",
+            command_mm=np.round(np.asarray([x_mm, y_mm, z_mm], dtype=float), 3).tolist(),
+            command_euler_deg=np.round(np.asarray([roll_deg, pitch_deg, yaw_deg], dtype=float), 3).tolist(),
         )
 
         self._last_command_timestamp_s = time.monotonic()
@@ -248,11 +303,27 @@ class MontyGoalToRobotAdapter:
         target_pose_mm_deg: tuple[float, float, float, float, float, float],
     ) -> tuple[bool, str]:
         """Run safety and feasibility checks before dispatching robot commands."""
-        if not self._check_workspace_bounds(target_position_m):
-            return False, "workspace_bounds"
+        if self._is_very_relaxed_profile():
+            if not self._check_ik_feasibility(target_pose_mm_deg):
+                return (
+                    False,
+                    "ik_infeasible"
+                    f" pose_mm_deg={np.round(np.asarray(target_pose_mm_deg, dtype=float), 3).tolist()}",
+                )
 
-        if not self._check_command_interval():
-            return False, "command_interval"
+            if not self.robot.is_api_healthy():
+                return False, self._robot_api_unhealthy_reason()
+
+            return True, "ok"
+
+        if not self._check_workspace_bounds(target_position_m):
+            return (
+                False,
+                "workspace_bounds"
+                f" target_m={np.round(target_position_m, 6).tolist()}"
+                f" min_m={np.round(self.safety_config.workspace_min_xyz_m, 6).tolist()}"
+                f" max_m={np.round(self.safety_config.workspace_max_xyz_m, 6).tolist()}",
+            )
 
         if not self._check_step_size(target_position_m):
             return False, "translation_step"
@@ -261,13 +332,23 @@ class MontyGoalToRobotAdapter:
             return False, "rotation_step"
 
         if not self._check_orientation_sanity(target_euler_deg):
-            return False, "orientation_sanity"
+            return (
+                False,
+                "orientation_sanity"
+                f" euler_deg={np.round(target_euler_deg, 3).tolist()}"
+                f" min={np.round(self.safety_config.orientation_min_euler_deg, 3).tolist()}"
+                f" max={np.round(self.safety_config.orientation_max_euler_deg, 3).tolist()}",
+            )
 
         if not self._check_ik_feasibility(target_pose_mm_deg):
-            return False, "ik_infeasible"
+            return (
+                False,
+                "ik_infeasible"
+                f" pose_mm_deg={np.round(np.asarray(target_pose_mm_deg, dtype=float), 3).tolist()}",
+            )
 
         if not self.robot.is_api_healthy():
-            return False, "robot_api_unhealthy"
+            return False, self._robot_api_unhealthy_reason()
 
         if not self._check_joint_limit_margin():
             return False, "joint_limit_margin"
@@ -292,6 +373,79 @@ class MontyGoalToRobotAdapter:
 
         elapsed_s = time.monotonic() - self._last_command_timestamp_s
         return elapsed_s >= self.safety_config.min_command_interval_s
+
+    def _enforce_command_interval(self) -> tuple[bool, str]:
+        if self._last_command_timestamp_s is None:
+            return True, "ok"
+
+        elapsed_s = time.monotonic() - self._last_command_timestamp_s
+        remaining_s = self.safety_config.min_command_interval_s - elapsed_s
+        if remaining_s <= 0:
+            return True, "ok"
+
+        if self.safety_config.wait_for_min_command_interval:
+            time.sleep(remaining_s)
+            return True, "ok"
+
+        return (
+            False,
+            "command_interval"
+            f" elapsed_s={round(elapsed_s, 4)}"
+            f" required_s={round(self.safety_config.min_command_interval_s, 4)}",
+        )
+
+    def _wait_until_robot_ready(self) -> tuple[bool, str]:
+        if not self.safety_config.wait_until_ready:
+            if self.robot.is_api_healthy():
+                return True, "ok"
+            return False, self._robot_api_unhealthy_reason(prefix="robot_not_ready")
+
+        timeout_s = max(0.0, float(self.safety_config.wait_until_ready_timeout_s))
+        poll_s = max(0.0, float(self.safety_config.wait_until_ready_poll_s))
+
+        wait_method = getattr(self.robot, "wait_until_ready", None)
+        if callable(wait_method):
+            ready = bool(wait_method(timeout_s=timeout_s, poll_interval_s=poll_s))
+            if ready:
+                return True, "ok"
+            return (
+                False,
+                self._robot_api_unhealthy_reason(
+                    prefix="robot_not_ready_timeout",
+                    extra=f" timeout_s={round(timeout_s, 3)}",
+                ),
+            )
+
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() <= deadline:
+            if self.robot.is_api_healthy():
+                return True, "ok"
+            if poll_s > 0:
+                time.sleep(poll_s)
+
+        return (
+            False,
+            self._robot_api_unhealthy_reason(
+                prefix="robot_not_ready_timeout",
+                extra=f" timeout_s={round(timeout_s, 3)}",
+            ),
+        )
+
+    def _robot_api_unhealthy_reason(self, prefix: str = "robot_api_unhealthy", extra: str = "") -> str:
+        snapshot_fn = getattr(self.robot, "get_api_health_snapshot", None)
+        if callable(snapshot_fn):
+            snapshot = snapshot_fn()
+            return (
+                f"{prefix}"
+                f" joint_code={snapshot.get('joint_code', -1)}"
+                f" position_code={snapshot.get('position_code', -1)}"
+                f" error_code={snapshot.get('error_code', -1)}"
+                f"{extra}"
+            )
+        return f"{prefix}{extra}"
+
+    def _is_very_relaxed_profile(self) -> bool:
+        return str(self.safety_config.safety_profile).lower() == "very_relaxed"
 
     def _check_step_size(self, target_position_m: np.ndarray) -> bool:
         reference_position = self._last_command_position_m
@@ -376,6 +530,14 @@ class MontyGoalToRobotAdapter:
 
         xyz_mm = np.asarray(end_effector[:3], dtype=float)
         return xyz_mm / 1000.0
+
+    def _log_debug(self, event: str, **fields: Any) -> None:
+        if not self.debug_logging:
+            return
+        if fields:
+            logger.info("REAL_WORLD_ADAPTER %s | %s", event, fields)
+            return
+        logger.info("REAL_WORLD_ADAPTER %s", event)
 
 
 def identity_world_to_robot_transform() -> WorldToRobotTransform:

@@ -315,6 +315,8 @@ class MontyExperiment:
                     consistent_child_objects=self.env_interface.consistent_child_objects
                 )
             args.update(target=target)
+        elif hasattr(self.env_interface, "primary_target"):
+            args.update(target=getattr(self.env_interface, "primary_target"))
         return args
 
     def init_loggers(self, logging_config: dict[str, Any]) -> None:

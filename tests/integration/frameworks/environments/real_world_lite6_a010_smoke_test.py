@@ -8,13 +8,18 @@ from __future__ import annotations
 
 import time
 from unittest import mock
-from typing import Any, Sequence
+from typing import Any, List, Sequence
 
 import numpy as np
 import quaternion as qt
 import pytest
 
-from tbp.monty.frameworks.actions.actions import Action, SetAgentPose, SetSensorPose
+from tbp.monty.frameworks.actions.actions import (
+    Action,
+    MoveForward,
+    SetAgentPose,
+    SetSensorPose,
+)
 from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.models.motor_policies import MotorPolicyResult
 from tbp.monty.frameworks.models.motor_system_state import ProprioceptiveState
@@ -84,6 +89,27 @@ class MockUSBClient:
         self.is_open_state = False
 
 
+class MockRetryUSBClient:
+    """Mock USB client that fails first, then succeeds."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.timeouts: List[float] = []
+
+    def get_frame(self, timeout_s: float = 1.0) -> Any:
+        self.calls += 1
+        self.timeouts.append(timeout_s)
+        if self.calls == 1:
+            raise RuntimeError("simulated first-frame timeout")
+
+        mock_frame = mock.MagicMock()
+        mock_frame.frame_id = self.calls
+        mock_frame.distance_mm_image = mock.MagicMock(
+            return_value=np.random.randint(100, 1000, size=(240, 320), dtype=np.int16)
+        )
+        return mock_frame
+
+
 class MockObservationAdapter:
     """Mock observation adapter."""
     
@@ -111,12 +137,23 @@ class MockGoalAdapter:
     def __init__(self, robot: Any = None, **kwargs):
         self.robot = robot
         self.dispatch_calls = []
+        self.pose_calls = []
         self.dispatch_success = True
+        self.pose_success = True
     
     def dispatch_motor_policy_result(self, result: MotorPolicyResult) -> bool:
         """Record dispatch and return success."""
         self.dispatch_calls.append(result)
         return self.dispatch_success
+
+    def send_world_goal_pose(
+        self,
+        location_m: np.ndarray,
+        rotation_quat_wxyz: qt.quaternion,
+    ) -> bool:
+        """Record direct world-pose sends and return success."""
+        self.pose_calls.append((location_m, rotation_quat_wxyz))
+        return self.pose_success
 
 
 class TestRealWorldIntegrationSmoke:
@@ -292,6 +329,35 @@ class TestRealWorldIntegrationSmoke:
         # Verify multiple dispatches occurred.
         assert len(mock_goal_adapter.dispatch_calls) >= 3
 
+    def test_step_falls_back_to_relative_action_when_goal_dispatch_rejected(self) -> None:
+        """Verify rejected goal dispatch falls back to relative action execution."""
+        mock_robot = MockRobotInterface()
+        mock_sensor = MockUSBClient()
+        mock_adapter = MockObservationAdapter()
+        mock_goal_adapter = MockGoalAdapter(robot=mock_robot)
+        mock_goal_adapter.dispatch_success = False
+
+        env = RealWorldLite6A010Environment(
+            robot_interface=mock_robot,
+            sensor_client=mock_sensor,
+            observation_adapter=mock_adapter,
+            goal_adapter=mock_goal_adapter,
+            input_fn=lambda prompt: "",
+        )
+
+        policy_result = MotorPolicyResult(
+            actions=[MoveForward(agent_id=AgentID("agent_id_0"), distance=0.02)],
+            goal_pose=(np.array([5.0, 5.0, 5.0], dtype=np.float32), qt.one),
+        )
+        env.set_last_motor_policy_result(policy_result)
+
+        observations, proprioceptive = env.step(policy_result.actions)
+
+        assert len(mock_goal_adapter.dispatch_calls) == 1
+        assert len(mock_goal_adapter.pose_calls) == 1
+        assert isinstance(observations, dict)
+        assert isinstance(proprioceptive, ProprioceptiveState)
+
     def test_observation_structure_from_real_world_env(self) -> None:
         """Verify observations have correct structure."""
         mock_robot = MockRobotInterface()
@@ -320,6 +386,31 @@ class TestRealWorldIntegrationSmoke:
         assert sensor_obs is not None
         assert "depth" in sensor_obs
         assert isinstance(sensor_obs["depth"], np.ndarray)
+
+    def test_sensor_read_retries_and_passes_timeout(self) -> None:
+        """Verify environment retries sensor reads and forwards timeout_s."""
+        mock_robot = MockRobotInterface()
+        mock_sensor = MockRetryUSBClient()
+        mock_adapter = MockObservationAdapter()
+        mock_goal_adapter = MockGoalAdapter(robot=mock_robot)
+
+        env = RealWorldLite6A010Environment(
+            robot_interface=mock_robot,
+            sensor_client=mock_sensor,
+            observation_adapter=mock_adapter,
+            goal_adapter=mock_goal_adapter,
+            sensor_frame_timeout_s=0.33,
+            sensor_frame_max_retries=1,
+            sensor_frame_retry_delay_s=0.0,
+            input_fn=lambda prompt: "",
+        )
+
+        obs, prop = env.reset()
+
+        assert isinstance(obs, dict)
+        assert isinstance(prop, ProprioceptiveState)
+        assert mock_sensor.calls == 2
+        assert mock_sensor.timeouts == [0.33, 0.33]
 
 
 if __name__ == "__main__":

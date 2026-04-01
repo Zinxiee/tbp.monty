@@ -91,19 +91,54 @@ class RobotInterface:
         with self._lock:
             # wait=False is CRITICAL here. 
             # It tells the robot: "Start moving, but give me control of Python back immediately."
-            self.arm.set_position(x=x, y=y, z=z, roll=roll, pitch=pitch, yaw=yaw, speed=100, wait=False)
+            self.arm.set_position(
+                x=x,
+                y=y,
+                z=z,
+                roll=roll,
+                pitch=pitch,
+                yaw=yaw,
+                speed=100,
+                wait=False,
+                is_radian=False,
+            )
 
     def is_api_healthy(self):
         """Return True when the arm appears ready to accept commands."""
-        status = self._latest_data.get("api_status", {})
+        status = self.get_api_health_snapshot()
         if status.get("joint_code", -1) != 0 or status.get("position_code", -1) != 0:
             return False
 
-        error_code = getattr(self.arm, "error_code", 0)
+        error_code = status.get("error_code", 0)
         if error_code not in (0, None):
             return False
 
         return True
+
+    def get_api_health_snapshot(self):
+        """Return latest robot API health status for diagnostics and gating."""
+        api_status = self._latest_data.get("api_status", {})
+        return {
+            "joint_code": api_status.get("joint_code", -1),
+            "position_code": api_status.get("position_code", -1),
+            "error_code": getattr(self.arm, "error_code", 0),
+        }
+
+    def wait_until_ready(self, timeout_s=2.0, poll_interval_s=0.02):
+        """Poll robot health until motion API appears ready or timeout elapses."""
+        timeout_s = max(0.0, float(timeout_s))
+        poll_interval_s = max(0.0, float(poll_interval_s))
+
+        deadline = time.monotonic() + timeout_s
+        while True:
+            if self.is_api_healthy():
+                return True
+
+            if time.monotonic() >= deadline:
+                return False
+
+            if poll_interval_s > 0.0:
+                time.sleep(poll_interval_s)
 
     def get_joint_limit_margin_rad(self, joint_limits_rad):
         """Return minimum absolute distance to nearest configured joint limit."""
