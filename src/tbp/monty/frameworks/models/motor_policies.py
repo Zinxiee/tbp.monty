@@ -1134,7 +1134,7 @@ class SurfacePolicy(InformedPolicy):
         self.last_surface_policy_action = next_action
         actions: list[Action] = [] if next_action is None else [next_action]
         return MotorPolicyResult(
-            actions=actions=actions,
+            actions=actions,
             motor_only_step=motor_only_step,
             telemetry=self._telemetry,
             goal_pose=goal_pose)
