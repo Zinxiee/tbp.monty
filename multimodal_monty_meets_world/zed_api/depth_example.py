@@ -1,6 +1,8 @@
 import pyzed.sl as sl
 import math
 
+# THIS CAUSES THE CAMERA TO CRASH
+
 #Create a ZED camera
 zed = sl.Camera()
 init_params = sl.InitParameters()
@@ -37,12 +39,12 @@ err, point_cloud_value = point_cloud.get_value(x, y)
 distance = math.sqrt(point_cloud_value[0] * point_cloud_value[0] +
                      point_cloud_value[1] * point_cloud_value[1] +
                      point_cloud_value[2] * point_cloud_value[2])
-print("Distance to Camera at ({0}, {1}): {2} mm".format(x, y, distance), end="\r")
+print("Distance to Camera at ({0}, {1}): {2} mm".format(x, y, distance), end="\r\n")
 
 x = round(image.get_width() / 2)
 y = round(image.get_height() / 2)
 err, depth_value = depth.get_value(x, y)
-print("Distance to Camera at ({0}, {1}): {2} mm".format(x, y, depth_value), end="\r")
+print("Distance to Camera at ({0}, {1}): {2} mm".format(x, y, depth_value), end="\r\n")
 
 # Close the camera
 zed.close()
