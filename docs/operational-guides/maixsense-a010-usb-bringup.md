@@ -365,6 +365,87 @@ After initial runs, refine sensor intrinsics for better 3D projection:
 
 ---
 
+## 11. Hardware-In-The-Loop (HIL) Diagnostics
+
+Use these tests to validate frame math, extrinsics behavior, dispatch safety observability,
+step drift, and a practical stay-on-object proxy before long unsupervised runs.
+
+### HIL Test Gating
+
+All HIL tests are opt-in and skipped by default.
+
+```bash
+export TBP_ENABLE_HIL=1
+```
+
+Optional controls:
+
+```bash
+export TBP_HIL_ROBOT_IP=192.168.1.159
+export TBP_HIL_USB_PORT=/dev/sipeed
+export TBP_HIL_SETTLE_TIME_S=0.25
+export TBP_HIL_STEP_DISTANCE_M=0.01
+export TBP_HIL_SENSOR_TIMEOUT_S=0.15
+export TBP_HIL_SENSOR_RETRIES=6
+export TBP_HIL_SENSOR_RETRY_DELAY_S=0.10
+
+# Required for tests that move hardware:
+export TBP_HIL_ALLOW_MOTION=1
+
+# Required for stay-on-object proxy checks:
+export TBP_HIL_OBJECT_PRESENT=1
+```
+
+### Recommended Sequence
+
+1. Preflight checks:
+
+```bash
+bash tools/real_world_preflight.sh
+```
+
+2. Run mocked regression first:
+
+```bash
+python -m pytest tests/integration/frameworks/environments/real_world_lite6_a010_smoke_test.py -v
+```
+
+3. Run HIL diagnostics (safe/default tier):
+
+```bash
+python -m pytest tests/integration/frameworks/environments/real_world_lite6_a010_hil_test.py -m hil -v -s -n 0
+```
+
+4. Run motion tier (strictly supervised):
+
+```bash
+TBP_HIL_ALLOW_MOTION=1 python -m pytest tests/integration/frameworks/environments/real_world_lite6_a010_hil_test.py -m "hil and requires_motion" -v -s -n 0
+```
+
+> HIL tests must run single-process (`-n 0`) to avoid parallel workers competing for `/dev/sipeed`.
+
+### What These HIL Tests Verify
+
+- **Frame rigidness:** `world_camera` rotation is orthonormal with determinant ~ +1.
+- **Extrinsics usage:** Sensor translation offset appears consistently in world-camera and proprioceptive sensor pose.
+- **Dispatch observability:** Out-of-workspace commands produce explicit rejection details (`reason_code`, `details`).
+- **Step drift bound:** Observed end-effector step remains within a config-derived envelope from `max_translation_step_m`.
+- **Stay-on-object proxy:** Valid-depth ratio recovers within a bounded number of steps when temporarily degraded.
+
+### Initial Threshold Guidance
+
+Thresholds are intentionally config-derived first:
+
+- Drift envelope starts from `goal_adapter_config.max_translation_step_m`.
+- Recovery defaults are controlled by:
+  - `TBP_HIL_LOW_VALID_RATIO` (default `0.02`)
+  - `TBP_HIL_RECOVER_VALID_RATIO` (default `0.05`)
+  - `TBP_HIL_RECOVERY_STEPS` (default `3`)
+
+After collecting baseline runs for your setup, tighten these values for stronger guarantees.
+
+---
+
 ## References & Further Support
 
 - **Maixsense A010 API:** `multimodal_monty_meets_world/maixsense_a010_api/README.md`

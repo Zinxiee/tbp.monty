@@ -142,6 +142,10 @@ testpaths = [
     'tests/conf',
     'tests/unit',
 ]
+markers = [
+    'hil: hardware-in-the-loop tests requiring explicit opt-in and connected hardware',
+    'requires_motion: tests that command live robot movement and require TBP_HIL_ALLOW_MOTION=1',
+]
 filterwarnings = [
     'ignore:.*:DeprecationWarning'
 ]
