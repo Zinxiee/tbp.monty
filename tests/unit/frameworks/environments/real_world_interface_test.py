@@ -35,6 +35,7 @@ from tbp.monty.frameworks.sensors import SensorID
 class _FakeEnv:
     def __init__(self) -> None:
         self.last_result = None
+        self.last_result_history = []
         self.step_calls = []
 
     def reset(self):
@@ -46,6 +47,7 @@ class _FakeEnv:
 
     def set_last_motor_policy_result(self, result):
         self.last_result = result
+        self.last_result_history.append(result)
 
 
 class _FakeEnvWithoutSetter:
@@ -148,6 +150,39 @@ class RealWorldEnvironmentInterfaceTest(unittest.TestCase):
         interface.set_last_motor_policy_result(sentinel.result)
 
         interface.step([])
+
+    def test_step_clears_interface_result_after_single_step(self) -> None:
+        env = _FakeEnv()
+        interface = RealWorldEnvironmentInterface(
+            env=env,
+            rng=sentinel.rng,
+            seed=42,
+            experiment_mode=ExperimentMode.TRAIN,
+            transform=None,
+            use_goal_pose_dispatch=True,
+        )
+        interface.set_last_motor_policy_result(sentinel.result)
+
+        interface.step([])
+
+        self.assertIsNone(interface._last_motor_policy_result)
+
+    def test_step_does_not_reuse_stale_result_on_next_step(self) -> None:
+        env = _FakeEnv()
+        interface = RealWorldEnvironmentInterface(
+            env=env,
+            rng=sentinel.rng,
+            seed=42,
+            experiment_mode=ExperimentMode.TRAIN,
+            transform=None,
+            use_goal_pose_dispatch=True,
+        )
+        interface.set_last_motor_policy_result(sentinel.result)
+
+        interface.step([])
+        interface.step([])
+
+        self.assertEqual(env.last_result_history, [sentinel.result, None])
 
 
 if __name__ == "__main__":

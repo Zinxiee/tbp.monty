@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import numpy.testing as nptest
 import quaternion as qt
+from scipy.spatial.transform import Rotation as rot
 
 from tbp.monty.context import RuntimeContext
 from tbp.monty.frameworks.actions.action_samplers import UniformlyDistributedSampler
@@ -24,6 +25,9 @@ from tbp.monty.frameworks.actions.actions import (
     ActionJSONEncoder,
     LookDown,
     LookUp,
+    MoveForward,
+    MoveTangentially,
+    OrientHorizontal,
     OrientVertical,
     SetAgentPose,
     TurnLeft,
@@ -39,6 +43,7 @@ from tbp.monty.frameworks.models.motor_system_state import (
 from tbp.monty.frameworks.models.motor_policies import (
     InformedPolicy,
     PredefinedPolicy,
+    SurfacePolicy,
     SurfacePolicyCurvatureInformed,
 )
 from tbp.monty.frameworks.models.states import State
@@ -239,6 +244,93 @@ class GoalPoseEmissionTest(unittest.TestCase):
     def test_numpy_to_scipy_quat_accepts_numpy_quaternion(self) -> None:
         quat_xyzw = numpy_to_scipy_quat(qt.one)
         nptest.assert_allclose(quat_xyzw, np.array([0.0, 0.0, 0.0, 1.0]))
+
+
+class SurfacePolicyGoalPoseFromActionTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.agent_id = AgentID("agent_id_surface")
+        self.policy = SurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=self.agent_id,
+            desired_object_distance=0.025,
+        )
+
+        self.state = MotorSystemState(
+            {
+                self.agent_id: AgentState(
+                    sensors={
+                        SensorID("patch"): SensorState(
+                            position=(0.0, 0.0, 0.0),
+                            rotation=qt.one,
+                        )
+                    },
+                    position=(1.0, 2.0, 3.0),
+                    rotation=qt.one,
+                )
+            }
+        )
+
+    def test_move_forward_goal_pose_translates_along_agent_forward_axis(self) -> None:
+        action = MoveForward(agent_id=self.agent_id, distance=0.2)
+
+        goal_pose = self.policy._compute_goal_pose_from_action(self.state, action)
+
+        assert goal_pose is not None
+        goal_pos, goal_quat = goal_pose
+        nptest.assert_allclose(goal_pos, np.array([1.0, 2.0, 3.2]))
+        nptest.assert_allclose(qt.as_float_array(goal_quat), qt.as_float_array(qt.one))
+
+    def test_move_tangentially_goal_pose_normalizes_direction(self) -> None:
+        action = MoveTangentially(
+            agent_id=self.agent_id,
+            distance=0.3,
+            direction=(3.0, 4.0, 0.0),
+        )
+
+        goal_pose = self.policy._compute_goal_pose_from_action(self.state, action)
+
+        assert goal_pose is not None
+        goal_pos, goal_quat = goal_pose
+        nptest.assert_allclose(goal_pos, np.array([1.18, 2.24, 3.0]), atol=1e-7)
+        nptest.assert_allclose(qt.as_float_array(goal_quat), qt.as_float_array(qt.one))
+
+    def test_orient_horizontal_goal_pose_updates_rotation_and_translation(self) -> None:
+        action = OrientHorizontal(
+            agent_id=self.agent_id,
+            rotation_degrees=90.0,
+            left_distance=0.1,
+            forward_distance=0.2,
+        )
+
+        goal_pose = self.policy._compute_goal_pose_from_action(self.state, action)
+
+        assert goal_pose is not None
+        goal_pos, goal_quat = goal_pose
+        expected_rot = rot.from_rotvec([0.0, 0.0, np.radians(90.0)])
+        expected_quat_xyzw = expected_rot.as_quat()
+        expected_quat = qt.quaternion(
+            expected_quat_xyzw[3],
+            expected_quat_xyzw[0],
+            expected_quat_xyzw[1],
+            expected_quat_xyzw[2],
+        )
+        expected_delta = expected_rot.apply(np.array([-1.0, 0.0, 0.0])) * 0.1
+        expected_delta += expected_rot.apply(np.array([0.0, 0.0, 1.0])) * 0.2
+
+        nptest.assert_allclose(goal_pos, np.array([1.0, 2.0, 3.0]) + expected_delta)
+        nptest.assert_allclose(
+            qt.as_float_array(goal_quat),
+            qt.as_float_array(expected_quat),
+            atol=1e-7,
+        )
+
+    def test_unknown_action_returns_none(self) -> None:
+        action = LookUp(agent_id=self.agent_id, rotation_degrees=10.0)
+
+        goal_pose = self.policy._compute_goal_pose_from_action(self.state, action)
+
+        self.assertIsNone(goal_pose)
 
 
 if __name__ == "__main__":

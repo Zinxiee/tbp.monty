@@ -228,6 +228,56 @@ class MontyGoalToRobotAdapterTest(unittest.TestCase):
             )
         )
 
+    def test_world_to_robot_transform_applies_rotation_and_translation(self) -> None:
+        robot = _FakeRobotInterface()
+        world_to_robot = self.module.WorldToRobotTransform(
+            translation_m=np.array([0.1, 0.2, 0.0], dtype=float),
+            rotation_quat_wxyz=qt.from_rotation_vector([0.0, 0.0, np.pi / 2]),
+        )
+        adapter = self.module.MontyGoalToRobotAdapter(
+            robot=robot,
+            world_to_robot=world_to_robot,
+            safety_config=self.module.SafetyConfig(
+                workspace_min_xyz_m=np.array([-1.0, -1.0, -1.0]),
+                workspace_max_xyz_m=np.array([2.0, 2.0, 2.0]),
+            ),
+        )
+
+        dispatched = adapter.dispatch_motor_policy_result(
+            MotorPolicyResult(goal_pose=(np.array([0.3, 0.0, 0.2]), qt.one))
+        )
+
+        self.assertTrue(dispatched)
+        assert robot.last_command is not None
+        x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg = robot.last_command
+        self.assertAlmostEqual(x_mm, 100.0, places=3)
+        self.assertAlmostEqual(y_mm, 500.0, places=3)
+        self.assertAlmostEqual(z_mm, 200.0, places=3)
+        self.assertAlmostEqual(roll_deg, 0.0, places=3)
+        self.assertAlmostEqual(pitch_deg, 0.0, places=3)
+        self.assertAlmostEqual(yaw_deg, 90.0, places=3)
+
+    def test_workspace_rejection_sets_rejection_details(self) -> None:
+        robot = _FakeRobotInterface()
+        adapter = self.module.MontyGoalToRobotAdapter(
+            robot=robot,
+            world_to_robot=self.module.identity_world_to_robot_transform(),
+            safety_config=self.module.SafetyConfig(
+                workspace_min_xyz_m=np.array([0.0, 0.0, 0.0]),
+                workspace_max_xyz_m=np.array([0.1, 0.1, 0.1]),
+            ),
+        )
+
+        dispatched = adapter.dispatch_motor_policy_result(
+            MotorPolicyResult(goal_pose=(np.array([0.3, 0.0, 0.2]), qt.one))
+        )
+
+        self.assertFalse(dispatched)
+        self.assertIsNotNone(adapter.last_rejection_details)
+        assert adapter.last_rejection_details is not None
+        self.assertEqual(adapter.last_rejection_details["reason_code"], "workspace_bounds")
+        self.assertIn("workspace_bounds", adapter.last_rejection_details["details"])
+
 
 if __name__ == "__main__":
     unittest.main()
