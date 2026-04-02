@@ -169,11 +169,58 @@ def _retry_step(env: RealWorldLite6A010Environment, actions, retries: int = 2):
     raise RuntimeError("Unreachable sensor retry branch")
 
 
+def _ensure_robot_ready_for_motion(robot) -> None:
+    arm = getattr(robot, "arm", None)
+    if arm is not None:
+        if hasattr(arm, "motion_enable"):
+            arm.motion_enable(enable=True)
+        if hasattr(arm, "set_mode"):
+            arm.set_mode(0)
+        if hasattr(arm, "set_state"):
+            arm.set_state(0)
+        time.sleep(0.2)
+
+    wait_until_ready = getattr(robot, "wait_until_ready", None)
+    if callable(wait_until_ready):
+        assert wait_until_ready(timeout_s=2.0, poll_interval_s=0.02), (
+            "Robot did not return to ready state before motion test"
+        )
+
+
 def _extract_depth_valid_ratio(observations) -> float:
     sensor_obs = observations[AgentID("agent_id_0")][SensorID("patch")]
     depth = np.asarray(sensor_obs["depth"], dtype=float)
     valid = np.isfinite(depth) & (depth > 0.0)
     return float(valid.mean())
+
+
+def _wait_for_pose_change(
+    env: RealWorldLite6A010Environment,
+    initial_position_m: np.ndarray,
+    *,
+    min_change_m: float,
+    timeout_s: float,
+    poll_s: float = 0.05,
+) -> float:
+    start = time.monotonic()
+    max_delta = 0.0
+    while time.monotonic() - start <= timeout_s:
+        current_position_m, _ = env._get_agent_pose_world()
+        delta = float(np.linalg.norm(current_position_m - initial_position_m))
+        max_delta = max(max_delta, delta)
+        if delta >= min_change_m:
+            return delta
+        time.sleep(poll_s)
+    return max_delta
+
+
+def _rejection_summary(goal_adapter) -> str:
+    details = getattr(goal_adapter, "last_rejection_details", None)
+    if not isinstance(details, dict):
+        return "<no rejection details>"
+    reason_code = details.get("reason_code", "<missing reason_code>")
+    reason_details = details.get("details", "<missing details>")
+    return f"{reason_code}: {reason_details}"
 
 
 @pytest.mark.hil
@@ -215,11 +262,47 @@ def test_hil_sensor_extrinsics_affect_world_camera_translation(
 
 @pytest.mark.hil
 def test_hil_rejection_details_are_populated_for_out_of_workspace_pose(
-    hardware_bundle,
 ) -> None:
     factory = pytest.importorskip("multimodal_monty_meets_world.factory")
+
+    class _DryRunRobot:
+        def __init__(self) -> None:
+            self.stop_reason = None
+
+        def is_api_healthy(self):
+            return True
+
+        def wait_until_ready(self, timeout_s=2.0, poll_interval_s=0.02):  # noqa: ARG002
+            return True
+
+        def get_api_health_snapshot(self):
+            return {
+                "joint_code": 0,
+                "position_code": 0,
+                "error_code": 0,
+            }
+
+        def stop_motion(self, reason):
+            self.stop_reason = reason
+
+        def get_sense_state(self):
+            return {
+                "end_effector": [300.0, 0.0, 200.0, 0.0, 0.0, 0.0],
+                "api_status": {"joint_code": 0, "position_code": 0},
+            }
+
+        def get_joint_limit_margin_rad(self, _joint_limits_rad):
+            return 1.0
+
+        def is_target_pose_feasible(self, *_args):
+            return True
+
+        def move_arm(self, x, y, z, roll, pitch, yaw):  # noqa: ANN001, ARG002
+            return None
+
+    dry_run_robot = _DryRunRobot()
     rejecting_adapter = factory.create_goal_adapter(
-        robot=hardware_bundle["robot"],
+        robot=dry_run_robot,
         workspace_min_xyz_m=[0.0, 0.0, 0.0],
         workspace_max_xyz_m=[0.01, 0.01, 0.01],
         max_translation_step_m=0.001,
@@ -244,12 +327,80 @@ def test_hil_rejection_details_are_populated_for_out_of_workspace_pose(
 
 @pytest.mark.hil
 @pytest.mark.requires_motion
+def test_hil_goal_dispatch_feasibility_sanity(
+    hardware_bundle,
+    hil_settings,
+) -> None:
+    _require_motion()
+    _ensure_robot_ready_for_motion(hardware_bundle["robot"])
+    env = _make_env(hardware_bundle=hardware_bundle, hil_settings=hil_settings)
+    min_realized_motion_m = float(os.getenv("TBP_HIL_MIN_REALIZED_MOTION_M", "0.0015"))
+    motion_timeout_s = float(os.getenv("TBP_HIL_MOTION_OBSERVE_TIMEOUT_S", "1.5"))
+
+    env.reset()
+    current_pos, current_quat = env._get_agent_pose_world()
+
+    conservative_target = current_pos + np.array([0.003, 0.0, 0.0], dtype=float)
+    accepted = env.goal_adapter.send_world_goal_pose(
+        location_m=conservative_target,
+        rotation_quat_wxyz=current_quat,
+    )
+    assert accepted, (
+        "Conservative goal pose was rejected; this strongly suggests a home-pose, "
+        f"workspace, or joint-limit issue. Details: {_rejection_summary(env.goal_adapter)}"
+    )
+
+    conservative_delta = _wait_for_pose_change(
+        env,
+        current_pos,
+        min_change_m=min_realized_motion_m,
+        timeout_s=motion_timeout_s,
+    )
+    assert conservative_delta >= min_realized_motion_m, (
+        "Conservative goal pose was accepted but no measurable movement was realized. "
+        "This usually indicates robot-side command rejection (e.g., SDK code=9) or mode/state mismatch. "
+        f"Observed_delta_m={conservative_delta:.6f}"
+    )
+
+    current_pos, current_quat = env._get_agent_pose_world()
+    probe_target = current_pos + np.array(
+        [float(hil_settings["step_distance_m"]), 0.0, 0.0],
+        dtype=float,
+    )
+    accepted = env.goal_adapter.send_world_goal_pose(
+        location_m=probe_target,
+        rotation_quat_wxyz=current_quat,
+    )
+
+    assert accepted, (
+        "Probe-sized goal pose was rejected; the configured step is likely too large "
+        f"for the current home pose/joint limits. Details: {_rejection_summary(env.goal_adapter)}"
+    )
+
+    probe_delta = _wait_for_pose_change(
+        env,
+        current_pos,
+        min_change_m=min_realized_motion_m,
+        timeout_s=motion_timeout_s,
+    )
+    assert probe_delta >= min_realized_motion_m, (
+        "Probe-sized goal pose was accepted but no measurable movement was realized. "
+        "This suggests robot firmware rejected motion after dispatch (e.g., SDK code=9). "
+        f"Observed_delta_m={probe_delta:.6f}"
+    )
+
+
+@pytest.mark.hil
+@pytest.mark.requires_motion
 def test_hil_step_drift_within_configured_translation_bound(
     hardware_bundle,
     hil_settings,
 ) -> None:
     _require_motion()
+    _ensure_robot_ready_for_motion(hardware_bundle["robot"])
     env = _make_env(hardware_bundle=hardware_bundle, hil_settings=hil_settings)
+    min_realized_motion_m = float(os.getenv("TBP_HIL_MIN_REALIZED_MOTION_M", "0.0015"))
+    motion_timeout_s = float(os.getenv("TBP_HIL_MOTION_OBSERVE_TIMEOUT_S", "1.5"))
 
     _, pre_state = env.reset()
     pre_position = np.asarray(pre_state[AgentID("agent_id_0")].position, dtype=float)
@@ -263,6 +414,17 @@ def test_hil_step_drift_within_configured_translation_bound(
     max_step_m = float(env.goal_adapter.safety_config.max_translation_step_m)
 
     assert env.goal_adapter.last_rejection_details is None
+    realized_delta = _wait_for_pose_change(
+        env,
+        pre_position,
+        min_change_m=min_realized_motion_m,
+        timeout_s=motion_timeout_s,
+    )
+    assert realized_delta >= min_realized_motion_m, (
+        "Step command produced no measurable motion despite passing dispatch checks. "
+        "Likely robot-side rejection (e.g., SDK code=9). "
+        f"Observed_delta_m={realized_delta:.6f}"
+    )
     assert observed_step_m <= (max_step_m * 1.25 + 0.005)
 
 
@@ -274,6 +436,7 @@ def test_hil_depth_valid_proxy_recovers_within_step_budget(
 ) -> None:
     _require_motion()
     _require_object_present()
+    _ensure_robot_ready_for_motion(hardware_bundle["robot"])
     env = _make_env(hardware_bundle=hardware_bundle, hil_settings=hil_settings)
 
     low_threshold = float(os.getenv("TBP_HIL_LOW_VALID_RATIO", "0.02"))
