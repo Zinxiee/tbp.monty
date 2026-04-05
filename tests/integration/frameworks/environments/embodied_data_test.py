@@ -9,6 +9,8 @@
 # https://opensource.org/licenses/MIT.
 from __future__ import annotations
 
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Sequence
@@ -416,6 +418,63 @@ class EmbodiedDataTest(unittest.TestCase):
                 break
 
             i += 1
+
+    def test_saccade_on_image_environment_refresh_scene_catalog(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            source_scene_dir = TEST_DATALOADER_PATH / "0_numenta_mug"
+            shutil.copytree(source_scene_dir, tmp_path / "0_numenta_mug")
+
+            env = SaccadeOnImageEnvironment(patch_size=48, data_path=tmp_path)
+            self.assertEqual(env.scene_names, ["0_numenta_mug"])
+
+            added_scene_dir = tmp_path / "1_runtime_scene"
+            added_scene_dir.mkdir()
+            shutil.copy2(source_scene_dir / "depth_0.data", added_scene_dir / "depth_0.data")
+            shutil.copy2(source_scene_dir / "rgb_0.png", added_scene_dir / "rgb_0.png")
+
+            env.refresh_scene_catalog()
+
+            self.assertIn("1_runtime_scene", env.scene_names)
+            self.assertEqual(env.scene_versions_by_name["1_runtime_scene"], [0])
+
+    def test_saccade_on_image_env_interface_manual_picker_dynamic_refresh(self):
+        rng = np.random.RandomState(42)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            source_scene_dir = TEST_DATALOADER_PATH / "0_numenta_mug"
+            shutil.copytree(source_scene_dir, tmp_path / "0_numenta_mug")
+
+            env = SaccadeOnImageEnvironment(patch_size=48, data_path=tmp_path)
+
+            responses = iter(["2"])
+
+            def input_fn(_prompt: str) -> str:
+                return next(responses)
+
+            env_interface = SaccadeOnImageEnvironmentInterface(
+                env=env,
+                rng=rng,
+                scenes=[0],
+                versions=[0],
+                enable_manual_scene_picker=True,
+                allow_dynamic_scene_refresh=True,
+                episodes_per_epoch=2,
+                input_fn=input_fn,
+            )
+
+            # Add a new scene at runtime and select it via the manual picker.
+            added_scene_dir = tmp_path / "1_runtime_scene"
+            added_scene_dir.mkdir()
+            shutil.copy2(source_scene_dir / "depth_0.data", added_scene_dir / "depth_0.data")
+            shutil.copy2(source_scene_dir / "rgb_0.png", added_scene_dir / "rgb_0.png")
+
+            env_interface.post_episode()
+
+            self.assertEqual(env.current_scene, "1_runtime_scene")
+            self.assertEqual(env.scene_version, 0)
+            self.assertIn(1, env_interface.scenes)
+            self.assertEqual(env_interface.episodes_per_epoch, 2)
 
     def test_saccade_on_image_stream_env_interface(self):
         rng = np.random.RandomState(42)

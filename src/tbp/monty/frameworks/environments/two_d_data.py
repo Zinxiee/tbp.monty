@@ -280,9 +280,11 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         self.rotation = qt.from_rotation_vector([np.pi / 2, 0.0, 0.0])
         self.state = 0
         self.data_path = monty_data_path(data_path, "worldimages/labeled_scenes")
-        self.scene_names = [a.name for a in sorted(self.data_path.glob("[!.]*"))]
+        self.scene_names: list[str] = []
+        self.scene_versions_by_name: dict[str, list[int]] = {}
+        self.refresh_scene_catalog()
         self.current_scene = self.scene_names[0]
-        self.scene_version = 0
+        self.scene_version = self.scene_versions_by_name[self.current_scene][0]
 
         (
             self.current_depth_image,
@@ -309,6 +311,65 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         # Instantiate once and reuse when checking action name in step()
         # TODO Use 2D-specific actions instead of overloading? Habitat actions
         self._valid_actions = ["look_up", "look_down", "turn_left", "turn_right"]
+
+    @staticmethod
+    def _parse_version_from_name(name: str, prefix: str, suffix: str) -> int | None:
+        if not name.startswith(prefix) or not name.endswith(suffix):
+            return None
+        version_text = name[len(prefix) : -len(suffix)]
+        if not version_text.isdigit():
+            return None
+        return int(version_text)
+
+    def refresh_scene_catalog(self) -> None:
+        """Refresh scene and version metadata from on-disk files.
+
+        Only scene/version pairs with both depth and rgb files are considered valid.
+        """
+        discovered_scene_names = [a.name for a in sorted(self.data_path.glob("[!.]*"))]
+        scene_names: list[str] = []
+        scene_versions_by_name: dict[str, list[int]] = {}
+
+        for scene_name in discovered_scene_names:
+            scene_dir = self.data_path / scene_name
+            if not scene_dir.is_dir():
+                continue
+
+            depth_versions = {
+                version
+                for path in scene_dir.glob("depth_*.data")
+                if (version := self._parse_version_from_name(path.name, "depth_", ".data"))
+                is not None
+            }
+            rgb_versions = {
+                version
+                for path in scene_dir.glob("rgb_*.png")
+                if (version := self._parse_version_from_name(path.name, "rgb_", ".png"))
+                is not None
+            }
+            valid_versions = sorted(depth_versions.intersection(rgb_versions))
+            if len(valid_versions) == 0:
+                continue
+
+            scene_names.append(scene_name)
+            scene_versions_by_name[scene_name] = valid_versions
+
+        if len(scene_names) == 0:
+            raise RuntimeError(
+                "No valid worldimages scenes found. "
+                "Expected scene directories with paired depth_*.data and rgb_*.png files."
+            )
+
+        self.scene_names = scene_names
+        self.scene_versions_by_name = scene_versions_by_name
+
+    def get_scene_version_pairs(self) -> list[tuple[int, int, str]]:
+        """Return all valid (scene_idx, version, scene_name) pairs."""
+        pairs: list[tuple[int, int, str]] = []
+        for scene_idx, scene_name in enumerate(self.scene_names):
+            for version_id in self.scene_versions_by_name[scene_name]:
+                pairs.append((scene_idx, version_id, scene_name))
+        return pairs
 
     def step(
         self, actions: Sequence[Action]
@@ -398,6 +459,19 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
 
     def switch_to_object(self, scene_id: int, scene_version_id: int):
         """Load new image to be used as environment."""
+        if scene_id < 0 or scene_id >= len(self.scene_names):
+            raise IndexError(
+                f"scene_id {scene_id} is out of range for {len(self.scene_names)} scenes"
+            )
+
+        scene_name = self.scene_names[scene_id]
+        valid_versions = self.scene_versions_by_name.get(scene_name, [])
+        if scene_version_id not in valid_versions:
+            raise ValueError(
+                f"scene version {scene_version_id} is invalid for scene {scene_name}; "
+                f"available versions: {valid_versions}"
+            )
+
         self.current_scene = self.scene_names[scene_id]
         self.scene_version = scene_version_id
         (

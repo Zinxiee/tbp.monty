@@ -1174,6 +1174,21 @@ class GraphMemory(LMMemory):
                     self.feature_order[graph_id][input_channel],
                 ) = self._get_all_node_features(graph_id, input_channel)
 
+    def _ensure_feature_arrays_for_graph(self, graph_id):
+        if graph_id not in self.models_in_memory:
+            raise KeyError(graph_id)
+
+        if graph_id not in self.feature_array:
+            self.feature_array[graph_id] = {}
+            self.feature_order[graph_id] = {}
+
+        for input_channel in self.get_input_channels_in_graph(graph_id):
+            if input_channel not in self.feature_array[graph_id]:
+                (
+                    self.feature_array[graph_id][input_channel],
+                    self.feature_order[graph_id][input_channel],
+                ) = self._get_all_node_features(graph_id, input_channel)
+
     # ------------------ Getters & Setters ---------------------
     def get_graph(self, graph_id, input_channel=None):
         """Return graph from graph memory.
@@ -1201,9 +1216,11 @@ class GraphMemory(LMMemory):
         raise ValueError(f"{graph_id} has no data stored for {input_channel}.")
 
     def get_feature_array(self, graph_id):
+        self._ensure_feature_arrays_for_graph(graph_id)
         return self.feature_array[graph_id]
 
     def get_feature_order(self, graph_id):
+        self._ensure_feature_arrays_for_graph(graph_id)
         return self.feature_order[graph_id]
 
     def get_locations_in_graph(self, graph_id, input_channel):

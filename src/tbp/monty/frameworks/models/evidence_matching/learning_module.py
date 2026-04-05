@@ -306,7 +306,7 @@ class EvidenceGraphLM(GraphLM):
             self.buffer.get_num_observations_on_object() > 0
         ):
             thread_list = []
-            for graph_id in self.get_all_known_object_ids():
+            for graph_id in self._get_graph_ids_ready_for_evidence_updates():
                 if graph_id in vote_data:
                     if self.use_multithreading:
                         t = threading.Thread(
@@ -733,6 +733,22 @@ class EvidenceGraphLM(GraphLM):
             stats = self._add_detailed_stats(stats)
         return stats
 
+    def _get_graph_ids_ready_for_evidence_updates(self) -> list[str]:
+        """Return graph IDs that are safe for evidence updates.
+
+        New provisional IDs (for example ``new_object0``) can be assigned before
+        the graph is fully materialized in memory and before feature arrays are
+        initialized. Filtering them out here prevents worker-thread KeyErrors.
+        """
+        ready_graph_ids = []
+        for graph_id in self.get_all_known_object_ids():
+            if (
+                graph_id in self.graph_memory.models_in_memory
+                and graph_id in self.graph_memory.feature_array
+            ):
+                ready_graph_ids.append(graph_id)
+        return ready_graph_ids
+
     def _update_possible_matches(
         self,
         ctx: RuntimeContext,  # noqa: ARG002
@@ -741,7 +757,7 @@ class EvidenceGraphLM(GraphLM):
         """Update evidence for each hypothesis instead of removing them."""
         with self.hypotheses_updater:
             thread_list = []
-            for graph_id in self.get_all_known_object_ids():
+            for graph_id in self._get_graph_ids_ready_for_evidence_updates():
                 if self.use_multithreading:
                     # assign separate thread on same CPU to each objects update.
                     # Since the updates of different objects are independent of

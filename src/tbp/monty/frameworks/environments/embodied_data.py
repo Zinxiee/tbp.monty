@@ -13,7 +13,7 @@ from __future__ import annotations
 import copy
 import logging
 from pprint import pformat
-from typing import Iterable, Mapping, Sequence, cast
+from typing import Callable, Iterable, Mapping, Sequence, cast
 
 import numpy as np
 import quaternion as qt
@@ -489,6 +489,11 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         rng,
         transform=None,
         parent_to_child_mapping=None,
+        enable_manual_scene_picker: bool = False,
+        scene_picker_prompt: str = "Select next scene/version (e.g. '0 1'), 'keep', or 'quit': ",
+        episodes_per_epoch: int | None = None,
+        allow_dynamic_scene_refresh: bool = False,
+        input_fn: Callable[[str], str] | None = None,
         positioning_procedures: Sequence[PositioningProcedureFactory] | None = None,
         *_args,
         **_kwargs,
@@ -505,6 +510,13 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
                 the environment.
             parent_to_child_mapping: dictionary mapping parent objects to their child
                 objects. Used for logging.
+            enable_manual_scene_picker: Whether to prompt for scene/version selection
+                after each episode.
+            scene_picker_prompt: Prompt shown for manual scene/version selection.
+            episodes_per_epoch: Fixed number of episodes to run per epoch.
+            allow_dynamic_scene_refresh: Whether to refresh available scene/version
+                options from disk during a run.
+            input_fn: Input function used for terminal prompts. Defaults to `input`.
             positioning_procedures: Sequence of positioning procedures to apply
                 prior to each episode.
             *args: Unused?
@@ -515,11 +527,13 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         self.transform = transform
         self.reset(self.rng)
 
-        self.scenes = scenes
-        self.versions = versions
+        self.scenes = list(scenes)
+        self.versions = list(versions)
         self.object_names = self.env.scene_names
         self.current_scene_version = 0
-        self.n_versions = len(versions)
+        if len(self.scenes) != len(self.versions):
+            raise ValueError("`scenes` and `versions` must have the same length")
+        self.n_versions = len(self.versions)
         self.episodes = 0
         self.epochs = 0
         self.primary_target = None
@@ -527,10 +541,92 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         self.parent_to_child_mapping = (
             parent_to_child_mapping if parent_to_child_mapping else {}
         )
+        self.enable_manual_scene_picker = enable_manual_scene_picker
+        self.scene_picker_prompt = scene_picker_prompt
+        self.allow_dynamic_scene_refresh = allow_dynamic_scene_refresh
+        self.input_fn = input_fn or input
         self._positioning_procedures = positioning_procedures
 
+        if self.n_versions == 0 or self.allow_dynamic_scene_refresh:
+            self.refresh_scene_schedule_from_env()
+        if self.n_versions == 0:
+            raise RuntimeError("No scene/version pairs available for Saccade interface")
+
+        self.episodes_per_epoch = episodes_per_epoch or self.n_versions
+        if self.episodes_per_epoch <= 0:
+            raise ValueError("'episodes_per_epoch' must be a positive integer")
+
+        # Set an initial target for the very first episode.
+        self.change_object_by_idx(0)
+
+    def refresh_scene_schedule_from_env(self) -> None:
+        """Refresh scene/version schedule from files discovered by the environment."""
+        if hasattr(self.env, "refresh_scene_catalog"):
+            self.env.refresh_scene_catalog()
+
+        if not hasattr(self.env, "get_scene_version_pairs"):
+            return
+
+        pairs = self.env.get_scene_version_pairs()
+        if len(pairs) == 0:
+            raise RuntimeError("No valid scene/version pairs found in environment data")
+
+        self.object_names = self.env.scene_names
+        self.scenes = [scene_idx for scene_idx, _, _ in pairs]
+        self.versions = [version_id for _, version_id, _ in pairs]
+        self.n_versions = len(self.versions)
+        if self.current_scene_version >= self.n_versions:
+            self.current_scene_version = 0
+
+    def _prompt_for_next_scene_selection(self) -> None:
+        """Prompt operator to choose scene/version for the next episode."""
+        while True:
+            if self.allow_dynamic_scene_refresh:
+                self.refresh_scene_schedule_from_env()
+
+            options = [
+                f"{idx}: scene={self.scenes[idx]} ({self.object_names[self.scenes[idx]]}), "
+                f"version={self.versions[idx]}"
+                for idx in range(self.n_versions)
+            ]
+            options_text = "\n".join(options)
+            prompt = (
+                f"\n{self.scene_picker_prompt}\n"
+                "Options:\n"
+                f"{options_text}\n"
+                f"Current option index: {self.current_scene_version}\n"
+                "Selection: "
+            )
+            selection = self.input_fn(prompt).strip().lower()
+
+            if selection in {"", "keep", "k"}:
+                logger.info(
+                    "Keeping current scene selection index %s", self.current_scene_version
+                )
+                return
+            if selection in {"quit", "q", "exit"}:
+                raise KeyboardInterrupt("Stopped by user during scene selection")
+
+            try:
+                idx = int(selection)
+            except ValueError:
+                logger.warning("Invalid selection '%s'. Enter an option index.", selection)
+                continue
+
+            if idx < 0 or idx >= self.n_versions:
+                logger.warning(
+                    "Selection %s is out of range [0, %s]", idx, self.n_versions - 1
+                )
+                continue
+
+            self.change_object_by_idx(idx)
+            return
+
     def post_episode(self):
-        self.cycle_object()
+        if self.enable_manual_scene_picker:
+            self._prompt_for_next_scene_selection()
+        else:
+            self.cycle_object()
         self.episodes += 1
 
     def post_epoch(self):
@@ -538,6 +634,9 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
 
     def cycle_object(self):
         """Switch to the next scene image."""
+        if self.allow_dynamic_scene_refresh:
+            self.refresh_scene_schedule_from_env()
+
         next_scene = (self.current_scene_version + 1) % self.n_versions
         logger.info(
             f"\n\nGoing from {self.current_scene_version} to {next_scene} of "
@@ -551,7 +650,7 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         Args:
             idx: Index of the new object and ints parameters in object params
         """
-        assert idx <= self.n_versions, "idx must be <= self.n_versions"
+        assert idx < self.n_versions, "idx must be < self.n_versions"
         logger.info(
             f"changing to obj {idx} -> scene {self.scenes[idx]}, version "
             f"{self.versions[idx]}"

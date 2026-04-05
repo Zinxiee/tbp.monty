@@ -72,9 +72,16 @@ class LivePlotter:
             if mlh["graph_id"] == "no_observations_yet":
                 mlh_model = None
             else:
-                mlh_model = first_learning_module.graph_memory.get_graph(
+                # During early learning, the MLH can reference a provisional graph
+                # id (e.g., "new_object0") before it has been added to memory.
+                graph = first_learning_module.graph_memory.models_in_memory.get(
                     mlh["graph_id"]
-                )[first_sensor_module_id]
+                )
+                mlh_model = (
+                    graph.get(first_sensor_module_id)
+                    if isinstance(graph, dict)
+                    else None
+                )
         else:
             mlh = None
             mlh_model = None
@@ -151,9 +158,14 @@ class LivePlotter:
         if hasattr(first_learning_module, "get_current_mlh"):
             mlh = first_learning_module.get_current_mlh()
             if mlh and mlh["graph_id"] != "no_observations_yet":
-                graph_ids, evidences = (
-                    first_learning_module.get_evidence_for_each_graph()
-                )
+                try:
+                    graph_ids, evidences = (
+                        first_learning_module.get_evidence_for_each_graph()
+                    )
+                except (IndexError, KeyError):
+                    return
+                if len(graph_ids) == 0:
+                    return
                 self.add_text(
                     mlh,
                     pos=view_finder_rgba.shape[0],

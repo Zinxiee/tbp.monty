@@ -9,6 +9,7 @@
 # https://opensource.org/licenses/MIT.
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Literal, Protocol, Sequence
 
@@ -22,6 +23,11 @@ from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
 from tbp.monty.frameworks.models.motor_system_state import ProprioceptiveState
 from tbp.monty.frameworks.sensors import SensorID
+
+# OpenCV wheels may set Qt plugin/font env vars that break other Qt users
+# (for example matplotlib's Qt backend) in the same process.
+os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH", None)
+os.environ.pop("QT_QPA_FONTDIR", None)
 
 __all__ = [
     "AddNoiseToRawDepthImage",

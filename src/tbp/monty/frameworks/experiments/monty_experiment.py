@@ -561,7 +561,11 @@ class MontyExperiment:
             except KeyboardInterrupt:
                 logger.info("Data streaming interrupted. Stopping experiment.")
         elif isinstance(self.env_interface, SaccadeOnImageEnvironmentInterface):
-            num_episodes = len(self.env_interface.scenes)
+            num_episodes = getattr(
+                self.env_interface,
+                "episodes_per_epoch",
+                len(self.env_interface.scenes),
+            )
             for _ in range(num_episodes):
                 self.run_episode()
         elif isinstance(self.env_interface, EnvironmentInterfacePerObject):

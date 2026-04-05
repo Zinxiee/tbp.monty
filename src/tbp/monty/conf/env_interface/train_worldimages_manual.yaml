@@ -1,0 +1,15 @@
+# @package experiment.config
+
+do_train: true
+train_env_interface_args:
+  scenes:
+  - 0
+  versions:
+  - 0
+  enable_manual_scene_picker: true
+  allow_dynamic_scene_refresh: true
+  episodes_per_epoch: 12
+  scene_picker_prompt: "Select next worldimage option by index, or type keep/quit"
+train_env_interface_class: ${monty.class:tbp.monty.frameworks.environments.embodied_data.SaccadeOnImageEnvironmentInterface}
+
+do_eval: false
