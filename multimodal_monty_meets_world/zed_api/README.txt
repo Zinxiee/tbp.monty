@@ -1,0 +1,1 @@
+Note that this codebase has no dependencies inside the zed_api folder. The contents of the zed_api folder is for troubleshooting with the ZED camera.
