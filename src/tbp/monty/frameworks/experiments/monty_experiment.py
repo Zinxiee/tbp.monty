@@ -44,7 +44,9 @@ from tbp.monty.frameworks.models.monty_base import MontyBase
 from tbp.monty.frameworks.utils.dataclass_utils import (
     get_subset_of_args,
 )
+from tbp.monty.frameworks.utils.incoming_scenes_manager import IncomingScenesManager
 from tbp.monty.frameworks.utils.live_plotter import LivePlotter
+from tbp.monty.frameworks.utils.zed_camera_capture import ZEDRGBDCapture
 
 __all__ = ["MontyExperiment"]
 
@@ -83,6 +85,10 @@ class MontyExperiment:
             self.model_path = None
         self.min_lms_match = config["min_lms_match"]
         self.show_sensor_output = config["show_sensor_output"]
+        self.capture_initial_scene = config.get("capture_initial_scene", False)
+        self.initial_capture_scene_prefix = config.get(
+            "initial_capture_scene_prefix", "zed_capture"
+        )
         self.supervised_lm_ids = config["supervised_lm_ids"]
         if self.supervised_lm_ids == "all":
             self.supervised_lm_ids = list(
@@ -125,9 +131,59 @@ class MontyExperiment:
             monty_config=config["monty_config"],
             model_path=self.model_path,
         )
+        self._capture_initial_scene_if_requested(config)
         self.load_environment_interfaces(config)
         self.init_monty_data_loggers(self.config["logging"])
         self.init_counters()
+
+    def _capture_initial_scene_if_requested(self, config: dict[str, Any]) -> None:
+        """Optionally capture one RGBD scene before training starts."""
+        if not self.capture_initial_scene:
+            return
+
+        if not self.do_train:
+            logger.warning("Initial scene capture requested, but training is disabled")
+            return
+
+        environment = config.get("environment", {})
+        env_init_args = environment.get("env_init_args", {})
+        data_path = env_init_args.get("data_path")
+        if data_path is None:
+            logger.warning("Environment does not expose data_path; skipping capture")
+            return
+
+        try:
+            manager = IncomingScenesManager(data_path)
+            with ZEDRGBDCapture() as capture:
+                if not capture.is_available():
+                    logger.warning("ZED camera unavailable; skipping initial capture")
+                    return
+
+                rgb_image, depth_array, metadata = capture.grab_single_frame()
+                if rgb_image is None or depth_array is None:
+                    logger.warning("Initial ZED capture failed; continuing without capture")
+                    return
+
+                scene_name = manager.create_next_scene_name(
+                    prefix=self.initial_capture_scene_prefix
+                )
+                scene_path = manager.create_scene_folder(scene_name)
+                saved_paths = manager.save_rgbd_capture(
+                    scene_path=scene_path,
+                    version=0,
+                    rgb_image=rgb_image,
+                    depth_array=depth_array,
+                    metadata=metadata,
+                )
+
+            logger.info(
+                "Initial scene capture saved to scene '%s' (rgb=%s, depth=%s)",
+                scene_name,
+                saved_paths["rgb_path"],
+                saved_paths["depth_path"],
+            )
+        except Exception as exc:
+            logger.warning("Initial scene capture failed: %s", exc)
 
     def init_model(self, monty_config, model_path=None):
         """Initialize the Monty model.

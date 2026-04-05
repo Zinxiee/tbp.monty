@@ -4,10 +4,10 @@ import os
 
 ''' Example usage:
 For default output PNG path (rgb_x_rgba.png):
-$ python jpg_to_reshaped_png.py path/to/zed_rgb.png
+$ python make_png_rgba.py path/to/zed_rgb.png
 
 To specify output PNG path:
-$ python jpg_to_reshaped_png.py path/to/zed_rgb.png --output_png_path path/to/output_rgba.png
+$ python make_png_rgba.py path/to/zed_rgb.png --output_png_path path/to/output_rgba.png
 '''
 
 

@@ -41,6 +41,8 @@ from tbp.monty.frameworks.models.motor_system_state import (
     MotorSystemState,
     ProprioceptiveState,
 )
+from tbp.monty.frameworks.utils.incoming_scenes_manager import IncomingScenesManager
+from tbp.monty.frameworks.utils.zed_camera_capture import ZEDRGBDCapture
 
 __all__ = [
     "EnvironmentInterface",
@@ -493,6 +495,8 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         scene_picker_prompt: str = "Select next scene/version (e.g. '0 1'), 'keep', or 'quit': ",
         episodes_per_epoch: int | None = None,
         allow_dynamic_scene_refresh: bool = False,
+        enable_scene_picker_captures: bool = False,
+        scene_capture_prefix: str = "zed_capture",
         input_fn: Callable[[str], str] | None = None,
         positioning_procedures: Sequence[PositioningProcedureFactory] | None = None,
         *_args,
@@ -516,6 +520,9 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
             episodes_per_epoch: Fixed number of episodes to run per epoch.
             allow_dynamic_scene_refresh: Whether to refresh available scene/version
                 options from disk during a run.
+            enable_scene_picker_captures: Whether to allow triggering ZED captures
+                from the scene picker prompt.
+            scene_capture_prefix: Prefix for new auto-indexed capture scene folders.
             input_fn: Input function used for terminal prompts. Defaults to `input`.
             positioning_procedures: Sequence of positioning procedures to apply
                 prior to each episode.
@@ -544,6 +551,8 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         self.enable_manual_scene_picker = enable_manual_scene_picker
         self.scene_picker_prompt = scene_picker_prompt
         self.allow_dynamic_scene_refresh = allow_dynamic_scene_refresh
+        self.enable_scene_picker_captures = enable_scene_picker_captures
+        self.scene_capture_prefix = scene_capture_prefix
         self.input_fn = input_fn or input
         self._positioning_procedures = positioning_procedures
 
@@ -558,6 +567,99 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
 
         # Set an initial target for the very first episode.
         self.change_object_by_idx(0)
+
+    def _capture_scene_from_picker(self) -> bool:
+        """Capture RGBD data and persist it as a new scene or new scene version."""
+        capture_confirmation = self.input_fn(
+            "Capture from ZED now? [y/N]: "
+        ).strip().lower()
+        if capture_confirmation not in {"y", "yes"}:
+            logger.info("Capture cancelled by user")
+            return False
+
+        target_choice = self.input_fn(
+            "Capture as new [s]cene, new [v]ersion, or [c]ancel: "
+        ).strip().lower()
+        if target_choice in {"c", "cancel", ""}:
+            logger.info("Capture cancelled by user")
+            return False
+
+        manager = IncomingScenesManager(self.env.data_path)
+
+        try:
+            with ZEDRGBDCapture() as capture:
+                if not capture.is_available():
+                    logger.warning("ZED camera unavailable; skipping capture")
+                    return False
+
+                rgb_image, depth_array, metadata = capture.grab_single_frame()
+                if rgb_image is None or depth_array is None:
+                    logger.warning("Failed to capture RGBD frame from ZED")
+                    return False
+
+                if target_choice in {"s", "scene"}:
+                    scene_name = manager.create_next_scene_name(
+                        prefix=self.scene_capture_prefix
+                    )
+                    scene_path = manager.create_scene_folder(scene_name)
+                    version = 0
+                elif target_choice in {"v", "version"}:
+                    self.refresh_scene_schedule_from_env()
+                    options = [
+                        f"{idx}: {scene_name}"
+                        for idx, scene_name in enumerate(self.env.scene_names)
+                    ]
+                    options_text = "\n".join(options)
+                    selection = self.input_fn(
+                        "Select scene index for new version:\n"
+                        f"{options_text}\n"
+                        "Scene index: "
+                    ).strip()
+                    try:
+                        scene_idx = int(selection)
+                    except ValueError:
+                        logger.warning(
+                            "Invalid scene index '%s'; capture cancelled", selection
+                        )
+                        return False
+
+                    if scene_idx < 0 or scene_idx >= len(self.env.scene_names):
+                        logger.warning(
+                            "Scene index %s out of range [0, %s]",
+                            scene_idx,
+                            len(self.env.scene_names) - 1,
+                        )
+                        return False
+
+                    scene_name = self.env.scene_names[scene_idx]
+                    scene_path = manager.resolve_scene_path(scene_name)
+                    version = manager.get_next_version_index(scene_path)
+                else:
+                    logger.warning(
+                        "Unknown capture target '%s'; expected n/v/c", target_choice
+                    )
+                    return False
+
+                saved_paths = manager.save_rgbd_capture(
+                    scene_path=scene_path,
+                    version=version,
+                    rgb_image=rgb_image,
+                    depth_array=depth_array,
+                    metadata=metadata,
+                )
+
+            self.refresh_scene_schedule_from_env()
+            logger.info(
+                "Captured scene='%s', version=%s (rgb=%s, depth=%s)",
+                scene_name,
+                version,
+                saved_paths["rgb_path"],
+                saved_paths["depth_path"],
+            )
+            return True
+        except Exception as exc:
+            logger.warning("Scene picker capture failed: %s", exc)
+            return False
 
     def refresh_scene_schedule_from_env(self) -> None:
         """Refresh scene/version schedule from files discovered by the environment."""
@@ -595,6 +697,12 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
                 "Options:\n"
                 f"{options_text}\n"
                 f"Current option index: {self.current_scene_version}\n"
+                + (
+                    "Extra commands: capture/new/c\n"
+                    if self.enable_scene_picker_captures
+                    else ""
+                )
+                +
                 "Selection: "
             )
             selection = self.input_fn(prompt).strip().lower()
@@ -606,6 +714,14 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
                 return
             if selection in {"quit", "q", "exit"}:
                 raise KeyboardInterrupt("Stopped by user during scene selection")
+
+            if self.enable_scene_picker_captures and selection in {
+                "capture",
+                "new",
+                "c",
+            }:
+                self._capture_scene_from_picker()
+                continue
 
             try:
                 idx = int(selection)
