@@ -694,3 +694,24 @@ class EvidenceLMTest(BaseGraphTest):
             [0, 0, 0],
             "Should recognize rotation 0, 0, 0.",
         )
+
+    def test_get_evidence_for_each_graph_ignores_missing_evidence_entries(self):
+        graph_lm = self.get_elm_with_fake_object(self.fake_obs_learn)
+
+        graph_lm.evidence = {}
+        graph_ids, graph_evidences = graph_lm.get_evidence_for_each_graph()
+
+        self.assertEqual(graph_ids, [])
+        self.assertEqual(len(graph_evidences), 0)
+
+    def test_hypothesis_test_skips_when_top_id_has_no_evidence_entry(self):
+        graph_lm = self.get_elm_with_fake_object(
+            self.fake_obs_learn,
+            gsg=EvidenceGoalGenerator(min_post_goal_success_steps=-1),
+        )
+
+        graph_lm.evidence = {}
+        graph_lm.get_top_two_mlh_ids = lambda: ("new_object0", None)
+        graph_lm.gsg._get_num_steps_post_output_goal_generated = lambda: 999
+
+        self.assertFalse(graph_lm.gsg._check_conditions_for_hypothesis_test(self.ctx))

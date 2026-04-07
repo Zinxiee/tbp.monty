@@ -705,15 +705,16 @@ class EvidenceGraphLM(GraphLM):
     ) -> tuple[list[str], npt.NDArray[np.float64]]:
         """Return maximum evidence count for a pose on each graph."""
         graph_ids = self.get_all_known_object_ids()
-        if graph_ids[0] not in self.evidence:
-            return ["patch_off_object"], np.array([0])
+        if len(graph_ids) == 0:
+            return [], np.array([])
 
         available_graph_ids = []
         available_graph_evidences = []
         for graph_id in graph_ids:
-            if len(self.evidence[graph_id]):
+            graph_evidence = self.evidence.get(graph_id)
+            if graph_evidence is not None and len(graph_evidence):
                 available_graph_ids.append(graph_id)
-                available_graph_evidences.append(np.max(self.evidence[graph_id]))
+                available_graph_evidences.append(np.max(graph_evidence))
 
         return available_graph_ids, np.array(available_graph_evidences)
 
@@ -1255,14 +1256,16 @@ class EvidenceGraphLM(GraphLM):
         """
         mlh = {}
         if graph_id is not None:
-            graph_evidence = self.evidence[graph_id]
-            if len(graph_evidence):
+            graph_evidence = self.evidence.get(graph_id)
+            if graph_evidence is not None and len(graph_evidence):
                 mlh_id = np.argmax(graph_evidence)
                 mlh = self._get_mlh_dict_from_id(graph_id, mlh_id)
         else:
             highest_evidence_so_far = -np.inf
             for next_graph_id in self.get_all_known_object_ids():
-                graph_evidence = self.evidence[next_graph_id]
+                graph_evidence = self.evidence.get(next_graph_id)
+                if graph_evidence is None or not len(graph_evidence):
+                    continue
                 if len(graph_evidence):
                     mlh_id = np.argmax(graph_evidence)
                     evidence = graph_evidence[mlh_id]
