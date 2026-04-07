@@ -5,5 +5,5 @@ env_init_args:
   max_valid_depth_m: 0.55
   nan_fill_value_m: 10.0
   start_location_mode: nearest_valid
-  patch_size: 30
+  patch_size: 20
 env_init_func: ${monty.class:tbp.monty.frameworks.environments.two_d_data.SaccadeOnImageEnvironment}
