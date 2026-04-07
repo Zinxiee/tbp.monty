@@ -235,7 +235,7 @@ class GoalPoseEmissionTest(unittest.TestCase):
             }
         )
 
-        self.goal_state = State(
+        self.goal_state = Message(
             location=np.array([0.1, 0.2, 0.3]),
             morphological_features={
                 "pose_vectors": np.array([[0.0, 0.0, -1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),

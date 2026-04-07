@@ -589,7 +589,10 @@ class InformedPolicy(BasePolicy):
             ),
         ]
 
-        goal_pose = (np.asarray(target_loc, dtype=float), target_np_quat)
+        goal_pose = (
+            np.asarray(set_agent_pose.location, dtype=float),
+            set_agent_pose.rotation_quat,
+        )
 
         return actions, goal_pose
 
