@@ -266,7 +266,14 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
     Images should be stored in .png format for rgb and .data format for depth.
     """
 
-    def __init__(self, patch_size: int = 64, data_path: str | Path | None = None):
+    def __init__(
+        self,
+        patch_size: int = 64,
+        data_path: str | Path | None = None,
+        max_valid_depth_m: float = 0.4,
+        nan_fill_value_m: float = 10.0,
+        start_location_mode: str = "center",
+    ):
         """Initialize environment.
 
         Args:
@@ -275,6 +282,11 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
                 ~/tbp/data/worldimages/labeled_scenes/
         """
         self.patch_size = patch_size
+        self._configure_depth_handling(
+            max_valid_depth_m=max_valid_depth_m,
+            nan_fill_value_m=nan_fill_value_m,
+            start_location_mode=start_location_mode,
+        )
         # Images are always presented upright so patch and agent rotation is always
         # the same. Since we don't use this, value doesn't matter much.
         self.rotation = qt.from_rotation_vector([np.pi / 2, 0.0, 0.0])
@@ -311,6 +323,67 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         # Instantiate once and reuse when checking action name in step()
         # TODO Use 2D-specific actions instead of overloading? Habitat actions
         self._valid_actions = ["look_up", "look_down", "turn_left", "turn_right"]
+
+    def _configure_depth_handling(
+        self,
+        max_valid_depth_m: float,
+        nan_fill_value_m: float,
+        start_location_mode: str,
+    ) -> None:
+        if max_valid_depth_m <= 0:
+            raise ValueError(
+                "max_valid_depth_m must be positive, "
+                f"got {max_valid_depth_m}"
+            )
+        if nan_fill_value_m <= max_valid_depth_m:
+            raise ValueError(
+                "nan_fill_value_m must be greater than max_valid_depth_m, "
+                f"got nan_fill_value_m={nan_fill_value_m}, "
+                f"max_valid_depth_m={max_valid_depth_m}"
+            )
+        if start_location_mode not in {"center", "nearest_valid"}:
+            raise ValueError(
+                "start_location_mode must be one of {'center', 'nearest_valid'}, "
+                f"got {start_location_mode}"
+            )
+
+        self.max_valid_depth_m = float(max_valid_depth_m)
+        self.nan_fill_value_m = float(nan_fill_value_m)
+        self.start_location_mode = start_location_mode
+
+    def _select_start_location(self, depth_image: np.ndarray) -> list[int]:
+        height, width = depth_image.shape
+        center = np.array([height // 2, width // 2], dtype=int)
+        if self.start_location_mode == "center":
+            return center.tolist()
+
+        half_patch_size = self.patch_size // 2 + 1
+        valid_window_mask = np.zeros_like(depth_image, dtype=bool)
+        valid_window_mask[
+            half_patch_size : height - half_patch_size,
+            half_patch_size : width - half_patch_size,
+        ] = True
+
+        valid_depth_mask = (
+            np.isfinite(depth_image)
+            & (depth_image > 0)
+            & (depth_image < self.nan_fill_value_m)
+            & valid_window_mask
+        )
+        valid_indices = np.argwhere(valid_depth_mask)
+        if len(valid_indices) == 0:
+            logger.warning(
+                "No valid start pixel found for scene '%s' version %s; "
+                "falling back to center.",
+                self.current_scene,
+                getattr(self, "scene_version", "unknown"),
+            )
+            return center.tolist()
+
+        deltas = valid_indices - center
+        nearest_idx = int(np.argmin(np.einsum("ij,ij->i", deltas, deltas)))
+        nearest = valid_indices[nearest_idx]
+        return [int(nearest[0]), int(nearest[1])]
 
     @staticmethod
     def _parse_version_from_name(name: str, prefix: str, suffix: str) -> int | None:
@@ -551,10 +624,7 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         height, width, _ = current_rgb_image.shape
         current_depth_image = self.load_depth_data(current_depth_path, height, width)
         current_depth_image = self.process_depth_data(current_depth_image)
-        # set start location to center of image
-        # TODO: find object if not in center
-        obs_shape = current_depth_image.shape
-        start_location = [obs_shape[0] // 2, obs_shape[1] // 2]
+        start_location = self._select_start_location(current_depth_image)
         return current_depth_image, current_rgb_image, start_location
 
     def load_depth_data(self, depth_path: Path, height: int, width: int):
@@ -571,13 +641,25 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         Returns:
             The processed depth image.
         """
-        # Set nan values to 10m
-        depth[np.isnan(depth)] = 10
+        # Set invalid values to fill depth.
+        invalid_mask = ~np.isfinite(depth)
+        depth[invalid_mask] = self.nan_fill_value_m
 
         depth_clipped = depth.copy()
-        # Anything that's further away than 40cm is clipped
-        # TODO: make this a hyperparameter?
-        depth_clipped[depth > 0.4] = 10
+        depth_clipped[depth > self.max_valid_depth_m] = self.nan_fill_value_m
+        if logger.isEnabledFor(logging.DEBUG):
+            clipped_ratio = float(np.mean(depth > self.max_valid_depth_m))
+            invalid_ratio = float(np.mean(invalid_mask))
+            logger.debug(
+                "Depth preprocessing (scene=%s, version=%s): invalid_ratio=%.4f, "
+                "clipped_ratio=%.4f, max_valid_depth_m=%.3f, nan_fill_value_m=%.3f",
+                self.current_scene,
+                getattr(self, "scene_version", "unknown"),
+                invalid_ratio,
+                clipped_ratio,
+                self.max_valid_depth_m,
+                self.nan_fill_value_m,
+            )
         # flipping image makes visualization more intuitive. If we want to have this
         # in here we also have to comment in the flipping in the rgb image and probably
         # flip left-right. It may be better to flip the image in the app, depending on
@@ -762,7 +844,14 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
 class SaccadeOnImageFromStreamEnvironment(SaccadeOnImageEnvironment):
     """Environment for moving over a 2D streamed image with depth channel."""
 
-    def __init__(self, patch_size: int = 64, data_path: str | Path | None = None):
+    def __init__(
+        self,
+        patch_size: int = 64,
+        data_path: str | Path | None = None,
+        max_valid_depth_m: float = 0.4,
+        nan_fill_value_m: float = 10.0,
+        start_location_mode: str = "center",
+    ):
         """Initialize environment.
 
         Args:
@@ -772,6 +861,11 @@ class SaccadeOnImageFromStreamEnvironment(SaccadeOnImageEnvironment):
         """
         # TODO: use super() to avoid repeating lines of code
         self.patch_size = patch_size
+        self._configure_depth_handling(
+            max_valid_depth_m=max_valid_depth_m,
+            nan_fill_value_m=nan_fill_value_m,
+            start_location_mode=start_location_mode,
+        )
         # Letters are always presented upright
         self.rotation = qt.from_rotation_vector([np.pi / 2, 0.0, 0.0])
         self.state = 0
@@ -859,9 +953,7 @@ class SaccadeOnImageFromStreamEnvironment(SaccadeOnImageEnvironment):
                 time.sleep(1)
         current_depth_image = self.process_depth_data(current_depth_image)
 
-        # set start location to center of image
-        # TODO: find object if not in center
-        start_location = [height // 2, width // 2]
+        start_location = self._select_start_location(current_depth_image)
         return current_depth_image, current_rgb_image, start_location
 
 

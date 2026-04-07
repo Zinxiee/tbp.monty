@@ -2,4 +2,8 @@
 
 env_init_args:
   data_path: ${path.expanduser:${oc.env:MONTY_DATA}/worldimages/incoming_scenes/}
+  max_valid_depth_m: 0.55
+  nan_fill_value_m: 10.0
+  start_location_mode: nearest_valid
+  patch_size: 30
 env_init_func: ${monty.class:tbp.monty.frameworks.environments.two_d_data.SaccadeOnImageEnvironment}
