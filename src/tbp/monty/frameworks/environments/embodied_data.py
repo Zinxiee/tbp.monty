@@ -537,10 +537,10 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         self.scenes = list(scenes)
         self.versions = list(versions)
         self.object_names = self.env.scene_names
-        self.current_scene_version = 0
         if len(self.scenes) != len(self.versions):
             raise ValueError("`scenes` and `versions` must have the same length")
         self.n_versions = len(self.versions)
+        self.current_scene_version = self.n_versions - 1
         self.episodes = 0
         self.epochs = 0
         self.primary_target = None
@@ -566,7 +566,7 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
             raise ValueError("'episodes_per_epoch' must be a positive integer")
 
         # Set an initial target for the very first episode.
-        self.change_object_by_idx(0)
+        self.change_object_by_idx(self.current_scene_version)
 
     def _capture_scene_from_picker(self) -> bool:
         """Capture RGBD data and persist it as a new scene or new scene version."""
@@ -678,7 +678,7 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         self.versions = [version_id for _, version_id, _ in pairs]
         self.n_versions = len(self.versions)
         if self.current_scene_version >= self.n_versions:
-            self.current_scene_version = 0
+            self.current_scene_version = self.n_versions - 1
 
     def _prompt_for_next_scene_selection(self) -> None:
         """Prompt operator to choose scene/version for the next episode."""

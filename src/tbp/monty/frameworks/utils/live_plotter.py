@@ -61,12 +61,15 @@ class LivePlotter:
             0
         ]._snapshot_telemetry.raw_observations
         first_sensor_module_id = model.sensor_modules[0].sensor_module_id
-        first_sensor_depth = observation[model.motor_system._policy.agent_id][
-            first_sensor_module_id
-        ]["depth"]
-        view_finder_rgba = observation[model.motor_system._policy.agent_id][
-            "view_finder"
-        ]["rgba"]
+        agent_id = getattr(model, "sm_to_agent_dict", {}).get(first_sensor_module_id)
+        if agent_id is None:
+            motor_policy = getattr(model.motor_system, "_policy", None)
+            agent_id = getattr(motor_policy, "agent_id", None)
+        if agent_id is None:
+            agent_id = next(iter(observation))
+
+        first_sensor_depth = observation[agent_id][first_sensor_module_id]["depth"]
+        view_finder_rgba = observation[agent_id]["view_finder"]["rgba"]
         if hasattr(first_learning_module, "get_current_mlh"):
             mlh = first_learning_module.get_current_mlh()
             if mlh["graph_id"] == "no_observations_yet":

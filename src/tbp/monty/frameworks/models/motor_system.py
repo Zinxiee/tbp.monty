@@ -19,7 +19,8 @@ from tbp.monty.context import RuntimeContext
 from tbp.monty.frameworks.actions.actions import Action
 from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
-from tbp.monty.frameworks.models.motor_policy_selectors import MotorPolicySelector, MotorPolicyResult
+from tbp.monty.frameworks.models.motor_policies import MotorPolicy, MotorPolicyResult
+from tbp.monty.frameworks.models.motor_policy_selectors import MotorPolicySelector
 from tbp.monty.frameworks.models.motor_system_state import (
     MotorSystemState,
     ProprioceptiveState,
@@ -45,6 +46,7 @@ class MotorSystem:
             policy_selector: The motor policy selector to use.
         """
         self._policy_selector = policy_selector
+        self._policy: MotorPolicy | None = None
         # For each step, we store the actions produced by the policy and the current
         # motor system state as a (actions, state) tuple.
         self._action_sequence: list[tuple[list[Action], dict[AgentID, Any] | None]] = []
@@ -113,6 +115,7 @@ class MotorSystem:
         """
         motor_system_state = MotorSystemState(proprioceptive_state)
         policy, goal = self._policy_selector(goals)
+        self._policy = policy
         policy_result = policy(ctx, observations, motor_system_state, percept, goal)
         self._last_policy_result = policy_result
         self.motor_only_step = policy_result.motor_only_step
