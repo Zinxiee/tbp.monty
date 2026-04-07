@@ -14,7 +14,6 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import cv2
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -111,16 +110,15 @@ class ZEDRGBDCapture:
         self._zed.retrieve_image(self._left, sl.VIEW.LEFT)
         self._zed.retrieve_measure(self._depth, sl.MEASURE.DEPTH)
 
-        left_rgba = self._left.get_data()
-        rgb_image = cv2.cvtColor(left_rgba, cv2.COLOR_BGRA2RGB)
+        bgra_image = self._left.get_data().copy()
         depth_array = self._depth.get_data().copy().astype(np.float32)
 
         metadata = {
             "capture_time": datetime.now().isoformat(),
-            "rgb_shape": list(rgb_image.shape),
+            "bgra_shape": list(bgra_image.shape),
             "depth_shape": list(depth_array.shape),
         }
-        return rgb_image, depth_array, metadata
+        return bgra_image, depth_array, metadata
 
     def close(self) -> None:
         if self._sl is not None:

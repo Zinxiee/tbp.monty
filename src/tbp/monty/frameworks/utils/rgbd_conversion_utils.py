@@ -16,22 +16,22 @@ import numpy as np
 from PIL import Image
 
 
-def rgb_to_rgba_png_bytes(rgb_image: np.ndarray) -> bytes:
-    """Convert an RGB or BGR image array to RGBA PNG bytes.
+def bgra_to_rgba_png_bytes(bgra_image: np.ndarray) -> bytes:
+    """Convert a BGRA image array to RGBA PNG bytes.
 
     Args:
-        rgb_image: Image array with shape (H, W, 3) and uint8-compatible values.
+        bgra_image: Image array with shape (H, W, 4) and uint8-compatible values.
 
     Returns:
         PNG bytes encoded in RGBA mode.
     """
-    if rgb_image.ndim != 3 or rgb_image.shape[2] != 3:
+    if bgra_image.ndim != 3 or bgra_image.shape[2] != 4:
         raise ValueError(
-            f"Expected image with shape (H, W, 3), got {rgb_image.shape}"
+            f"Expected image with shape (H, W, 4), got {bgra_image.shape}"
         )
 
-    image_uint8 = np.clip(rgb_image, 0, 255).astype(np.uint8)
-    rgba = cv2.cvtColor(image_uint8, cv2.COLOR_RGB2RGBA)
+    image_uint8 = np.clip(bgra_image, 0, 255).astype(np.uint8)
+    rgba = cv2.cvtColor(image_uint8, cv2.COLOR_BGRA2RGBA)
     pil_image = Image.fromarray(rgba, mode="RGBA")
 
     buffer = io.BytesIO()

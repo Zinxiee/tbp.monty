@@ -18,7 +18,7 @@ import numpy as np
 
 from tbp.monty.frameworks.utils.rgbd_conversion_utils import (
     depth_array_to_http_payload_bytes,
-    rgb_to_rgba_png_bytes,
+    bgra_to_rgba_png_bytes,
 )
 
 
@@ -84,7 +84,7 @@ class IncomingScenesManager:
         depth_path = path / f"depth_{version}.data"
         metadata_path = path / f"metadata_{version}.json"
 
-        rgb_path.write_bytes(rgb_to_rgba_png_bytes(rgb_image))
+        rgb_path.write_bytes(bgra_to_rgba_png_bytes(rgb_image))
         depth_path.write_bytes(depth_array_to_http_payload_bytes(depth_array))
 
         if metadata is not None:
