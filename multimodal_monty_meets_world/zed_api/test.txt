@@ -1,0 +1,5 @@
+Capture img:
+python multimodal_monty_meets_world/zed_api/capture_rgbd.py --output-dir ~/tbp/tbp.monty/multimodal_monty_meets_world/zed_api
+
+convert npy to .data and read centre value:
+python multimodal_monty_meets_world/zed_api/npy_to_http_payload.py ~/tbp/tbp.monty/multimodal_monty_meets_world/zed_api/<CHANGE>.npy --output_path ~/tbp/tbp.monty/multimodal_monty_meets_world/zed_api/test.data --centre
