@@ -519,7 +519,3 @@ class EmbodiedDataTest(unittest.TestCase):
                 break
 
             i += 1
-
-
-if __name__ == "__main__":
-    unittest.main()
