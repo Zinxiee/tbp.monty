@@ -1,0 +1,26 @@
+# @package _global_
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised_probe_no_goal_dispatch
+
+experiment:
+  config:
+    max_train_steps: 12
+    max_eval_steps: 0
+    max_total_steps: 12
+    n_train_epochs: 1
+    n_eval_epochs: 0
+    environment:
+      env_init_args:
+        require_object_swap_confirmation: false
+        motion_debug_logging: true
+        settle_use_goal_convergence_gate: true
+        settle_convergence_timeout_s: 4.0
+        settle_convergence_position_tolerance_mm: 5.0
+        settle_convergence_poll_s: 0.02
+        probe_move_forward_only: true
+        probe_move_forward_distance_m: 0.01
+        probe_max_steps: 6
+    logging:
+      python_log_level: DEBUG
+      run_name: real_world_lite6_maixsense_unsupervised_probe_no_goal_dispatch_validation

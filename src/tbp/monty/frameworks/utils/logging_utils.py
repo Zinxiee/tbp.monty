@@ -746,11 +746,12 @@ def get_stats_per_lm(model, target, episode_seed: int):
     """
     performance_dict = {}
     primary_target_dict = target_data_to_dict(target)
+    consistent_child_objects = target.get("consistent_child_objects")
     for i, lm in enumerate(model.learning_modules):
         lm_stats = get_graph_lm_episode_stats(lm)
         if hasattr(lm, "evidence"):
             lm_stats = add_evidence_lm_episode_stats(
-                lm, lm_stats, target["consistent_child_objects"]
+                lm, lm_stats, consistent_child_objects
             )
         else:
             lm_stats = add_pose_lm_episode_stats(lm, lm_stats)
@@ -849,12 +850,17 @@ def target_data_to_dict(target):
         dict with target params
     """
     output_dict = {}
-    output_dict["primary_target_object"] = target["object"]
-    output_dict["primary_target_position"] = target["position"]
-    output_dict["primary_target_rotation_euler"] = target["euler_rotation"]
-    output_dict["primary_target_rotation_quat"] = qt.as_float_array(target["rotation"])
-    # Currently scale is applied uniformly along all dimensions
-    output_dict["primary_target_scale"] = target["scale"][0]
+    output_dict["primary_target_object"] = target.get("object")
+    output_dict["primary_target_position"] = target.get("position")
+    output_dict["primary_target_rotation_euler"] = target.get("euler_rotation")
+
+    rotation = target.get("rotation")
+    output_dict["primary_target_rotation_quat"] = (
+        qt.as_float_array(rotation) if rotation is not None else None
+    )
+
+    scale = target.get("scale")
+    output_dict["primary_target_scale"] = scale[0] if scale is not None else None
 
     return output_dict
 

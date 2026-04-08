@@ -722,9 +722,15 @@ class MontyExperiment:
             pass
         else:
             logger.info(f"saving model to {output_dir}")
-            torch.save(model_state_dict, output_dir / "model.pt")
-            torch.save(exp_state_dict, output_dir / "exp_state_dict.pt")
-            torch.save(self.config, output_dir / "config.pt")
+            try:
+                torch.save(model_state_dict, output_dir / "model.pt")
+                torch.save(exp_state_dict, output_dir / "exp_state_dict.pt")
+                torch.save(self.config, output_dir / "config.pt")
+            except TypeError as exc:
+                logger.warning(
+                    "Skipping state_dict save because object is not picklable: %s",
+                    exc,
+                )
 
     def load_state_dict(self, load_dir):
         """Load state_dict of previous experiment."""
