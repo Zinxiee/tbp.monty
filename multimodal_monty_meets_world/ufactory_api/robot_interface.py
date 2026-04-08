@@ -15,6 +15,7 @@ class RobotInterface:
         self._latest_data = {
             "joints": [],
             "end_effector": [],
+            "timestamp_s": time.monotonic(),
             "api_status": {
                 "joint_code": -1,
                 "position_code": -1,
@@ -53,6 +54,7 @@ class RobotInterface:
                 self._latest_data = {
                     "joints": angles,
                     "end_effector": pos,
+                    "timestamp_s": time.monotonic(),
                     "api_status": {
                         "joint_code": code_j,
                         "position_code": code_p,
@@ -63,6 +65,7 @@ class RobotInterface:
                     "joint_code": code_j,
                     "position_code": code_p,
                 }
+                self._latest_data["timestamp_s"] = time.monotonic()
             
             # Sleep slightly to prevent CPU overheating (100Hz)
             time.sleep(0.01)

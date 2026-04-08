@@ -37,12 +37,16 @@ env_init_args:
   
   # Goal adapter configuration (used during init if goal_adapter is null).
   goal_adapter_config:
-    world_to_robot_translation_m: [0.0, 0.0, 0.0]  # Identity: world frame = robot base frame.
+    world_to_robot_translation_m: [0.0, 0.0, 0.0]  # Origin aligned; orientation mapping is configured below.
     world_to_robot_rotation_dict:
-      w: 1.0
-      x: 0.0
-      y: 0.0
-      z: 0.0
+      # Map Monty right-up-backward world frame to Lite6 base frame:
+      # Monty +x (right) -> Lite6 -y (right),
+      # Monty +y (up) -> Lite6 +z (up),
+      # Monty -z (forward) -> Lite6 +x (forward).
+      w: 0.5
+      x: 0.5
+      y: -0.5
+      z: -0.5
     link6_to_sensor_translation_m: [0.0, -0.060, 0.0135]
     link6_to_sensor_rotation_dict:
       w: 1.0
@@ -73,6 +77,10 @@ env_init_args:
   # home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
   home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
   settle_time_s: 0.25
+  home_reset_timeout_s: 4.0
+  home_reset_poll_s: 0.02
+  home_reset_position_tolerance_mm: 20.0
+  home_reset_orientation_tolerance_deg: 10.0
   require_object_swap_confirmation: true
   object_swap_prompt: "Swap/position the object, then press Enter to continue: "
   # World frame is assumed to match robot base frame for v1.
@@ -82,4 +90,11 @@ env_init_args:
   sensor_frame_timeout_s: 1.5
   sensor_frame_max_retries: 3
   sensor_frame_retry_delay_s: 0.05
+  sensed_orientation_sequence: xyz
+  sensed_orientation_degrees: false
+  sensed_orientation_intrinsic: false
+  sensed_orientation_index_order: [0, 1, 2]
+  sensed_orientation_signs: [1.0, 1.0, 1.0]
+  sensed_orientation_offset_wxyz: [1.0, 0.0, 0.0, 0.0]
+  sensed_motion_offset_wxyz: [0.70710678, -0.70710678, 0.0, 0.0]
 transform: null
