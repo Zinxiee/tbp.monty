@@ -24,10 +24,10 @@ env_init_args:
     # Intrinsics: either use manufacturer calibration or fetch from HTTP /getinfo.
     # Placeholder values below are conservative estimates for Maixsense A010.
     # To get calibrated values: use create_adapter_from_http_calibration or set these from known calibration.
-    fx: 230.0
-    fy: 230.0
-    cx: 160.0
-    cy: 120.0
+    fx: 226.5142
+    fy: 227.8584
+    cx: 163.7246
+    cy: 123.3738
     crop_center_to_square: true
     min_valid_depth_m: 1.0e-6
 
@@ -74,8 +74,8 @@ env_init_args:
   agent_id: agent_id_0
   sensor_id: patch
   # Home pose in robot-base frame: [x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg]
-  # home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
-  home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
+  home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
+  # home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
   settle_time_s: 0.25
   home_reset_timeout_s: 4.0
   home_reset_poll_s: 0.02
