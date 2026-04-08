@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import types
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import numpy.testing as nptest
@@ -32,13 +33,19 @@ from tbp.monty.frameworks.models.motor_policies import MotorPolicyResult
 class _FakeRobot:
     def __init__(self, end_effector: list[float] | None = None) -> None:
         self._end_effector = end_effector or [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self._timestamp_s = 0.0
         self.stop_motion_calls: list[str] = []
+        self.move_arm_calls: list[tuple[float, float, float, float, float, float]] = []
 
     def get_sense_state(self) -> dict[str, list[float]]:
-        return {"end_effector": self._end_effector}
+        self._timestamp_s += 0.01
+        return {"end_effector": self._end_effector, "timestamp_s": self._timestamp_s}
 
     def stop_motion(self, reason: str) -> None:
         self.stop_motion_calls.append(reason)
+
+    def move_arm(self, x: float, y: float, z: float, roll: float, pitch: float, yaw: float) -> None:
+        self.move_arm_calls.append((x, y, z, roll, pitch, yaw))
 
 
 class _FakeSensor:
@@ -61,27 +68,59 @@ class _FakeObservationAdapter:
 class _FakeGoalAdapter:
     def __init__(self, dispatch_ok: bool = True) -> None:
         self.dispatch_ok = dispatch_ok
+        self.dispatch_stop_on_rejection_calls: list[bool] = []
+        self.send_stop_on_rejection_calls: list[bool] = []
+        self._last_command_position_m = np.array([0.0, 0.0, 0.0], dtype=float)
         self.last_rejection_details = {
             "reason_code": "TEST_REJECT",
             "details": "simulated rejection",
         }
+        self.world_to_robot = types.SimpleNamespace(
+            translation_m=np.zeros(3, dtype=float),
+            rotation_quat_wxyz=qt.one,
+        )
+        self.link6_to_sensor = types.SimpleNamespace(
+            translation_m=np.zeros(3, dtype=float),
+            rotation_quat_wxyz=qt.one,
+        )
         self.safety_config = types.SimpleNamespace(
             max_translation_step_m=0.05,
             max_rotation_step_deg=10.0,
         )
 
-    def dispatch_motor_policy_result(self, result: MotorPolicyResult) -> bool:  # noqa: ARG002
+    def dispatch_motor_policy_result(
+        self,
+        result: MotorPolicyResult,  # noqa: ARG002
+        *,
+        stop_on_rejection: bool = True,
+    ) -> bool:
+        self.dispatch_stop_on_rejection_calls.append(bool(stop_on_rejection))
         return self.dispatch_ok
 
     def send_world_goal_pose(
         self,
         location_m: np.ndarray,
         rotation_quat_wxyz: qt.quaternion,
+        *,
+        stop_on_rejection: bool = True,
     ) -> bool:  # noqa: ARG002
+        self.send_stop_on_rejection_calls.append(bool(stop_on_rejection))
         return True
 
 
 class RealWorldEnvironmentMathTest(unittest.TestCase):
+    def _assert_quat_equivalent(
+        self,
+        actual: qt.quaternion,
+        expected_wxyz: np.ndarray,
+        *,
+        atol: float = 1e-7,
+    ) -> None:
+        actual_wxyz = qt.as_float_array(actual)
+        if np.allclose(actual_wxyz, expected_wxyz, atol=atol):
+            return
+        nptest.assert_allclose(actual_wxyz, -expected_wxyz, atol=atol)
+
     def _make_env(
         self,
         *,
@@ -90,6 +129,7 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
         goal_rejection_hard_stop: bool = False,
         sensor_translation_m: tuple[float, float, float] = (0.0, 0.0, 0.0),
         sensor_rotation_wxyz: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
+        **extra_env_kwargs,
     ) -> RealWorldLite6A010Environment:
         return RealWorldLite6A010Environment(
             robot_interface=robot or _FakeRobot(),
@@ -102,6 +142,7 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
             goal_rejection_hard_stop=goal_rejection_hard_stop,
             sensor_translation_m=sensor_translation_m,
             sensor_rotation_wxyz=sensor_rotation_wxyz,
+            **extra_env_kwargs,
         )
 
     def test_relative_move_forward_goal_pose_identity_rotation(self) -> None:
@@ -111,8 +152,167 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
             MoveForward(agent_id=AgentID("agent_id_0"), distance=0.02)
         )
 
-        nptest.assert_allclose(goal_pos, np.array([0.0, 0.0, 0.02]))
-        nptest.assert_allclose(qt.as_float_array(goal_quat), np.array([1.0, 0.0, 0.0, 0.0]))
+        nptest.assert_allclose(goal_pos, np.array([0.0, 0.0, -0.02]))
+        self._assert_quat_equivalent(goal_quat, np.array([1.0, 0.0, 0.0, 0.0]))
+
+    def test_get_agent_pose_world_applies_world_to_robot_inverse_transform(self) -> None:
+        robot = _FakeRobot(end_effector=[1000.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        goal_adapter = _FakeGoalAdapter()
+        goal_adapter.world_to_robot = types.SimpleNamespace(
+            translation_m=np.array([0.1, 0.2, 0.0], dtype=float),
+            rotation_quat_wxyz=qt.from_rotation_vector(np.array([0.0, 0.0, np.pi / 2])),
+        )
+        env = self._make_env(robot=robot, goal_adapter=goal_adapter)
+
+        world_pos, world_quat = env._get_agent_pose_world()
+
+        expected_pos = rot.from_rotvec([0.0, 0.0, -np.pi / 2]).apply(
+            np.array([1.0, 0.0, 0.0]) - np.array([0.1, 0.2, 0.0])
+        )
+        nptest.assert_allclose(world_pos, expected_pos, atol=1e-7)
+        expected_world_quat_xyzw = rot.from_rotvec([0.0, 0.0, -np.pi / 2]).as_quat()
+        expected_world_quat_wxyz = np.array(
+            [
+                expected_world_quat_xyzw[3],
+                expected_world_quat_xyzw[0],
+                expected_world_quat_xyzw[1],
+                expected_world_quat_xyzw[2],
+            ]
+        )
+        self._assert_quat_equivalent(world_quat, expected_world_quat_wxyz, atol=1e-7)
+
+    def test_get_agent_pose_world_applies_link6_to_sensor_transform(self) -> None:
+        robot = _FakeRobot(end_effector=[1000.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        goal_adapter = _FakeGoalAdapter()
+        goal_adapter.link6_to_sensor = types.SimpleNamespace(
+            translation_m=np.array([0.0, -0.06, 0.0135], dtype=float),
+            rotation_quat_wxyz=qt.one,
+        )
+        env = self._make_env(robot=robot, goal_adapter=goal_adapter)
+
+        world_pos, world_quat = env._get_agent_pose_world()
+
+        nptest.assert_allclose(world_pos, np.array([1.0, -0.06, 0.0135]), atol=1e-7)
+        self._assert_quat_equivalent(world_quat, np.array([1.0, 0.0, 0.0, 0.0]))
+
+    def test_get_agent_pose_world_parses_sensed_orientation_degrees(self) -> None:
+        robot = _FakeRobot(end_effector=[0.0, 0.0, 0.0, 180.0, 0.0, 0.0])
+        env = self._make_env(
+            robot=robot,
+            goal_adapter=_FakeGoalAdapter(),
+            sensed_orientation_degrees=True,
+        )
+
+        _, world_quat = env._get_agent_pose_world()
+
+        self._assert_quat_equivalent(world_quat, np.array([0.0, 1.0, 0.0, 0.0]))
+
+    def test_get_agent_pose_world_applies_orientation_index_order_and_signs(self) -> None:
+        robot = _FakeRobot(end_effector=[0.0, 0.0, 0.0, 0.1, 0.2, 0.3])
+        env = self._make_env(
+            robot=robot,
+            goal_adapter=_FakeGoalAdapter(),
+            sensed_orientation_index_order=(2, 1, 0),
+            sensed_orientation_signs=(-1.0, 1.0, 1.0),
+        )
+
+        _, world_quat = env._get_agent_pose_world()
+
+        expected_xyzw = rot.from_euler("xyz", np.array([-0.3, 0.2, 0.1])).as_quat()
+        expected_wxyz = np.array(
+            [expected_xyzw[3], expected_xyzw[0], expected_xyzw[1], expected_xyzw[2]]
+        )
+        self._assert_quat_equivalent(world_quat, expected_wxyz)
+
+    def test_get_agent_pose_world_applies_orientation_offset(self) -> None:
+        robot = _FakeRobot(end_effector=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        offset_quat = qt.from_rotation_vector(np.array([0.0, 0.0, np.pi / 2]))
+        env = self._make_env(
+            robot=robot,
+            goal_adapter=_FakeGoalAdapter(),
+            sensed_orientation_offset_wxyz=qt.as_float_array(offset_quat),
+        )
+
+        _, world_quat = env._get_agent_pose_world()
+
+        self._assert_quat_equivalent(world_quat, qt.as_float_array(offset_quat))
+
+    def test_move_home_waits_for_fresh_convergence(self) -> None:
+        robot = _FakeRobot(end_effector=[330.0, 20.0, 280.0, 170.0, 0.0, 0.0])
+        home_pose = (336.3, 10.7, 287.7, 180.0, 0.0, 0.0)
+        states = [
+            {"end_effector": [330.0, 20.0, 280.0, 170.0, 0.0, 0.0], "timestamp_s": 0.1},
+            {"end_effector": [336.3, 10.7, 287.7, np.pi, 0.0, 0.0], "timestamp_s": 0.2},
+        ]
+
+        def get_state() -> dict[str, list[float]]:
+            return states.pop(0) if states else {"end_effector": [336.3, 10.7, 287.7, np.pi, 0.0, 0.0], "timestamp_s": 0.3}
+
+        robot.get_sense_state = get_state  # type: ignore[method-assign]
+        env = self._make_env(
+            robot=robot,
+            goal_adapter=_FakeGoalAdapter(),
+            home_pose_mm_deg=home_pose,
+            home_reset_timeout_s=0.5,
+            home_reset_poll_s=0.0,
+        )
+
+        with patch(
+            "tbp.monty.frameworks.environments.real_world_environment.time.monotonic",
+            side_effect=[0.0, 0.05, 0.06, 0.07],
+        ):
+            env._move_home_if_configured()
+
+        self.assertEqual(len(robot.move_arm_calls), 1)
+
+    def test_move_home_times_out_when_pose_is_not_fresh_or_converged(self) -> None:
+        home_pose = (336.3, 10.7, 287.7, 180.0, 0.0, 0.0)
+        robot = _FakeRobot(end_effector=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        robot.get_sense_state = lambda: {  # type: ignore[method-assign]
+            "end_effector": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "timestamp_s": -1.0,
+        }
+        env = self._make_env(
+            robot=robot,
+            goal_adapter=_FakeGoalAdapter(),
+            home_pose_mm_deg=home_pose,
+            home_reset_timeout_s=0.01,
+            home_reset_poll_s=0.0,
+        )
+
+        with patch(
+            "tbp.monty.frameworks.environments.real_world_environment.time.monotonic",
+            side_effect=[0.0, 0.02, 0.04],
+        ):
+            with self.assertRaises(RealWorldSafetyStopError) as exc:
+                env._move_home_if_configured()
+
+        self.assertEqual(exc.exception.reason_code, "HOME_RESET_TIMEOUT")
+
+    def test_relative_move_forward_uses_parsed_sensed_orientation(self) -> None:
+        robot = _FakeRobot(end_effector=[0.0, 0.0, 0.0, 0.0, np.pi / 2, 0.0])
+        env = self._make_env(robot=robot, goal_adapter=_FakeGoalAdapter())
+
+        goal_pos, _ = env._goal_pose_from_relative_action(
+            MoveForward(agent_id=AgentID("agent_id_0"), distance=0.02)
+        )
+
+        nptest.assert_allclose(goal_pos, np.array([-0.02, 0.0, 0.0]), atol=1e-7)
+
+    def test_relative_move_forward_applies_translation_only_motion_offset(self) -> None:
+        env = self._make_env(
+            goal_adapter=_FakeGoalAdapter(),
+            sensed_motion_offset_wxyz=qt.as_float_array(
+                qt.from_rotation_vector(np.array([0.0, np.pi / 2, 0.0]))
+            ),
+        )
+
+        goal_pos, goal_quat = env._goal_pose_from_relative_action(
+            MoveForward(agent_id=AgentID("agent_id_0"), distance=0.02)
+        )
+
+        nptest.assert_allclose(goal_pos, np.array([-0.02, 0.0, 0.0]), atol=1e-7)
+        self._assert_quat_equivalent(goal_quat, np.array([1.0, 0.0, 0.0, 0.0]))
 
     def test_relative_move_tangentially_invalid_direction_hard_stops(self) -> None:
         env = self._make_env(goal_adapter=_FakeGoalAdapter())
@@ -142,7 +342,7 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
 
         expected = rot.from_euler("z", 10.0, degrees=True).as_quat()
         expected_wxyz = np.array([expected[3], expected[0], expected[1], expected[2]])
-        nptest.assert_allclose(qt.as_float_array(goal_quat), expected_wxyz, atol=1e-7)
+        self._assert_quat_equivalent(goal_quat, expected_wxyz, atol=1e-7)
 
     def test_translation_step_is_clipped_by_safety_config(self) -> None:
         env = self._make_env(goal_adapter=_FakeGoalAdapter())
@@ -152,7 +352,8 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
         nptest.assert_allclose(clipped, np.array([0.05, 0.0, 0.0]))
 
     def test_dispatch_goal_pose_rejection_respects_config_soft_mode(self) -> None:
-        env = self._make_env(goal_adapter=_FakeGoalAdapter(dispatch_ok=False))
+        goal_adapter = _FakeGoalAdapter(dispatch_ok=False)
+        env = self._make_env(goal_adapter=goal_adapter)
         result = MotorPolicyResult(
             actions=[],
             goal_pose=(np.array([0.1, 0.0, 0.2]), qt.one),
@@ -161,10 +362,12 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
         accepted = env._dispatch_goal_pose(result)
 
         self.assertFalse(accepted)
+        self.assertEqual(goal_adapter.dispatch_stop_on_rejection_calls, [False])
 
     def test_dispatch_goal_pose_rejection_respects_config_hard_stop(self) -> None:
+        goal_adapter = _FakeGoalAdapter(dispatch_ok=False)
         env = self._make_env(
-            goal_adapter=_FakeGoalAdapter(dispatch_ok=False),
+            goal_adapter=goal_adapter,
             goal_rejection_hard_stop=True,
         )
         result = MotorPolicyResult(
@@ -176,6 +379,38 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
             env._dispatch_goal_pose(result)
 
         self.assertEqual(exc.exception.reason_code, "GOAL_DISPATCH_REJECTED")
+        self.assertEqual(goal_adapter.dispatch_stop_on_rejection_calls, [True])
+
+    def test_block_until_settled_uses_convergence_gate_when_enabled(self) -> None:
+        goal_adapter = _FakeGoalAdapter(dispatch_ok=True)
+        goal_adapter._last_command_position_m = np.array([0.3363, 0.0107, 0.2877])
+        robot = _FakeRobot(end_effector=[330.0, 10.7, 287.7, 0.0, 0.0, 0.0])
+        states = [
+            {"end_effector": [330.0, 10.7, 287.7, 0.0, 0.0, 0.0], "timestamp_s": 0.1},
+            {"end_effector": [336.3, 10.7, 287.7, 0.0, 0.0, 0.0], "timestamp_s": 0.2},
+        ]
+
+        def get_state() -> dict[str, list[float]]:
+            return states.pop(0) if states else {"end_effector": [336.3, 10.7, 287.7, 0.0, 0.0, 0.0], "timestamp_s": 0.3}
+
+        robot.get_sense_state = get_state  # type: ignore[method-assign]
+        env = self._make_env(
+            robot=robot,
+            goal_adapter=goal_adapter,
+            settle_use_goal_convergence_gate=True,
+            settle_convergence_timeout_s=0.5,
+            settle_convergence_position_tolerance_mm=5.0,
+            settle_convergence_poll_s=0.0,
+        )
+        env._step_dispatched_command = True
+
+        with patch(
+            "tbp.monty.frameworks.environments.real_world_environment.time.monotonic",
+            side_effect=[0.0, 0.1, 0.2],
+        ):
+            env._block_until_settled()
+
+        self.assertEqual(len(states), 0)
 
     def test_world_camera_matrix_uses_sensor_extrinsics(self) -> None:
         env = self._make_env(

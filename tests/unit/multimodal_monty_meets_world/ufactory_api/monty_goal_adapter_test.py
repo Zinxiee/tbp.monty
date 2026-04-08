@@ -168,6 +168,28 @@ class MontyGoalToRobotAdapterTest(unittest.TestCase):
         self.assertTrue(robot.stop_reason.startswith("ik_infeasible"))
         self.assertIsNone(robot.last_command)
 
+    def test_dispatch_rejected_when_ik_infeasible_soft_continue(self) -> None:
+        robot = _FakeRobotInterface()
+        robot.feasible = False
+        adapter = self.module.MontyGoalToRobotAdapter(
+            robot=robot,
+            world_to_robot=self.module.identity_world_to_robot_transform(),
+            safety_config=self.module.SafetyConfig(
+                workspace_min_xyz_m=np.array([0.0, -1.0, 0.0]),
+                workspace_max_xyz_m=np.array([1.0, 1.0, 1.0]),
+            ),
+        )
+
+        result = MotorPolicyResult(goal_pose=(np.array([0.30, 0.0, 0.20]), qt.one))
+        dispatched = adapter.dispatch_motor_policy_result(
+            result,
+            stop_on_rejection=False,
+        )
+
+        self.assertFalse(dispatched)
+        self.assertIsNone(robot.stop_reason)
+        self.assertIsNone(robot.last_command)
+
     def test_dispatch_rejected_when_wait_until_ready_times_out(self) -> None:
         robot = _FakeRobotInterface()
         robot.wait_until_ready_result = False

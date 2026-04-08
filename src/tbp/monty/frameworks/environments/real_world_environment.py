@@ -74,6 +74,10 @@ class RealWorldLite6A010Environment:
         sensor_id: str = "patch",
         home_pose_mm_deg: Sequence[float] | None = None,
         settle_time_s: float = 0.25,
+        home_reset_timeout_s: float = 4.0,
+        home_reset_poll_s: float = 0.02,
+        home_reset_position_tolerance_mm: float = 20.0,
+        home_reset_orientation_tolerance_deg: float = 10.0,
         require_object_swap_confirmation: bool = True,
         object_swap_prompt: str = "Swap/position the object, then press Enter to continue: ",
         input_fn: Callable[[str], str] | None = None,
@@ -84,11 +88,22 @@ class RealWorldLite6A010Environment:
         sensor_frame_max_retries: int = 2,
         sensor_frame_retry_delay_s: float = 0.05,
         goal_rejection_hard_stop: bool = False,
+        settle_use_goal_convergence_gate: bool = False,
+        settle_convergence_timeout_s: float | None = None,
+        settle_convergence_position_tolerance_mm: float | None = None,
+        settle_convergence_poll_s: float = 0.02,
         goal_adapter_config: dict[str, Any] | None = None,
         motion_debug_logging: bool = False,
         probe_move_forward_only: bool = False,
         probe_move_forward_distance_m: float = 0.01,
         probe_max_steps: int = 5,
+        sensed_orientation_sequence: str = "xyz",
+        sensed_orientation_degrees: bool = False,
+        sensed_orientation_intrinsic: bool = False,
+        sensed_orientation_index_order: Sequence[int] = (0, 1, 2),
+        sensed_orientation_signs: Sequence[float] = (1.0, 1.0, 1.0),
+        sensed_orientation_offset_wxyz: Sequence[float] = (1.0, 0.0, 0.0, 0.0),
+        sensed_motion_offset_wxyz: Sequence[float] = (1.0, 0.0, 0.0, 0.0),
     ) -> None:
         self.robot_interface = robot_interface
         self.sensor_client = sensor_client
@@ -109,6 +124,14 @@ class RealWorldLite6A010Environment:
             tuple(home_pose_mm_deg) if home_pose_mm_deg is not None else None
         )
         self.settle_time_s = settle_time_s
+        self.home_reset_timeout_s = max(0.0, float(home_reset_timeout_s))
+        self.home_reset_poll_s = max(0.0, float(home_reset_poll_s))
+        self.home_reset_position_tolerance_mm = max(
+            0.0, float(home_reset_position_tolerance_mm)
+        )
+        self.home_reset_orientation_tolerance_deg = max(
+            0.0, float(home_reset_orientation_tolerance_deg)
+        )
         self.require_object_swap_confirmation = require_object_swap_confirmation
         self.object_swap_prompt = object_swap_prompt
         self.input_fn = input_fn or input
@@ -119,14 +142,48 @@ class RealWorldLite6A010Environment:
         self.sensor_frame_max_retries = max(0, int(sensor_frame_max_retries))
         self.sensor_frame_retry_delay_s = max(0.0, float(sensor_frame_retry_delay_s))
         self.goal_rejection_hard_stop = bool(goal_rejection_hard_stop)
+        self.settle_use_goal_convergence_gate = bool(settle_use_goal_convergence_gate)
+        self.settle_convergence_timeout_s = (
+            None
+            if settle_convergence_timeout_s is None
+            else max(0.0, float(settle_convergence_timeout_s))
+        )
+        self.settle_convergence_position_tolerance_mm = (
+            None
+            if settle_convergence_position_tolerance_mm is None
+            else max(0.0, float(settle_convergence_position_tolerance_mm))
+        )
+        self.settle_convergence_poll_s = max(0.0, float(settle_convergence_poll_s))
         self.motion_debug_logging = bool(motion_debug_logging)
         self.probe_move_forward_only = bool(probe_move_forward_only)
         self.probe_move_forward_distance_m = max(0.0, float(probe_move_forward_distance_m))
         self.probe_max_steps = max(0, int(probe_max_steps))
+        self.sensed_orientation_sequence = str(sensed_orientation_sequence)
+        self.sensed_orientation_degrees = bool(sensed_orientation_degrees)
+        self.sensed_orientation_intrinsic = bool(sensed_orientation_intrinsic)
+        self.sensed_orientation_index_order = tuple(
+            int(index) for index in sensed_orientation_index_order
+        )
+        self.sensed_orientation_signs = np.asarray(sensed_orientation_signs, dtype=float)
+        self.sensed_orientation_offset_wxyz = _as_wxyz_quaternion(
+            sensed_orientation_offset_wxyz
+        )
+        self.sensed_motion_offset_wxyz = _as_wxyz_quaternion(
+            sensed_motion_offset_wxyz
+        )
         self._probe_step_count = 0
+        self._last_home_command_time_s: float | None = None
+
+        if len(self.sensed_orientation_sequence) != 3:
+            raise ValueError("sensed_orientation_sequence must contain exactly 3 axes")
+        if len(self.sensed_orientation_index_order) != 3:
+            raise ValueError("sensed_orientation_index_order must contain exactly 3 indices")
+        if self.sensed_orientation_signs.shape != (3,):
+            raise ValueError("sensed_orientation_signs must contain exactly 3 values")
 
         self._last_motor_policy_result: MotorPolicyResult | None = None
         self.last_safety_event: dict[str, str] | None = None
+        self._step_dispatched_command = False
 
     def set_last_motor_policy_result(
         self,
@@ -146,6 +203,7 @@ class RealWorldLite6A010Environment:
         actions: Sequence[Action],
     ) -> tuple[Observations, ProprioceptiveState]:
         actions_to_execute = self._select_actions_for_step(actions)
+        self._step_dispatched_command = False
         pre_position_m, _ = self._get_agent_pose_world()
         self._log_motion_debug(
             "STEP_BEGIN",
@@ -200,6 +258,7 @@ class RealWorldLite6A010Environment:
             )
 
         x, y, z, roll, pitch, yaw = self.home_pose_mm_deg
+        self._last_home_command_time_s = time.monotonic()
         self.robot_interface.move_arm(
             x=float(x),
             y=float(y),
@@ -208,6 +267,7 @@ class RealWorldLite6A010Environment:
             pitch=float(pitch),
             yaw=float(yaw),
         )
+        self._wait_for_home_reset_convergence()
         self._block_until_settled()
 
     def _dispatch_goal_pose(self, policy_result: MotorPolicyResult) -> bool:
@@ -225,7 +285,11 @@ class RealWorldLite6A010Environment:
                 goal_quaternion_wxyz=np.round(qt.as_float_array(goal_quaternion_wxyz), 6).tolist(),
             )
 
-        accepted = bool(self.goal_adapter.dispatch_motor_policy_result(policy_result))
+        accepted = bool(
+            self._dispatch_motor_policy_result_with_mode(policy_result)
+        )
+        if accepted:
+            self._step_dispatched_command = True
         self._log_motion_debug(
             "DISPATCH_GOAL_POSE_RESULT",
             accepted=accepted,
@@ -275,13 +339,14 @@ class RealWorldLite6A010Environment:
     ) -> tuple[np.ndarray, qt.quaternion]:
         current_pos, current_quat = self._get_agent_pose_world()
         agent_rot = rot.from_quat(_quat_wxyz_to_xyzw(current_quat))
+        motion_rot = self._motion_rotation_from_agent_rotation(agent_rot)
 
         delta = np.zeros(3, dtype=float)
         goal_quat = current_quat
 
         if isinstance(action, MoveForward):
-            agent_forward = np.array([0.0, 0.0, 1.0], dtype=float)
-            delta = agent_rot.apply(agent_forward) * float(action.distance)
+            agent_forward = np.array([0.0, 0.0, -1.0], dtype=float)
+            delta = motion_rot.apply(agent_forward) * float(action.distance)
 
         elif isinstance(action, MoveTangentially):
             direction = np.asarray(action.direction, dtype=float)
@@ -297,12 +362,13 @@ class RealWorldLite6A010Environment:
             rotation_deg = self._clip_rotation_step_deg(float(action.rotation_degrees))
             z_rotation = rot.from_rotvec([0.0, 0.0, np.radians(rotation_deg)])
             new_agent_rot = agent_rot * z_rotation
+            new_motion_rot = self._motion_rotation_from_agent_rotation(new_agent_rot)
 
             agent_left = np.array([-1.0, 0.0, 0.0], dtype=float)
-            agent_forward = np.array([0.0, 0.0, 1.0], dtype=float)
+            agent_forward = np.array([0.0, 0.0, -1.0], dtype=float)
             delta = (
-                new_agent_rot.apply(agent_left) * float(action.left_distance)
-                + new_agent_rot.apply(agent_forward) * float(action.forward_distance)
+                new_motion_rot.apply(agent_left) * float(action.left_distance)
+                + new_motion_rot.apply(agent_forward) * float(action.forward_distance)
             )
 
             quat_xyzw = new_agent_rot.as_quat()
@@ -317,12 +383,13 @@ class RealWorldLite6A010Environment:
             rotation_deg = self._clip_rotation_step_deg(float(action.rotation_degrees))
             x_rotation = rot.from_rotvec([np.radians(rotation_deg), 0.0, 0.0])
             new_agent_rot = agent_rot * x_rotation
+            new_motion_rot = self._motion_rotation_from_agent_rotation(new_agent_rot)
 
             agent_down = np.array([0.0, -1.0, 0.0], dtype=float)
-            agent_forward = np.array([0.0, 0.0, 1.0], dtype=float)
+            agent_forward = np.array([0.0, 0.0, -1.0], dtype=float)
             delta = (
-                new_agent_rot.apply(agent_down) * float(action.down_distance)
-                + new_agent_rot.apply(agent_forward) * float(action.forward_distance)
+                new_motion_rot.apply(agent_down) * float(action.down_distance)
+                + new_motion_rot.apply(agent_forward) * float(action.forward_distance)
             )
 
             quat_xyzw = new_agent_rot.as_quat()
@@ -384,10 +451,12 @@ class RealWorldLite6A010Environment:
             via_goal_adapter=self.goal_adapter is not None,
         )
         if self.goal_adapter is not None:
-            accepted = self.goal_adapter.send_world_goal_pose(
+            accepted = self._send_world_goal_pose_with_mode(
                 location_m=location_m,
                 rotation_quat_wxyz=rotation_quat_wxyz,
             )
+            if accepted:
+                self._step_dispatched_command = True
             self._log_motion_debug(
                 "SEND_WORLD_POSE_RESULT",
                 accepted=accepted,
@@ -409,8 +478,12 @@ class RealWorldLite6A010Environment:
                 )
             return
 
-        roll_deg, pitch_deg, yaw_deg = _quat_to_xyz_euler_deg(rotation_quat_wxyz)
-        x_mm, y_mm, z_mm = (location_m * 1000.0).tolist()
+        robot_position_m, robot_quat_wxyz = self._world_pose_to_robot_pose(
+            location_m=np.asarray(location_m, dtype=float),
+            rotation_quat_wxyz=rotation_quat_wxyz,
+        )
+        roll_deg, pitch_deg, yaw_deg = _quat_to_xyz_euler_deg(robot_quat_wxyz)
+        x_mm, y_mm, z_mm = (robot_position_m * 1000.0).tolist()
         self._log_motion_debug(
             "SEND_DIRECT_ROBOT_POSE",
             x_mm=round(float(x_mm), 3),
@@ -428,6 +501,7 @@ class RealWorldLite6A010Environment:
             pitch=pitch_deg,
             yaw=yaw_deg,
         )
+        self._step_dispatched_command = True
 
     def _goal_adapter_rejection_details(self, default: str = "goal_adapter rejected command") -> str:
         if self.goal_adapter is None:
@@ -449,6 +523,189 @@ class RealWorldLite6A010Environment:
     def _block_until_settled(self) -> None:
         if self.settle_time_s > 0:
             time.sleep(self.settle_time_s)
+        if self.settle_use_goal_convergence_gate and self._step_dispatched_command:
+            self._wait_for_step_command_convergence()
+
+    def _dispatch_motor_policy_result_with_mode(
+        self,
+        policy_result: MotorPolicyResult,
+    ) -> bool:
+        dispatch_method = self.goal_adapter.dispatch_motor_policy_result
+        try:
+            parameters = inspect.signature(dispatch_method).parameters
+            if "stop_on_rejection" in parameters:
+                return bool(
+                    dispatch_method(
+                        policy_result,
+                        stop_on_rejection=self.goal_rejection_hard_stop,
+                    )
+                )
+        except (TypeError, ValueError):
+            pass
+        return bool(dispatch_method(policy_result))
+
+    def _send_world_goal_pose_with_mode(
+        self,
+        location_m: np.ndarray,
+        rotation_quat_wxyz: qt.quaternion,
+    ) -> bool:
+        send_method = self.goal_adapter.send_world_goal_pose
+        try:
+            parameters = inspect.signature(send_method).parameters
+            if "stop_on_rejection" in parameters:
+                return bool(
+                    send_method(
+                        location_m=location_m,
+                        rotation_quat_wxyz=rotation_quat_wxyz,
+                        stop_on_rejection=self.goal_rejection_hard_stop,
+                    )
+                )
+        except (TypeError, ValueError):
+            pass
+
+        return bool(
+            send_method(
+                location_m=location_m,
+                rotation_quat_wxyz=rotation_quat_wxyz,
+            )
+        )
+
+    def _wait_for_step_command_convergence(self) -> None:
+        target_position_m = getattr(self.goal_adapter, "_last_command_position_m", None)
+        if target_position_m is None:
+            return
+
+        target_position_m = np.asarray(target_position_m, dtype=float)
+        if target_position_m.shape != (3,) or not np.all(np.isfinite(target_position_m)):
+            return
+
+        timeout_s = self._resolve_settle_convergence_timeout_s()
+        tolerance_mm = self._resolve_settle_convergence_tolerance_mm()
+        deadline = time.monotonic() + timeout_s
+
+        while True:
+            current_position_m = self._get_current_robot_position_m()
+            if current_position_m is not None:
+                error_mm = float(
+                    np.linalg.norm(current_position_m - target_position_m) * 1000.0
+                )
+                if error_mm <= tolerance_mm:
+                    self._log_motion_debug(
+                        "SETTLE_CONVERGENCE_REACHED",
+                        error_mm=round(error_mm, 3),
+                        tolerance_mm=round(tolerance_mm, 3),
+                    )
+                    return
+
+            if time.monotonic() >= deadline:
+                self._log_motion_debug(
+                    "SETTLE_CONVERGENCE_TIMEOUT",
+                    timeout_s=round(timeout_s, 3),
+                    tolerance_mm=round(tolerance_mm, 3),
+                )
+                return
+
+            if self.settle_convergence_poll_s > 0:
+                time.sleep(self.settle_convergence_poll_s)
+
+    def _resolve_settle_convergence_timeout_s(self) -> float:
+        if self.settle_convergence_timeout_s is not None:
+            return self.settle_convergence_timeout_s
+
+        safety_config = getattr(self.goal_adapter, "safety_config", None)
+        return float(getattr(safety_config, "convergence_timeout_s", 1.2))
+
+    def _resolve_settle_convergence_tolerance_mm(self) -> float:
+        if self.settle_convergence_position_tolerance_mm is not None:
+            return self.settle_convergence_position_tolerance_mm
+
+        safety_config = getattr(self.goal_adapter, "safety_config", None)
+        return float(getattr(safety_config, "convergence_position_tolerance_mm", 5.0))
+
+    def _get_current_robot_position_m(self) -> np.ndarray | None:
+        if not hasattr(self.robot_interface, "get_sense_state"):
+            return None
+
+        state = self.robot_interface.get_sense_state()
+        end_effector = state.get("end_effector", [])
+        if len(end_effector) < 3:
+            return None
+
+        return np.asarray(end_effector[:3], dtype=float) / 1000.0
+
+    def _wait_for_home_reset_convergence(self) -> None:
+        if self.home_pose_mm_deg is None:
+            return
+
+        deadline = time.monotonic() + self.home_reset_timeout_s
+        home_position_mm = np.asarray(self.home_pose_mm_deg[:3], dtype=float)
+        home_orientation_quat = _xyz_euler_deg_to_quat_wxyz(
+            np.asarray(self.home_pose_mm_deg[3:6], dtype=float)
+        )
+
+        last_sample_timestamp_s = float("nan")
+        last_position_error_mm = float("nan")
+        last_orientation_error_deg = float("nan")
+
+        while True:
+            state = self.robot_interface.get_sense_state()
+            end_effector = state.get("end_effector", [])
+            sample_timestamp_s = float(state.get("timestamp_s", float("nan")))
+            last_sample_timestamp_s = sample_timestamp_s
+
+            if len(end_effector) >= 6:
+                current_position_mm = np.asarray(end_effector[:3], dtype=float)
+                position_error_mm = float(
+                    np.linalg.norm(current_position_mm - home_position_mm)
+                )
+                current_orientation_rad = np.asarray(end_effector[3:6], dtype=float)
+                current_orientation_quat = _xyz_euler_rad_to_quat_wxyz(
+                    current_orientation_rad
+                )
+                relative_rotation = (
+                    rot.from_quat(_quat_wxyz_to_xyzw(current_orientation_quat)).inv()
+                    * rot.from_quat(_quat_wxyz_to_xyzw(home_orientation_quat))
+                )
+                orientation_error_deg = float(np.degrees(relative_rotation.magnitude()))
+                last_position_error_mm = position_error_mm
+                last_orientation_error_deg = orientation_error_deg
+
+                is_fresh_enough = (
+                    self._last_home_command_time_s is None
+                    or sample_timestamp_s >= self._last_home_command_time_s
+                )
+                within_tolerance = (
+                    position_error_mm <= self.home_reset_position_tolerance_mm
+                    and orientation_error_deg <= self.home_reset_orientation_tolerance_deg
+                )
+                if is_fresh_enough and within_tolerance:
+                    self._log_motion_debug(
+                        "HOME_RESET_CONVERGED",
+                        home_position_mm=np.round(home_position_mm, 3).tolist(),
+                        home_orientation_deg=np.round(
+                            np.asarray(self.home_pose_mm_deg[3:6], dtype=float), 3
+                        ).tolist(),
+                        position_error_mm=round(position_error_mm, 3),
+                        orientation_error_deg=round(orientation_error_deg, 3),
+                        sample_timestamp_s=round(sample_timestamp_s, 6)
+                        if np.isfinite(sample_timestamp_s)
+                        else None,
+                    )
+                    return
+
+            if time.monotonic() >= deadline:
+                self._hard_stop(
+                    "HOME_RESET_TIMEOUT",
+                    (
+                        "robot did not converge to home pose after reset: "
+                        f"last_sample_timestamp_s={last_sample_timestamp_s}, "
+                        f"last_position_error_mm={last_position_error_mm}, "
+                        f"last_orientation_error_deg={last_orientation_error_deg}"
+                    ),
+                )
+
+            if self.home_reset_poll_s > 0:
+                time.sleep(self.home_reset_poll_s)
 
     def _observe(self) -> tuple[Observations, ProprioceptiveState]:
         sensor_obs = self._capture_sensor_observation()
@@ -567,15 +824,140 @@ class RealWorldLite6A010Environment:
         world_camera[:3, 3] = sensor_position_m
         return world_camera
 
+    def _world_to_robot_transform(self) -> tuple[np.ndarray, rot]:
+        world_to_robot = getattr(self.goal_adapter, "world_to_robot", None)
+        if world_to_robot is None:
+            return np.zeros(3, dtype=float), rot.identity()
+
+        translation_m = np.asarray(
+            getattr(world_to_robot, "translation_m", np.zeros(3, dtype=float)),
+            dtype=float,
+        )
+        rotation_quat_wxyz = _as_wxyz_quaternion(
+            getattr(world_to_robot, "rotation_quat_wxyz", qt.one)
+        )
+        return translation_m, rot.from_quat(_quat_wxyz_to_xyzw(rotation_quat_wxyz))
+
+    def _link6_to_sensor_transform(self) -> tuple[np.ndarray, rot]:
+        link6_to_sensor = getattr(self.goal_adapter, "link6_to_sensor", None)
+        if link6_to_sensor is None:
+            return np.zeros(3, dtype=float), rot.identity()
+
+        translation_m = np.asarray(
+            getattr(link6_to_sensor, "translation_m", np.zeros(3, dtype=float)),
+            dtype=float,
+        )
+        rotation_quat_wxyz = _as_wxyz_quaternion(
+            getattr(link6_to_sensor, "rotation_quat_wxyz", qt.one)
+        )
+        return translation_m, rot.from_quat(_quat_wxyz_to_xyzw(rotation_quat_wxyz))
+
+    def _world_pose_to_robot_pose(
+        self,
+        location_m: np.ndarray,
+        rotation_quat_wxyz: qt.quaternion,
+    ) -> tuple[np.ndarray, qt.quaternion]:
+        translation_m, world_to_robot_rot = self._world_to_robot_transform()
+        world_rot = rot.from_quat(_quat_wxyz_to_xyzw(rotation_quat_wxyz))
+
+        robot_position_m = world_to_robot_rot.apply(location_m) + translation_m
+        robot_rot = world_to_robot_rot * world_rot
+        robot_quat_xyzw = robot_rot.as_quat()
+        robot_quat_wxyz = qt.quaternion(
+            robot_quat_xyzw[3],
+            robot_quat_xyzw[0],
+            robot_quat_xyzw[1],
+            robot_quat_xyzw[2],
+        )
+        return robot_position_m, robot_quat_wxyz
+
+    def _parse_sensed_orientation_wxyz(
+        self,
+        raw_orientation: Sequence[float],
+    ) -> qt.quaternion:
+        orientation_values = np.asarray(raw_orientation, dtype=float)
+        if orientation_values.shape != (3,):
+            raise ValueError("Expected sensed orientation with exactly 3 values")
+
+        ordered_orientation = orientation_values[list(self.sensed_orientation_index_order)]
+        signed_orientation = ordered_orientation * self.sensed_orientation_signs
+
+        euler_sequence = (
+            self.sensed_orientation_sequence.upper()
+            if self.sensed_orientation_intrinsic
+            else self.sensed_orientation_sequence.lower()
+        )
+        sensed_rotation = rot.from_euler(
+            euler_sequence,
+            signed_orientation,
+            degrees=self.sensed_orientation_degrees,
+        )
+        offset_rotation = rot.from_quat(
+            _quat_wxyz_to_xyzw(self.sensed_orientation_offset_wxyz)
+        )
+        corrected_rotation = offset_rotation * sensed_rotation
+
+        quat_xyzw = corrected_rotation.as_quat()
+        return qt.quaternion(
+            quat_xyzw[3],
+            quat_xyzw[0],
+            quat_xyzw[1],
+            quat_xyzw[2],
+        )
+
+    def _motion_rotation_from_agent_rotation(self, agent_rotation: rot) -> rot:
+        motion_offset_rotation = rot.from_quat(
+            _quat_wxyz_to_xyzw(self.sensed_motion_offset_wxyz)
+        )
+        return motion_offset_rotation * agent_rotation
+
     def _get_agent_pose_world(self) -> tuple[np.ndarray, qt.quaternion]:
         if hasattr(self.robot_interface, "get_sense_state"):
             state = self.robot_interface.get_sense_state()
             ee = state.get("end_effector", [])
             if len(ee) >= 6:
-                position_m = np.asarray(ee[:3], dtype=float) / 1000.0
-                euler_rad = np.asarray(ee[3:6], dtype=float)
-                agent_rotation = _xyz_euler_rad_to_quat_wxyz(euler_rad)
-                return position_m, agent_rotation
+                robot_position_m = np.asarray(ee[:3], dtype=float) / 1000.0
+                raw_orientation = np.asarray(ee[3:6], dtype=float)
+                robot_rotation = self._parse_sensed_orientation_wxyz(raw_orientation)
+
+                translation_m, world_to_robot_rot = self._world_to_robot_transform()
+                robot_rot = rot.from_quat(_quat_wxyz_to_xyzw(robot_rotation))
+
+                world_link6_position_m = world_to_robot_rot.inv().apply(
+                    robot_position_m - translation_m
+                )
+                world_link6_rot = world_to_robot_rot.inv() * robot_rot
+
+                link6_to_sensor_translation_m, link6_to_sensor_rot = (
+                    self._link6_to_sensor_transform()
+                )
+                world_position_m = world_link6_position_m + world_link6_rot.apply(
+                    link6_to_sensor_translation_m
+                )
+                world_rot = world_link6_rot * link6_to_sensor_rot
+                world_quat_xyzw = world_rot.as_quat()
+                agent_rotation = qt.quaternion(
+                    world_quat_xyzw[3],
+                    world_quat_xyzw[0],
+                    world_quat_xyzw[1],
+                    world_quat_xyzw[2],
+                )
+                self._log_motion_debug(
+                    "SENSED_POSE_PARSE",
+                    raw_orientation=np.round(raw_orientation, 6).tolist(),
+                    sequence=self.sensed_orientation_sequence,
+                    intrinsic=self.sensed_orientation_intrinsic,
+                    degrees=self.sensed_orientation_degrees,
+                    index_order=list(self.sensed_orientation_index_order),
+                    signs=np.round(self.sensed_orientation_signs, 6).tolist(),
+                    offset_wxyz=np.round(
+                        qt.as_float_array(self.sensed_orientation_offset_wxyz), 6
+                    ).tolist(),
+                    parsed_robot_quat_wxyz=np.round(
+                        qt.as_float_array(robot_rotation), 6
+                    ).tolist(),
+                )
+                return world_position_m, agent_rotation
 
         return np.zeros(3, dtype=float), qt.one
 
@@ -631,8 +1013,17 @@ def _quat_wxyz_to_xyzw(quaternion_wxyz: qt.quaternion) -> np.ndarray:
     return np.array([q[1], q[2], q[3], q[0]], dtype=float)
 
 
+def _wrap_angle_deg(values: np.ndarray) -> np.ndarray:
+    return (np.asarray(values, dtype=float) + 180.0) % 360.0 - 180.0
+
+
 def _xyz_euler_rad_to_quat_wxyz(euler_rad_xyz: np.ndarray) -> qt.quaternion:
     x, y, z, w = rot.from_euler("xyz", euler_rad_xyz, degrees=False).as_quat()
+    return qt.quaternion(w, x, y, z)
+
+
+def _xyz_euler_deg_to_quat_wxyz(euler_deg_xyz: np.ndarray) -> qt.quaternion:
+    x, y, z, w = rot.from_euler("xyz", euler_deg_xyz, degrees=True).as_quat()
     return qt.quaternion(w, x, y, z)
 
 

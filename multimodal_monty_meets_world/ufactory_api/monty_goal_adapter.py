@@ -130,7 +130,12 @@ class MontyGoalToRobotAdapter:
 
         self._configure_payload_from_safety_config()
 
-    def dispatch_motor_policy_result(self, result: MotorPolicyResult) -> bool:
+    def dispatch_motor_policy_result(
+        self,
+        result: MotorPolicyResult,
+        *,
+        stop_on_rejection: bool = True,
+    ) -> bool:
         """Send robot command from a policy result if an absolute goal is available.
 
         Behavior:
@@ -138,7 +143,10 @@ class MontyGoalToRobotAdapter:
         2. Return ``False`` when no absolute pose is available.
         """
         if result.goal_pose is not None:
-            return self.send_world_goal_pose(*result.goal_pose)
+            return self.send_world_goal_pose(
+                *result.goal_pose,
+                stop_on_rejection=stop_on_rejection,
+            )
 
         return False
 
@@ -146,6 +154,8 @@ class MontyGoalToRobotAdapter:
         self,
         location_m: np.ndarray,
         rotation_quat_wxyz: qt.quaternion,
+        *,
+        stop_on_rejection: bool = True,
     ) -> bool:
         """Convert a world-frame pose to robot command and dispatch move_arm."""
         self.last_rejection_details = None
@@ -162,7 +172,7 @@ class MontyGoalToRobotAdapter:
                 "details": ready_reason,
             }
             self._log_debug("REJECT_ROBOT_NOT_READY", details=ready_reason)
-            self.robot.stop_motion(reason=ready_reason)
+            self._handle_rejection(ready_reason, stop_on_rejection=stop_on_rejection)
             return False
 
         interval_ok, interval_reason = self._enforce_command_interval()
@@ -172,7 +182,7 @@ class MontyGoalToRobotAdapter:
                 "details": interval_reason,
             }
             self._log_debug("REJECT_COMMAND_INTERVAL", details=interval_reason)
-            self.robot.stop_motion(reason=interval_reason)
+            self._handle_rejection(interval_reason, stop_on_rejection=stop_on_rejection)
             return False
 
         robot_position_m, robot_quat_wxyz = self._world_pose_to_robot_pose(
@@ -201,7 +211,7 @@ class MontyGoalToRobotAdapter:
                 "details": reason,
             }
             self._log_debug("REJECT_SAFETY", details=reason)
-            self.robot.stop_motion(reason=reason)
+            self._handle_rejection(reason, stop_on_rejection=stop_on_rejection)
             return False
 
         self.robot.move_arm(
@@ -222,6 +232,12 @@ class MontyGoalToRobotAdapter:
         self._last_command_position_m = robot_position_m
         self._last_command_quat_wxyz = robot_quat_wxyz
         return True
+
+    def _handle_rejection(self, reason: str, *, stop_on_rejection: bool) -> None:
+        if not stop_on_rejection:
+            self._log_debug("REJECT_SOFT_CONTINUE", details=reason)
+            return
+        self.robot.stop_motion(reason=reason)
 
     def _world_pose_to_robot_pose(
         self,
