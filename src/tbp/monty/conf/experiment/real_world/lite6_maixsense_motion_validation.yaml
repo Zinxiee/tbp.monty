@@ -1,0 +1,46 @@
+# @package _global_
+# Motion validation experiment for Lite6 + Maixsense A010.
+#
+# Runs a fixed 14-step action sequence (4 phases: forward, tangential, yaw, pitch)
+# so you can watch the robot move and verify each command goes in the expected
+# direction.  No object is needed on the table.
+#
+# Expected visual behaviour at home pose (sensor looks down, Monty world -Y):
+#   Phase 1  (steps 0-3 ): MoveForward ±3 cm  → arm descends/ascends
+#   Phase 2  (steps 4-7 ): MoveTangentially ±X  → arm slides left/right
+#   Phase 3  (steps 8-10): OrientHorizontal ±20/40°  → end-effector yaws
+#   Phase 4  (steps 11-13): OrientVertical ±20/40°  → end-effector pitches
+#
+# Expected STEP_DELTA delta_mm (world frame):
+#   MoveForward(+0.03)          →  [  0, -30,   0]
+#   MoveForward(-0.03)          →  [  0, +30,   0]
+#   MoveTangentially([+1,0,0])  →  [+30,   0,   0]
+#   MoveTangentially([-1,0,0])  →  [-30,   0,   0]
+#   OrientHorizontal / Vertical →  [  0,   0,   0]  (rotation only)
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised_probe_baseline
+
+experiment:
+  config:
+    max_train_steps: 14
+    max_eval_steps: 0
+    max_total_steps: 14
+    n_train_epochs: 1
+    n_eval_epochs: 0
+    logging:
+      run_name: real_world_lite6_maixsense_motion_validation
+    environment:
+      env_init_args:
+        # Give the arm time to settle visibly between steps.
+        settle_time_s: 1.5
+        # Disable the probe forward-only override so PredefinedPolicy controls movement.
+        probe_move_forward_only: false
+    monty_config:
+      motor_system_config:
+        policy_selector:
+          policy:
+            _target_: tbp.monty.frameworks.models.motor_policies.PredefinedPolicy
+            agent_id: agent_id_0
+            file_name: "${oc.env:HOME}/tbp/tbp.monty/src/tbp/monty/conf/experiment/real_world/motion_validation_actions.jsonl"
+            terminate_on_exhaustion: true

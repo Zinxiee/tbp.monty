@@ -26,3 +26,12 @@ experiment:
     python_log_level: INFO
     logging:
       run_name: real_world_lite6_maixsense_unsupervised
+    monty_config:
+      motor_system_config:
+        policy_selector:
+          policy:
+            # Use RealWorldSurfacePolicy so that _touch_object works without a
+            # view-finder sensor
+            _target_: multimodal_monty_meets_world.real_world_surface_policy.RealWorldSurfacePolicy
+            # Maixsense A010 needs 10-20 cm working distance; 12 cm is a good target.
+            desired_object_distance: 0.12

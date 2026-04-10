@@ -1,0 +1,14 @@
+{"action": "move_forward", "agent_id": "agent_id_0", "distance": 0.03}
+{"action": "move_forward", "agent_id": "agent_id_0", "distance": 0.03}
+{"action": "move_forward", "agent_id": "agent_id_0", "distance": -0.03}
+{"action": "move_forward", "agent_id": "agent_id_0", "distance": -0.03}
+{"action": "move_tangentially", "agent_id": "agent_id_0", "distance": 0.03, "direction": [1.0, 0.0, 0.0]}
+{"action": "move_tangentially", "agent_id": "agent_id_0", "distance": 0.03, "direction": [1.0, 0.0, 0.0]}
+{"action": "move_tangentially", "agent_id": "agent_id_0", "distance": 0.03, "direction": [-1.0, 0.0, 0.0]}
+{"action": "move_tangentially", "agent_id": "agent_id_0", "distance": 0.03, "direction": [-1.0, 0.0, 0.0]}
+{"action": "orient_horizontal", "agent_id": "agent_id_0", "rotation_degrees": 20.0, "left_distance": 0.0, "forward_distance": 0.0}
+{"action": "orient_horizontal", "agent_id": "agent_id_0", "rotation_degrees": 20.0, "left_distance": 0.0, "forward_distance": 0.0}
+{"action": "orient_horizontal", "agent_id": "agent_id_0", "rotation_degrees": -40.0, "left_distance": 0.0, "forward_distance": 0.0}
+{"action": "orient_vertical", "agent_id": "agent_id_0", "rotation_degrees": 20.0, "down_distance": 0.0, "forward_distance": 0.0}
+{"action": "orient_vertical", "agent_id": "agent_id_0", "rotation_degrees": 20.0, "down_distance": 0.0, "forward_distance": 0.0}
+{"action": "orient_vertical", "agent_id": "agent_id_0", "rotation_degrees": -40.0, "down_distance": 0.0, "forward_distance": 0.0}

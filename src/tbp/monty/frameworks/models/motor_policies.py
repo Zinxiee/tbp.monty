@@ -205,7 +205,10 @@ class BasePolicy(MotorPolicy):
 class PredefinedPolicy(MotorPolicy):
     """Policy that follows an action sequence read from file.
 
-    Cycles through the actions in the file indefinitely.
+    By default cycles through the actions in the file indefinitely.  Set
+    ``terminate_on_exhaustion=True`` to raise ``StopIteration`` instead of
+    cycling once every action has been issued; the experiment loop treats
+    ``StopIteration`` as a clean episode termination.
     """
 
     @staticmethod
@@ -231,10 +234,13 @@ class PredefinedPolicy(MotorPolicy):
         self,
         agent_id: AgentID,
         file_name: PathLike,
+        terminate_on_exhaustion: bool = False,
+        **_,
     ) -> None:
         self.agent_id = agent_id
         self.action_list: list[Action] = PredefinedPolicy.read_action_file(file_name)
         self.episode_step = 0
+        self.terminate_on_exhaustion = terminate_on_exhaustion
         self.use_goal_driven_actions = False
 
     def __call__(
@@ -245,6 +251,8 @@ class PredefinedPolicy(MotorPolicy):
         percept: Message,  # noqa: ARG002
         goal: Goal | None,  # noqa: ARG002
     ) -> MotorPolicyResult:
+        if self.terminate_on_exhaustion and self.episode_step >= len(self.action_list):
+            raise StopIteration
         actions = [self.action_list[self.episode_step % len(self.action_list)]]
         self.episode_step += 1
         return MotorPolicyResult(actions)
@@ -778,6 +786,14 @@ class SurfacePolicy(InformedPolicy):
 
         return super().pre_episode(motor_system)
 
+    def _touch_sensor_id(self) -> SensorID:
+        """Return the sensor ID used by _touch_object to find the object.
+
+        Subclasses can override this to use a different sensor (e.g. when there is no
+        dedicated view-finder in the real-world setup).
+        """
+        return SensorID("view_finder")
+
     def _touch_object(
         self,
         ctx: RuntimeContext,
@@ -935,8 +951,9 @@ class SurfacePolicy(InformedPolicy):
         agent_rot = rot.from_quat(quat_xyzw)
         
         if isinstance(action, MoveForward):
-            # Move forward in agent's forward direction (positive Z in agent frame)
-            agent_forward = np.array([0.0, 0.0, 1.0])
+            # Move forward in agent's forward direction.
+            # Monty uses a right-up-backward convention so forward is -z.
+            agent_forward = np.array([0.0, 0.0, -1.0])
             world_forward = agent_rot.apply(agent_forward)
             goal_pos = current_pos + world_forward * action.distance
             goal_quat = current_quat
@@ -961,10 +978,10 @@ class SurfacePolicy(InformedPolicy):
             # Compose: agent_rot * z_rotation
             new_agent_rot = agent_rot * z_rotation
             
-            # Compute movement in the NEW agent frame
-            # Left distance: negative X in agent frame, forward distance: positive Z
+            # Compute movement in the NEW agent frame.
+            # Monty forward is -z (right-up-backward convention).
             agent_left = np.array([-1.0, 0.0, 0.0])
-            agent_forward = np.array([0.0, 0.0, 1.0])
+            agent_forward = np.array([0.0, 0.0, -1.0])
             
             world_left_movement = new_agent_rot.apply(agent_left) * action.left_distance
             world_forward_movement = new_agent_rot.apply(agent_forward) * action.forward_distance
@@ -986,10 +1003,10 @@ class SurfacePolicy(InformedPolicy):
             # Compose: agent_rot * x_rotation
             new_agent_rot = agent_rot * x_rotation
             
-            # Compute movement in the NEW agent frame
-            # Down distance: negative Y in agent frame, forward distance: positive Z
+            # Compute movement in the NEW agent frame.
+            # Monty forward is -z (right-up-backward convention).
             agent_down = np.array([0.0, -1.0, 0.0])
-            agent_forward = np.array([0.0, 0.0, 1.0])
+            agent_forward = np.array([0.0, 0.0, -1.0])
             
             world_down_movement = new_agent_rot.apply(agent_down) * action.down_distance
             world_forward_movement = new_agent_rot.apply(agent_forward) * action.forward_distance
@@ -1052,8 +1069,7 @@ class SurfacePolicy(InformedPolicy):
             action = self._touch_object(
                 ctx,
                 observations,
-                # TODO: Eliminate this hardcoded sensor ID
-                view_sensor_id=SensorID("view_finder"),
+                view_sensor_id=self._touch_sensor_id(),
                 state=state,
             )
             # Don't emit goal pose during search; we don't know where we'll end up
