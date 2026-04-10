@@ -55,6 +55,11 @@ class MaixsenseMontyObservationAdapter:
         min_valid_depth_m: float = 1e-6,
         max_valid_depth_m: float | None = None,
         semantic_zero_bottom_fraction: float = 0.0,
+        world_y_min_m: float | None = None,
+        world_x_max_m: float | None = None,
+        world_x_min_m: float | None = None,
+        world_z_max_m: float | None = None,
+        world_z_min_m: float | None = None,
     ) -> None:
         self._intrinsics = intrinsics
         self._crop_center_to_square = crop_center_to_square
@@ -65,6 +70,11 @@ class MaixsenseMontyObservationAdapter:
         self._semantic_zero_bottom_fraction = float(
             np.clip(semantic_zero_bottom_fraction, 0.0, 0.95)
         )
+        self._world_y_min_m = None if world_y_min_m is None else float(world_y_min_m)
+        self._world_x_max_m = None if world_x_max_m is None else float(world_x_max_m)
+        self._world_x_min_m = None if world_x_min_m is None else float(world_x_min_m)
+        self._world_z_max_m = None if world_z_max_m is None else float(world_z_max_m)
+        self._world_z_min_m = None if world_z_min_m is None else float(world_z_min_m)
 
     @property
     def intrinsics(self) -> CameraIntrinsics:
@@ -199,10 +209,24 @@ class MaixsenseMontyObservationAdapter:
             )
 
         sensor_xyz = _unproject_depth_to_sensor_xyz(depth, self._intrinsics)
-        sensor_xyz4 = np.column_stack([sensor_xyz, semantic_mask.reshape(-1)])
 
         world_xyz = _transform_xyz(sensor_xyz, world_camera_t)
-        world_xyz4 = np.column_stack([world_xyz, semantic_mask.reshape(-1)])
+        semantic_mask = semantic_mask.reshape(-1)
+
+        # Optionally filter out background (e.g. table) and out-of-bounds points
+        # in the fixed world frame so filtering remains invariant to sensor rotation.
+        semantic_mask = _apply_world_bounds_filter(
+            semantic_mask,
+            world_xyz,
+            world_y_min_m=self._world_y_min_m,
+            world_x_min_m=self._world_x_min_m,
+            world_x_max_m=self._world_x_max_m,
+            world_z_min_m=self._world_z_min_m,
+            world_z_max_m=self._world_z_max_m,
+        )
+
+        sensor_xyz4 = np.column_stack([sensor_xyz, semantic_mask])
+        world_xyz4 = np.column_stack([world_xyz, semantic_mask])
 
         return {
             "depth": depth,
@@ -220,6 +244,11 @@ def create_adapter_from_http_calibration(
     min_valid_depth_m: float = 1e-6,
     max_valid_depth_m: float | None = None,
     semantic_zero_bottom_fraction: float = 0.0,
+    world_y_min_m: float | None = None,
+    world_x_max_m: float | None = None,
+    world_x_min_m: float | None = None,
+    world_z_max_m: float | None = None,
+    world_z_min_m: float | None = None,
 ) -> MaixsenseMontyObservationAdapter:
     """Create a Monty adapter using Maixsense HTTP-reported lens coefficients.
 
@@ -231,6 +260,12 @@ def create_adapter_from_http_calibration(
         min_valid_depth_m: Minimum depth used to synthesize semantic validity.
         max_valid_depth_m: Optional maximum depth used to synthesize semantic validity.
         semantic_zero_bottom_fraction: Fraction of bottom rows to zero in semantic mask.
+        world_y_min_m: Minimum Monty world-frame Y (meters) for semantic inclusion.  See
+            ``MaixsenseMontyObservationAdapter`` for details.
+        world_x_min_m: Minimum Monty world-frame X (meters) for semantic inclusion.
+        world_x_max_m: Maximum Monty world-frame X (meters) for semantic inclusion.
+        world_z_min_m: Minimum Monty world-frame Z (meters) for semantic inclusion.
+        world_z_max_m: Maximum Monty world-frame Z (meters) for semantic inclusion.
 
     Returns:
         Configured `MaixsenseMontyObservationAdapter`.
@@ -251,6 +286,11 @@ def create_adapter_from_http_calibration(
         min_valid_depth_m=min_valid_depth_m,
         max_valid_depth_m=max_valid_depth_m,
         semantic_zero_bottom_fraction=semantic_zero_bottom_fraction,
+        world_y_min_m=world_y_min_m,
+        world_x_min_m=world_x_min_m,
+        world_x_max_m=world_x_max_m,
+        world_z_min_m=world_z_min_m,
+        world_z_max_m=world_z_max_m,
     )
 
 
@@ -342,6 +382,36 @@ def _zero_semantic_bottom_rows(semantic_mask: np.ndarray, bottom_fraction: float
 
     masked[rows - cut_rows :, :] = 0
     return masked
+
+
+def _apply_world_bounds_filter(
+    semantic_mask: np.ndarray,
+    world_xyz: np.ndarray,
+    *,
+    world_y_min_m: float | None = None,
+    world_x_min_m: float | None = None,
+    world_x_max_m: float | None = None,
+    world_z_min_m: float | None = None,
+    world_z_max_m: float | None = None,
+) -> np.ndarray:
+    filtered = np.asarray(semantic_mask, dtype=np.int32)
+    include = np.ones(filtered.shape, dtype=bool)
+
+    # World Y maps to robot-base Z (up), so this excludes table/ground points.
+    if world_y_min_m is not None:
+        include &= world_xyz[:, 1] > world_y_min_m
+
+    if world_x_min_m is not None:
+        include &= world_xyz[:, 0] > world_x_min_m
+    if world_x_max_m is not None:
+        include &= world_xyz[:, 0] < world_x_max_m
+
+    if world_z_min_m is not None:
+        include &= world_xyz[:, 2] > world_z_min_m
+    if world_z_max_m is not None:
+        include &= world_xyz[:, 2] < world_z_max_m
+
+    return (filtered.astype(bool) & include).astype(np.int32)
 
 
 def _unproject_depth_to_sensor_xyz(

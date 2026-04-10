@@ -30,6 +30,15 @@ env_init_args:
     cy: 123.3738
     crop_center_to_square: true
     min_valid_depth_m: 1.0e-6
+    # Filter the table out of the semantic mask.
+    # Robot is mounted on the table (table ≈ 0 mm in robot-base Z = Monty world Y).
+    # A 10 mm margin excludes table pixels in all sensor orientations because the
+    # filter operates in the fixed world frame.
+    world_y_min_m: 0.01
+    world_x_max_m: 0.3
+    world_x_min_m: -0.3
+    world_z_max_m: -0.1
+    world_z_min_m: -0.3
 
   # goal_adapter will be instantiated in RealWorldLite6A010Environment.__init__
   # after robot_interface is available.
@@ -49,9 +58,14 @@ env_init_args:
       z: -0.5
     link6_to_sensor_translation_m: [0.0, -0.060, 0.0135]
     link6_to_sensor_rotation_dict:
-      w: 1.0
-      x: 0.0
-      y: 0.0
+      # Sensor optical axis faces link6 +Z (downward at home pose, roll=180°).
+      # In Monty right-up-backward convention sensor -Z = look direction, so
+      # sensor +Z → link6 -Z.  The image is also rotated 90° CW in the XY
+      # plane: image top (sensor +Y) → link6 +X (robot forward = Monty -Z).
+      # Derivation: Rz(-90°) @ Ry(180°) → quaternion [w=0, x=1/√2, y=1/√2, z=0].
+      w: 0.0
+      x: 0.70710678
+      y: 0.70710678
       z: 0.0
     workspace_min_xyz_m: [0.135, -0.23, 0.075]
     workspace_max_xyz_m: [0.40, 0.23, 0.4]
@@ -77,7 +91,7 @@ env_init_args:
   home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
   # home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
   settle_time_s: 0.25
-  home_reset_timeout_s: 4.0
+  home_reset_timeout_s: 8.0
   home_reset_poll_s: 0.02
   home_reset_position_tolerance_mm: 20.0
   home_reset_orientation_tolerance_deg: 10.0
@@ -96,5 +110,6 @@ env_init_args:
   sensed_orientation_index_order: [0, 1, 2]
   sensed_orientation_signs: [1.0, 1.0, 1.0]
   sensed_orientation_offset_wxyz: [1.0, 0.0, 0.0, 0.0]
-  sensed_motion_offset_wxyz: [0.70710678, -0.70710678, 0.0, 0.0]
+  sensed_motion_offset_wxyz: [1.0, 0.0, 0.0, 0.0]
+  # sensed_motion_offset_wxyz: [0.70710678, -0.70710678, 0.0, 0.0]
 transform: null

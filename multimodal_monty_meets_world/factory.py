@@ -159,9 +159,14 @@ def create_observation_adapter(
     min_valid_depth_m: float = 1e-6,
     max_valid_depth_m: float | None = None,
     semantic_zero_bottom_fraction: float = 0.0,
+    world_y_min_m: float | None = None,
+    world_x_max_m: float | None = None,
+    world_x_min_m: float | None = None,
+    world_z_max_m: float | None = None,
+    world_z_min_m: float | None = None,
 ) -> MaixsenseMontyObservationAdapter:
     """Create an observation adapter for Maixsense A010 frames.
-    
+
     Args:
         fx: Focal length in pixels (x-axis).
         fy: Focal length in pixels (y-axis).
@@ -171,7 +176,19 @@ def create_observation_adapter(
         min_valid_depth_m: Minimum valid depth in meters.
         max_valid_depth_m: Optional maximum valid depth in meters.
         semantic_zero_bottom_fraction: Fraction of bottom rows masked in semantic map.
-    
+        world_y_min_m: Minimum Monty world-frame Y (meters) a pixel must have to be included
+            in the semantic mask.  Used to exclude the table surface: since world Y maps
+            to robot-base Z (up), setting this slightly above the table height (e.g.
+            0.01) removes all table pixels regardless of sensor orientation.
+        world_x_max_m: Optional maximum Monty world-frame X (meters) for semantic mask inclusion.
+             Can be used to exclude areas outside the robot's reachable workspace.
+        world_x_min_m: Optional minimum Monty world-frame X (meters) for semantic mask inclusion.
+             Can be used to exclude areas outside the robot's reachable workspace.
+        world_z_max_m: Optional maximum Monty world-frame Z (meters) for semantic mask inclusion.
+             Can be used to exclude areas outside the robot's reachable workspace.
+        world_z_min_m: Optional minimum Monty world-frame Z (meters) for semantic mask inclusion.
+                Can be used to exclude areas outside the robot's reachable workspace.
+
     Returns:
         Initialized MaixsenseMontyObservationAdapter instance.
     """
@@ -182,6 +199,11 @@ def create_observation_adapter(
         min_valid_depth_m=min_valid_depth_m,
         max_valid_depth_m=max_valid_depth_m,
         semantic_zero_bottom_fraction=semantic_zero_bottom_fraction,
+        world_y_min_m=world_y_min_m,
+        world_x_max_m=world_x_max_m,#
+        world_x_min_m=world_x_min_m,
+        world_z_max_m=world_z_max_m,
+        world_z_min_m=world_z_min_m,
     )
 
 
