@@ -6,10 +6,14 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
+from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from tbp.monty.frameworks.agents import AgentID
+from tbp.monty.frameworks.models.abstract_monty_classes import Monty, Observations
+from tbp.monty.frameworks.sensors import SensorID
 from tbp.monty.frameworks.utils.plot_utils import add_patch_outline_to_view_finder
 
 # turn interactive plotting off -- call plt.show() to open all figures
@@ -41,7 +45,7 @@ class LivePlotter:
         self.setup_sensor_ax()
         self.setup_mlh_ax()
 
-    def hardcoded_assumptions(self, observation, model):
+    def hardcoded_assumptions(self, observation: Observations, model: Monty):
         """Extract some of the hardcoded assumptions from the observation.
 
         TODO: Don't do this. It is here for now to highlight the fragility of the
@@ -57,19 +61,26 @@ class LivePlotter:
             observations, the patch depth, and the view finder rgba.
         """
         first_learning_module = model.learning_modules[0]
-        first_sensor_module_raw_observations = model.sensor_modules[
-            0
-        ]._snapshot_telemetry.raw_observations
-        first_sensor_module_id = model.sensor_modules[0].sensor_module_id
-        agent_id = getattr(model, "sm_to_agent_dict", {}).get(first_sensor_module_id)
-        if agent_id is None:
-            motor_policy = getattr(model.motor_system, "_policy", None)
-            agent_id = getattr(motor_policy, "agent_id", None)
-        if agent_id is None:
-            agent_id = next(iter(observation))
+        first_sensor_module = model.sensor_modules[0]
+        first_sensor_module_raw_observations = (
+            first_sensor_module._snapshot_telemetry.raw_observations
+        )
+        first_sensor_module_id = first_sensor_module.sensor_module_id
 
-        first_sensor_depth = observation[agent_id][first_sensor_module_id]["depth"]
-        view_finder_rgba = observation[agent_id]["view_finder"]["rgba"]
+        # Find agent_id corresponding to the first_sensor_module_id
+        first_sensor_module_agent_id: AgentID | None = None
+        for agent_id, agent_observations in observation.items():
+            if first_sensor_module_id in agent_observations:
+                first_sensor_module_agent_id = agent_id
+                break
+        assert first_sensor_module_agent_id is not None
+
+        first_sensor_depth = observation[first_sensor_module_agent_id][
+            first_sensor_module_id
+        ]["depth"]
+        view_finder_rgba = observation[first_sensor_module_agent_id][
+            SensorID("view_finder")
+        ]["rgba"]
         if hasattr(first_learning_module, "get_current_mlh"):
             mlh = first_learning_module.get_current_mlh()
             if mlh["graph_id"] == "no_observations_yet":
