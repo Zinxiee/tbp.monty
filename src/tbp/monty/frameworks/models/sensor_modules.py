@@ -310,9 +310,15 @@ class ObservationProcessor:
         if "rgba" in self._features:
             features["rgba"] = rgba_feat[center_row_col, center_row_col]
         if "min_depth" in self._features:
-            features["min_depth"] = np.min(depth_feat[obs_3d[:, 3] != 0])
+            _valid_depths = depth_feat[obs_3d[:, 3] != 0]
+            features["min_depth"] = (
+                np.min(_valid_depths) if len(_valid_depths) > 0 else float("nan")
+            )
         if "mean_depth" in self._features:
-            features["mean_depth"] = np.mean(depth_feat[obs_3d[:, 3] != 0])
+            _valid_depths = depth_feat[obs_3d[:, 3] != 0]
+            features["mean_depth"] = (
+                np.mean(_valid_depths) if len(_valid_depths) > 0 else float("nan")
+            )
         if "hsv" in self._features:
             rgba = rgba_feat[center_row_col, center_row_col]
             hsv = rgb2hsv(rgba[:3])

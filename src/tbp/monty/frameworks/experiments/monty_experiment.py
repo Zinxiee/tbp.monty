@@ -725,10 +725,17 @@ class MontyExperiment:
             try:
                 torch.save(model_state_dict, output_dir / "model.pt")
                 torch.save(exp_state_dict, output_dir / "exp_state_dict.pt")
+            except TypeError as exc:
+                logger.warning(
+                    "Skipping model/exp state_dict save because object is not"
+                    " picklable: %s",
+                    exc,
+                )
+            try:
                 torch.save(self.config, output_dir / "config.pt")
             except TypeError as exc:
                 logger.warning(
-                    "Skipping state_dict save because object is not picklable: %s",
+                    "Skipping config save because object is not picklable: %s",
                     exc,
                 )
 
