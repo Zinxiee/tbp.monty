@@ -38,7 +38,7 @@ env_init_args:
     world_x_max_m: 0.3
     world_x_min_m: -0.3
     world_z_max_m: -0.1
-    world_z_min_m: -0.3
+    world_z_min_m: -0.5
 
   # goal_adapter will be instantiated in RealWorldLite6A010Environment.__init__
   # after robot_interface is available.
