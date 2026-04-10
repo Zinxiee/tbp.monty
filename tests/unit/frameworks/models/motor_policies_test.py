@@ -209,6 +209,20 @@ class PredefinedPolicyReadActionFileTest(unittest.TestCase):
             second_occurrence = returned_actions[i + cycle_length]
             self.assertEqual(first_occurrence, second_occurrence)
 
+    def test_terminate_on_exhaustion_raises_stop_iteration(self) -> None:
+        policy = PredefinedPolicy(
+            agent_id=self.agent_id,
+            file_name=self.actions_file,
+            terminate_on_exhaustion=True,
+        )
+        cycle_length = len(policy.action_list)
+        ctx = RuntimeContext(rng=np.random.RandomState(42))
+        observations = Observations()
+        for _ in range(cycle_length):
+            policy(ctx, observations, MotorSystemState(), FakeMessage(), None)
+        with self.assertRaises(StopIteration):
+            policy(ctx, observations, MotorSystemState(), FakeMessage(), None)
+
 
 class GoalPoseEmissionTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -296,14 +310,42 @@ class SurfacePolicyGoalPoseFromActionTest(unittest.TestCase):
         )
 
     def test_move_forward_goal_pose_translates_along_agent_forward_axis(self) -> None:
+        # Monty uses right-up-backward convention so agent forward is -z.
         action = MoveForward(agent_id=self.agent_id, distance=0.2)
 
         goal_pose = self.policy._compute_goal_pose_from_action(self.state, action)
 
         assert goal_pose is not None
         goal_pos, goal_quat = goal_pose
-        nptest.assert_allclose(goal_pos, np.array([1.0, 2.0, 3.2]))
+        nptest.assert_allclose(goal_pos, np.array([1.0, 2.0, 2.8]))
         nptest.assert_allclose(qt.as_float_array(goal_quat), qt.as_float_array(qt.one))
+
+    def test_move_forward_from_identity_pose_goes_in_negative_z(self) -> None:
+        """MoveForward(distance=0.05) from identity pose must produce goal (0, 0, -0.05).
+
+        Validates Bug-A fix: forward is -z not +z in right-up-backward convention.
+        """
+        identity_state = MotorSystemState(
+            {
+                self.agent_id: AgentState(
+                    sensors={
+                        SensorID("patch"): SensorState(
+                            position=(0.0, 0.0, 0.0),
+                            rotation=qt.one,
+                        )
+                    },
+                    position=(0.0, 0.0, 0.0),
+                    rotation=qt.one,
+                )
+            }
+        )
+        action = MoveForward(agent_id=self.agent_id, distance=0.05)
+
+        goal_pose = self.policy._compute_goal_pose_from_action(identity_state, action)
+
+        assert goal_pose is not None
+        goal_pos, _ = goal_pose
+        nptest.assert_allclose(goal_pos, np.array([0.0, 0.0, -0.05]), atol=1e-10)
 
     def test_move_tangentially_goal_pose_normalizes_direction(self) -> None:
         action = MoveTangentially(
@@ -339,8 +381,9 @@ class SurfacePolicyGoalPoseFromActionTest(unittest.TestCase):
             expected_quat_xyzw[1],
             expected_quat_xyzw[2],
         )
+        # Monty forward is -z (right-up-backward convention).
         expected_delta = expected_rot.apply(np.array([-1.0, 0.0, 0.0])) * 0.1
-        expected_delta += expected_rot.apply(np.array([0.0, 0.0, 1.0])) * 0.2
+        expected_delta += expected_rot.apply(np.array([0.0, 0.0, -1.0])) * 0.2
 
         nptest.assert_allclose(goal_pos, np.array([1.0, 2.0, 3.0]) + expected_delta)
         nptest.assert_allclose(
