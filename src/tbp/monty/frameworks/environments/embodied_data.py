@@ -13,19 +13,30 @@ from __future__ import annotations
 import copy
 import logging
 from pprint import pformat
-from typing import Callable, Iterable, Mapping, Sequence, cast
+from typing import Callable, Mapping, Sequence, cast
 
 import numpy as np
 import quaternion as qt
+from omegaconf import ListConfig
 
 from tbp.monty.frameworks.actions.actions import (
     Action,
 )
-from tbp.monty.frameworks.environment_utils.transforms import TransformContext
+from tbp.monty.frameworks.environment_utils.transforms import (
+    Transform,
+    TransformContext,
+)
 from tbp.monty.frameworks.environments.environment import (
     ObjectID,
     SemanticID,
     SimulatedObjectEnvironment,
+)
+from tbp.monty.frameworks.environments.object_init_samplers import (
+    Default,
+    MultiObjectNames,
+    ObjectInitParams,
+    Predefined,
+    RandomRotation,
 )
 from tbp.monty.frameworks.environments.positioning_procedures import (
     PositioningProcedureFactory,
@@ -55,6 +66,21 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+def normalize_transforms(
+    transform: Transform | Sequence[Transform] | None,
+) -> tuple[Transform, ...]:
+    """Normalize transform configuration to a tuple of transforms.
+
+    Returns:
+        A tuple of transforms.
+    """
+    if transform is None:
+        return ()
+    if callable(transform):
+        return (transform,)
+    return tuple(transform)
+
+
 class EnvironmentInterface:
     """Provides an interface to an embodied environment.
 
@@ -77,15 +103,15 @@ class EnvironmentInterface:
     def __init__(
         self,
         env: SimulatedObjectEnvironment,
-        rng,
+        rng: np.random.RandomState,
         seed: int,
         experiment_mode: ExperimentMode,
-        transform=None,
+        transform: Transform | Sequence[Transform] | None = None,
     ):
         self.env = env
         self.rng = rng
         self.seed = seed
-        self.transform = transform
+        self.transforms = normalize_transforms(transform)
         self.reset(self.rng)
         self.experiment_mode = experiment_mode
 
@@ -93,18 +119,17 @@ class EnvironmentInterface:
         self.rng = rng
         observations, state = self.env.reset()
 
-        if self.transform is not None:
-            observations = self.apply_transform(self.transform, observations, state)
+        if self.transforms:
+            observations = self.apply_transform(observations, state)
         return observations, state
 
     def apply_transform(
-        self, transform, observations: Observations, state: ProprioceptiveState
+        self,
+        observations: Observations,
+        state: ProprioceptiveState,
     ) -> Observations:
         ctx = TransformContext(rng=self.rng, state=state)
-        if isinstance(transform, Iterable):
-            for t in transform:
-                observations = t(observations, ctx)
-        else:
+        for transform in self.transforms:
             observations = transform(observations, ctx)
         return observations
 
@@ -120,8 +145,8 @@ class EnvironmentInterface:
             The observations and proprioceptive state.
         """
         observations, state = self.env.step(actions)
-        if self.transform is not None:
-            observations = self.apply_transform(self.transform, observations, state)
+        if self.transforms is not None:
+            observations = self.apply_transform(observations, state)
         return observations, state
 
     def pre_episode(self, rng: np.random.RandomState):
@@ -154,9 +179,9 @@ class EnvironmentInterfacePerObject(EnvironmentInterface):
 
     def __init__(
         self,
-        object_names,
-        object_init_sampler,
-        parent_to_child_mapping=None,
+        object_names: list[str] | ListConfig | MultiObjectNames,
+        object_init_sampler: Default | Predefined | RandomRotation,
+        parent_to_child_mapping: Mapping[str, Sequence[str]] | None = None,
         positioning_procedures: Sequence[PositioningProcedureFactory] | None = None,
         *args,
         **kwargs,
@@ -164,8 +189,9 @@ class EnvironmentInterfacePerObject(EnvironmentInterface):
         """Initialize environment interface.
 
         Args:
-            object_names: list of objects if doing a simple experiment with primary
-                target objects only; dict for experiments with multiple objects,
+            object_names: plain list of objects, or Hydra `ListConfig`, if doing a
+                simple experiment with primary target objects only; mapping typed as
+                `MultiObjectNames` for experiments with multiple objects,
                 corresponding to -->
                 targets_list : the list of primary target objects
                 source_object_list : the original object list from which the primary
@@ -182,15 +208,10 @@ class EnvironmentInterfacePerObject(EnvironmentInterface):
             **kwargs: passed to `super()` call
 
         Raises:
-            TypeError: If `object_names` is not a list or dictionary
+            TypeError: If `object_names` is not a `list`, `ListConfig`, or a mapping
         """
         super().__init__(*args, **kwargs)
-        if isinstance(object_names, Sequence):
-            self.object_names = object_names
-            # Return an (ordered) list of unique items:
-            self.source_object_list = list(dict.fromkeys(object_names))
-            self.num_distractors = 0
-        elif isinstance(object_names, Mapping):
+        if isinstance(object_names, Mapping):
             # TODO when we want more advanced multi-object experiments, update these
             # arguments along with the Object Initializers so that we can easily
             # specify a set of primary targets and distractors, i.e. random sampling
@@ -200,23 +221,26 @@ class EnvironmentInterfacePerObject(EnvironmentInterface):
                 dict.fromkeys(object_names["source_object_list"])
             )
             self.num_distractors = object_names["num_distractors"]
+        elif isinstance(object_names, (list, ListConfig)):
+            self.object_names = object_names
+            # Return an (ordered) list of unique items:
+            self.source_object_list = list(dict.fromkeys(self.object_names))
+            self.num_distractors = 0
         else:
-            raise TypeError("Object names should be a list or dictionary")
+            raise TypeError("Object names must be a list, ListConfig, or a mapping")
         self.create_semantic_mapping()
 
         self.episodes = 0
         self.epochs = 0
         self.object_init_sampler = object_init_sampler
-        self.object_params = self.object_init_sampler(
+        self.object_params: ObjectInitParams = self.object_init_sampler(
             self.seed, self.experiment_mode, self.epochs, self.episodes
         )
         self.current_object = 0
         self.n_objects = len(self.object_names)
         self.primary_target = None
         self.consistent_child_objects = None
-        self.parent_to_child_mapping = (
-            parent_to_child_mapping if parent_to_child_mapping else {}
-        )
+        self.parent_to_child_mapping = parent_to_child_mapping or {}
         self._positioning_procedures = positioning_procedures
 
     def pre_episode(self, rng: np.random.RandomState):
@@ -298,7 +322,7 @@ class EnvironmentInterfacePerObject(EnvironmentInterface):
         )
         self.change_object_by_idx(next_object)
 
-    def change_object_by_idx(self, idx):
+    def change_object_by_idx(self, idx: int):
         """Update the primary target object in the scene based on the given index.
 
         The given `idx` is the index of the object in the `self.object_names` list,
@@ -309,8 +333,12 @@ class EnvironmentInterfacePerObject(EnvironmentInterface):
 
         Args:
             idx: Index of the new object and its parameters in object_params
+
+        Raises:
+            IndexError: If idx is outside the range [0, self.n_objects).
         """
-        assert idx <= self.n_objects, "idx must be <= self.n_objects"
+        if not 0 <= idx < self.n_objects:
+            raise IndexError(f"idx must satisfy 0 <= idx < {self.n_objects}, got {idx}")
         self.env.remove_all_objects()
 
         # Specify config for the primary target object and then add it
@@ -354,8 +382,8 @@ class EnvironmentInterfacePerObject(EnvironmentInterface):
     def add_distractor_objects(
         self,
         primary_target_obj: ObjectID,
-        init_params,
-        primary_target_name,
+        init_params: ObjectInitParams,
+        primary_target_name: str,
     ):
         """Add arbitrarily many "distractor" objects to the environment.
 
@@ -393,13 +421,13 @@ class OmniglotEnvironmentInterface(EnvironmentInterfacePerObject):
 
     def __init__(
         self,
-        alphabets,
-        characters,
-        versions,
+        alphabets: Sequence[int],
+        characters: Sequence[int],
+        versions: Sequence[int],
         env: OmniglotEnvironment,
-        rng,
-        transform=None,
-        parent_to_child_mapping=None,
+        rng: np.random.RandomState,
+        transform: Transform | Sequence[Transform] | None = None,
+        parent_to_child_mapping: Mapping[str, Sequence[str]] | None = None,
         positioning_procedures: Sequence[PositioningProcedureFactory] | None = None,
         *_args,
         **_kwargs,
@@ -423,7 +451,7 @@ class OmniglotEnvironmentInterface(EnvironmentInterfacePerObject):
         """
         self.env = env
         self.rng = rng
-        self.transform = transform
+        self.transforms = normalize_transforms(transform)
         self.reset(self.rng)
 
         self.alphabets = alphabets
@@ -459,13 +487,17 @@ class OmniglotEnvironmentInterface(EnvironmentInterfacePerObject):
         )
         self.change_object_by_idx(next_object)
 
-    def change_object_by_idx(self, idx):
+    def change_object_by_idx(self, idx: int):
         """Update the object in the scene given the idx of it in the object params.
 
         Args:
             idx: Index of the new object and ints parameters in object params
+
+        Raises:
+            IndexError: If idx is outside the range [0, self.n_objects).
         """
-        assert idx <= self.n_objects, "idx must be <= self.n_objects"
+        if not 0 <= idx < self.n_objects:
+            raise IndexError(f"idx must satisfy 0 <= idx < {self.n_objects}, got {idx}")
         self.env.switch_to_object(
             self.alphabets[idx], self.characters[idx], self.versions[idx]
         )
@@ -485,12 +517,12 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
 
     def __init__(
         self,
-        scenes,
-        versions,
+        scenes: Sequence[int],
+        versions: Sequence[int],
         env: SaccadeOnImageEnvironment,
-        rng,
-        transform=None,
-        parent_to_child_mapping=None,
+        rng: np.random.RandomState,
+        transform: Transform | Sequence[Transform] | None = None,
+        parent_to_child_mapping: Mapping[str, Sequence[str]] | None = None,
         enable_manual_scene_picker: bool = False,
         scene_picker_prompt: str = "Select next scene/version (e.g. '0 1'), 'keep', or 'quit': ",
         episodes_per_epoch: int | None = None,
@@ -531,7 +563,7 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         """
         self.env = env
         self.rng = rng
-        self.transform = transform
+        self.transforms = normalize_transforms(transform)
         self.reset(self.rng)
 
         self.scenes = list(scenes)
@@ -545,9 +577,7 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         self.epochs = 0
         self.primary_target = None
         self.consistent_child_objects = None
-        self.parent_to_child_mapping = (
-            parent_to_child_mapping if parent_to_child_mapping else {}
-        )
+        self.parent_to_child_mapping = parent_to_child_mapping or {}
         self.enable_manual_scene_picker = enable_manual_scene_picker
         self.scene_picker_prompt = scene_picker_prompt
         self.allow_dynamic_scene_refresh = allow_dynamic_scene_refresh
@@ -760,13 +790,19 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
         )
         self.change_object_by_idx(next_scene)
 
-    def change_object_by_idx(self, idx):
+    def change_object_by_idx(self, idx: int):
         """Update the object in the scene given the idx of it in the object params.
 
         Args:
             idx: Index of the new object and ints parameters in object params
+
+        Raises:
+            IndexError: If idx is outside the range [0, self.n_versions).
         """
-        assert idx < self.n_versions, "idx must be < self.n_versions"
+        if not 0 <= idx < self.n_versions:
+            raise IndexError(
+                f"idx must satisfy 0 <= idx < {self.n_versions}, got {idx}"
+            )
         logger.info(
             f"changing to obj {idx} -> scene {self.scenes[idx]}, version "
             f"{self.versions[idx]}"
@@ -793,8 +829,8 @@ class SaccadeOnImageFromStreamEnvironmentInterface(SaccadeOnImageEnvironmentInte
     def __init__(
         self,
         env: SaccadeOnImageFromStreamEnvironment,
-        rng,
-        transform=None,
+        rng: np.random.RandomState,
+        transform: Transform | Sequence[Transform] | None = None,
         positioning_procedures: Sequence[PositioningProcedureFactory] | None = None,
         *_args,
         **_kwargs,
@@ -814,9 +850,8 @@ class SaccadeOnImageFromStreamEnvironmentInterface(SaccadeOnImageEnvironmentInte
         """
         self.env = env
         self.rng = rng
-        self.transform = transform
+        self.transforms = normalize_transforms(transform)
         self.reset(self.rng)
-
         self.current_scene = 0
         self.episodes = 0
         self.epochs = 0
@@ -841,7 +876,7 @@ class SaccadeOnImageFromStreamEnvironmentInterface(SaccadeOnImageEnvironmentInte
         # TODO: Do we need a separate method for this ?
         self.change_scene_by_idx(next_scene)
 
-    def change_scene_by_idx(self, idx):
+    def change_scene_by_idx(self, idx: int):
         """Update the object in the scene given the idx of it in the object params.
 
         Args:
