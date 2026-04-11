@@ -21,6 +21,7 @@ from tbp.monty.frameworks.actions.actions import (
     MoveForward,
     MoveTangentially,
     OrientHorizontal,
+    SetAgentPose,
 )
 from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.environments.real_world_environment import (
@@ -103,9 +104,11 @@ class _FakeGoalAdapter:
         rotation_quat_wxyz: qt.quaternion,
         *,
         stop_on_rejection: bool = True,
-    ) -> bool:  # noqa: ARG002
+    ) -> bool:
         self.send_stop_on_rejection_calls.append(bool(stop_on_rejection))
-        return True
+        self.last_sent_location_m = np.asarray(location_m, dtype=float).copy()
+        self.last_sent_rotation_wxyz = rotation_quat_wxyz
+        return self.dispatch_ok
 
 
 class RealWorldEnvironmentMathTest(unittest.TestCase):
@@ -359,10 +362,10 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
             goal_pose=(np.array([0.1, 0.0, 0.2]), qt.one),
         )
 
-        accepted = env._dispatch_goal_pose(result)
+        accepted = env._dispatch_goal_pose(result, actions=[])
 
         self.assertFalse(accepted)
-        self.assertEqual(goal_adapter.dispatch_stop_on_rejection_calls, [False])
+        self.assertEqual(goal_adapter.send_stop_on_rejection_calls, [False])
 
     def test_dispatch_goal_pose_rejection_respects_config_hard_stop(self) -> None:
         goal_adapter = _FakeGoalAdapter(dispatch_ok=False)
@@ -376,10 +379,10 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
         )
 
         with self.assertRaises(RealWorldSafetyStopError) as exc:
-            env._dispatch_goal_pose(result)
+            env._dispatch_goal_pose(result, actions=[])
 
         self.assertEqual(exc.exception.reason_code, "GOAL_DISPATCH_REJECTED")
-        self.assertEqual(goal_adapter.dispatch_stop_on_rejection_calls, [True])
+        self.assertEqual(goal_adapter.send_stop_on_rejection_calls, [True])
 
     def test_block_until_settled_uses_convergence_gate_when_enabled(self) -> None:
         goal_adapter = _FakeGoalAdapter(dispatch_ok=True)
@@ -437,6 +440,100 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
         sensor_state = proprio[AgentID("agent_id_0")].sensors["patch"]
 
         nptest.assert_allclose(np.array(sensor_state.position), np.array([0.0, 0.1, 0.0]), atol=1e-7)
+
+
+    def test_dispatch_goal_pose_clips_large_orient_horizontal(self) -> None:
+        """Goal dispatch must clip rotation and translation like the fallback."""
+        goal_adapter = _FakeGoalAdapter(dispatch_ok=True)
+        env = self._make_env(goal_adapter=goal_adapter)
+
+        action = OrientHorizontal(
+            agent_id=AgentID("agent_id_0"),
+            rotation_degrees=45.0,
+            left_distance=0.12,
+            forward_distance=0.05,
+        )
+        # Policy's unclipped goal_pose (would send 45 deg + ~13 cm).
+        unclipped_goal = (np.array([0.12, 0.0, -0.05]), qt.one)
+        result = MotorPolicyResult(
+            actions=[action],
+            goal_pose=unclipped_goal,
+        )
+
+        accepted = env._dispatch_goal_pose(result, actions=[action])
+
+        self.assertTrue(accepted)
+        # The sent pose must come from _goal_pose_from_relative_action which
+        # clips rotation to max_rotation_step_deg=10 and translation to
+        # max_translation_step_m=0.05.
+        sent_pos = goal_adapter.last_sent_location_m
+        self.assertIsNotNone(sent_pos)
+        step_norm = float(np.linalg.norm(sent_pos))
+        self.assertLessEqual(step_norm, 0.05 + 1e-9)
+
+    def test_dispatch_and_fallback_produce_identical_results(self) -> None:
+        """Both code paths must produce the same goal for the same action."""
+        goal_adapter = _FakeGoalAdapter(dispatch_ok=True)
+        env = self._make_env(goal_adapter=goal_adapter)
+
+        action = OrientHorizontal(
+            agent_id=AgentID("agent_id_0"),
+            rotation_degrees=30.0,
+            left_distance=0.08,
+            forward_distance=0.03,
+        )
+
+        # Fallback path result.
+        fallback_pos, fallback_quat = env._goal_pose_from_relative_action(action)
+
+        # Dispatch path — the sent pose should match the fallback exactly.
+        result = MotorPolicyResult(
+            actions=[action],
+            goal_pose=(np.array([9.9, 9.9, 9.9]), qt.one),  # bogus
+        )
+        env._dispatch_goal_pose(result, actions=[action])
+
+        nptest.assert_allclose(
+            goal_adapter.last_sent_location_m, fallback_pos, atol=1e-12
+        )
+        self._assert_quat_equivalent(
+            goal_adapter.last_sent_rotation_wxyz,
+            qt.as_float_array(fallback_quat),
+            atol=1e-12,
+        )
+
+    def test_dispatch_goal_pose_preserves_set_agent_pose(self) -> None:
+        """SetAgentPose actions should pass the policy's goal_pose unclipped."""
+        goal_adapter = _FakeGoalAdapter(dispatch_ok=True)
+        env = self._make_env(goal_adapter=goal_adapter)
+
+        set_pose_action = SetAgentPose(
+            agent_id=AgentID("agent_id_0"),
+            location=(0.5, 0.3, -0.2),
+            rotation_quat=qt.from_euler_angles(0, 0, np.radians(60)),
+        )
+        policy_goal = (
+            np.array([0.5, 0.3, -0.2]),
+            qt.from_euler_angles(0, 0, np.radians(60)),
+        )
+        result = MotorPolicyResult(
+            actions=[set_pose_action],
+            goal_pose=policy_goal,
+        )
+
+        accepted = env._dispatch_goal_pose(result, actions=[set_pose_action])
+
+        self.assertTrue(accepted)
+        nptest.assert_allclose(
+            goal_adapter.last_sent_location_m,
+            policy_goal[0],
+            atol=1e-12,
+        )
+        self._assert_quat_equivalent(
+            goal_adapter.last_sent_rotation_wxyz,
+            qt.as_float_array(policy_goal[1]),
+            atol=1e-12,
+        )
 
 
 if __name__ == "__main__":

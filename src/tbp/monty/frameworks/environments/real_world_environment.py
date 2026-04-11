@@ -220,7 +220,10 @@ class RealWorldLite6A010Environment:
 
         if self._last_motor_policy_result is not None:
             if self._last_motor_policy_result.goal_pose is not None:
-                accepted = self._dispatch_goal_pose(self._last_motor_policy_result)
+                accepted = self._dispatch_goal_pose(
+                    self._last_motor_policy_result,
+                    actions_to_execute,
+                )
                 if not accepted:
                     self._execute_actions(actions_to_execute)
             else:
@@ -270,34 +273,66 @@ class RealWorldLite6A010Environment:
         self._wait_for_home_reset_convergence()
         self._block_until_settled()
 
-    def _dispatch_goal_pose(self, policy_result: MotorPolicyResult) -> bool:
+    def _dispatch_goal_pose(
+        self,
+        policy_result: MotorPolicyResult,
+        actions: Sequence[Action],
+    ) -> bool:
         if self.goal_adapter is None:
             self._hard_stop(
                 "GOAL_DISPATCHER_MISSING",
                 "goal_pose was produced but no goal_adapter is configured",
             )
 
-        if policy_result.goal_pose is not None:
-            goal_location_m, goal_quaternion_wxyz = policy_result.goal_pose
-            self._log_motion_debug(
-                "DISPATCH_GOAL_POSE",
-                goal_location_m=np.round(np.asarray(goal_location_m, dtype=float), 6).tolist(),
-                goal_quaternion_wxyz=np.round(qt.as_float_array(goal_quaternion_wxyz), 6).tolist(),
+        # Recompute the goal pose from the action using the environment's
+        # clipping logic (_goal_pose_from_relative_action) instead of the
+        # policy's unclipped goal_pose.  This ensures rotation is clipped to
+        # max_rotation_step_deg and translation to max_translation_step_m,
+        # matching the fallback (_execute_actions) path.
+        relative_action = self._first_relative_action(actions)
+        if relative_action is not None:
+            goal_location_m, goal_quaternion_wxyz = (
+                self._goal_pose_from_relative_action(relative_action)
             )
+        elif policy_result.goal_pose is not None:
+            # Non-relative action (e.g. SetAgentPose for jumping): use the
+            # policy's goal_pose as-is.
+            goal_location_m, goal_quaternion_wxyz = policy_result.goal_pose
+        else:
+            return False
+
+        self._log_motion_debug(
+            "DISPATCH_GOAL_POSE",
+            goal_location_m=np.round(
+                np.asarray(goal_location_m, dtype=float), 6
+            ).tolist(),
+            goal_quaternion_wxyz=np.round(
+                qt.as_float_array(goal_quaternion_wxyz), 6
+            ).tolist(),
+            recomputed_from_action=relative_action is not None,
+        )
 
         accepted = bool(
-            self._dispatch_motor_policy_result_with_mode(policy_result)
+            self._send_world_goal_pose_with_mode(
+                location_m=goal_location_m,
+                rotation_quat_wxyz=goal_quaternion_wxyz,
+            )
         )
         if accepted:
             self._step_dispatched_command = True
         self._log_motion_debug(
             "DISPATCH_GOAL_POSE_RESULT",
             accepted=accepted,
-            rejection=self._goal_adapter_rejection_details(default="ok") if not accepted else "ok",
+            rejection=(
+                self._goal_adapter_rejection_details(default="ok")
+                if not accepted
+                else "ok"
+            ),
         )
         if not accepted and self.goal_rejection_hard_stop:
             details = self._goal_adapter_rejection_details(
-                default="goal_adapter rejected a motor policy result with goal_pose"
+                default="goal_adapter rejected a motor policy result"
+                " with goal_pose"
             )
             self._hard_stop(
                 "GOAL_DISPATCH_REJECTED",
@@ -438,6 +473,18 @@ class RealWorldLite6A010Environment:
         if safety_config is None:
             return 20.0
         return float(getattr(safety_config, "max_rotation_step_deg", 20.0))
+
+    def _first_relative_action(
+        self, actions: Sequence[Action]
+    ) -> Action | None:
+        """Return the first relative motion action, or None."""
+        for action in actions:
+            if isinstance(
+                action,
+                (MoveForward, MoveTangentially, OrientHorizontal, OrientVertical),
+            ):
+                return action
+        return None
 
     def _send_world_pose(
         self,
