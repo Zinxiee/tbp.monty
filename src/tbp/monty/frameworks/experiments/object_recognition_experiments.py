@@ -98,63 +98,93 @@ class MontyObjectRecognitionExperiment(MontyExperiment):
 
         Returns:
             The number of total steps taken in the episode.
+
+        Raises:
+            KeyboardInterrupt: Re-raised after halting any in-flight robot motion so
+                normal cleanup still runs.
         """
         step = 0
         ctx = RuntimeContext(rng=self.rng)
         actions: list[Action] = []
-        while True:
-            observations, proprioceptive_state = self.env_interface.step(actions)
+        try:
+            while True:
+                if step > 0 and step >= self.max_total_steps:
+                    logger.info(f"Terminated due to maximum episode steps : {step}")
+                    self.model.deal_with_time_out()
+                    return step
 
-            if self.show_sensor_output:
-                is_saccade_on_image_data_loader = isinstance(
-                    self.env_interface, SaccadeOnImageEnvironmentInterface
-                )
-                self.live_plotter.show_observations(
-                    *self.live_plotter.hardcoded_assumptions(observations, self.model),
-                    step,
-                    is_saccade_on_image_data_loader,
-                )
-
-            if self.model.check_reached_max_matching_steps(self.max_steps):
-                logger.info(
-                    f"Terminated due to maximum matching steps : {self.max_steps}"
-                )
-                # Need to break here already, otherwise there are problems
-                # when the object is recognized in the last step
-                return step
-
-            if step >= (self.max_total_steps):
-                logger.info(f"Terminated due to maximum episode steps : {step}")
-                self.model.deal_with_time_out()
-                return step
-
-            try:
-                if self.model.is_motor_only_step:
-                    logger.debug("Performing a motor-only step")
-                    actions = self.model.motor_only_step(
-                        ctx, observations, proprioceptive_state
+                if step > 0 and self.model.check_reached_max_matching_steps(
+                    self.max_steps
+                ):
+                    logger.info(
+                        f"Terminated due to maximum matching steps : {self.max_steps}"
                     )
-                else:
-                    actions = self.model.step(ctx, observations, proprioceptive_state)
-                self._pass_last_motor_policy_result_to_env_interface()
-            except StopIteration:
-                # TODO: StopIteration is being thrown by NaiveScanPolicy to signal
-                #       episode termination. This is a holdover from when we used
-                #       iterators. However, this also abdicates control of the
-                #       experiment to the policy. We should find a better way to handle
-                #       this, so that the experiment can control the episode termination
-                #       fully. For example, we know how many steps the policy will take,
-                #       so the experiment can set max steps based on that knowledge
-                #       alone.
-                self.model.set_is_done()
-                return step
+                    # Need to break here already, otherwise there are problems
+                    # when the object is recognized in the last step
+                    return step
 
-            if self.model.is_done:
-                # Check this right after step to avoid setting time out
-                # after object was already recognized.
-                return step
+                observations, proprioceptive_state = self.env_interface.step(actions)
 
-            step += 1
+                if self.show_sensor_output:
+                    is_saccade_on_image_data_loader = isinstance(
+                        self.env_interface, SaccadeOnImageEnvironmentInterface
+                    )
+                    self.live_plotter.show_observations(
+                        *self.live_plotter.hardcoded_assumptions(
+                            observations, self.model
+                        ),
+                        step,
+                        is_saccade_on_image_data_loader,
+                    )
+
+                try:
+                    if self.model.is_motor_only_step:
+                        logger.debug("Performing a motor-only step")
+                        actions = self.model.motor_only_step(
+                            ctx, observations, proprioceptive_state
+                        )
+                    else:
+                        actions = self.model.step(
+                            ctx, observations, proprioceptive_state
+                        )
+                    self._pass_last_motor_policy_result_to_env_interface()
+                except StopIteration:
+                    # TODO: StopIteration is being thrown by NaiveScanPolicy to signal
+                    #       episode termination. This is a holdover from when we used
+                    #       iterators. However, this also abdicates control of the
+                    #       experiment to the policy. We should find a better way to
+                    #       handle this, so that the experiment can control the episode
+                    #       termination fully. For example, we know how many steps the
+                    #       policy will take, so the experiment can set max steps based
+                    #       on that knowledge alone.
+                    self.model.set_is_done()
+                    return step
+
+                if self.model.is_done:
+                    # Check this right after step to avoid setting time out
+                    # after object was already recognized.
+                    return step
+
+                step += 1
+        except KeyboardInterrupt:
+            logger.warning(
+                "KeyboardInterrupt received during episode; halting robot motion."
+            )
+            self._emergency_halt_env_interface()
+            raise
+
+    def _emergency_halt_env_interface(self) -> None:
+        """Halt any ongoing robot motion in the environment interface, if supported."""
+        env = getattr(self.env_interface, "env", None)
+        robot_interface = getattr(env, "robot_interface", None)
+        if robot_interface is None:
+            return
+        graceful_stop = getattr(robot_interface, "graceful_stop", None)
+        if callable(graceful_stop):
+            try:
+                graceful_stop()
+            except Exception:
+                logger.exception("Failed to graceful_stop robot interface")
 
     def _pass_last_motor_policy_result_to_env_interface(self) -> None:
         """Pass latest motor policy metadata to env interface when supported."""

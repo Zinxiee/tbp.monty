@@ -245,6 +245,11 @@ class RealWorldLite6A010Environment:
         return self._observe()
 
     def close(self) -> None:
+        if hasattr(self.robot_interface, "graceful_stop"):
+            try:
+                self.robot_interface.graceful_stop()
+            except Exception:
+                logger.exception("graceful_stop failed during close()")
         if hasattr(self.sensor_client, "close"):
             self.sensor_client.close()
         if hasattr(self.robot_interface, "stop_listening"):
@@ -449,13 +454,29 @@ class RealWorldLite6A010Environment:
 
     def _clip_rotation_step_deg(self, rotation_deg: float) -> float:
         max_rotation_step_deg = self._goal_adapter_max_rotation_step_deg()
-        return float(np.clip(rotation_deg, -max_rotation_step_deg, max_rotation_step_deg))
+        clipped = float(
+            np.clip(rotation_deg, -max_rotation_step_deg, max_rotation_step_deg)
+        )
+        if clipped != rotation_deg:
+            logger.warning(
+                "Rotation step clipped: %.2f° -> %.2f° (limit ±%.2f°)",
+                rotation_deg,
+                clipped,
+                max_rotation_step_deg,
+            )
+        return clipped
 
     def _clip_translation_step(self, delta: np.ndarray) -> np.ndarray:
         max_translation_step_m = self._goal_adapter_max_translation_step_m()
         step_norm = float(np.linalg.norm(delta))
         if step_norm <= max_translation_step_m or step_norm == 0.0:
             return delta
+        logger.warning(
+            "Translation step clipped: %.4fm -> %.4fm (limit %.4fm)",
+            step_norm,
+            max_translation_step_m,
+            max_translation_step_m,
+        )
         return delta * (max_translation_step_m / step_norm)
 
     def _goal_adapter_max_translation_step_m(self) -> float:

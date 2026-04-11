@@ -196,3 +196,17 @@ class RobotInterface:
                 self.arm.emergency_stop()
             else:
                 self.arm.set_state(4)
+
+    def graceful_stop(self):
+        """Pause motion and drain queued commands without requiring manual reset.
+
+        Uses ``set_state(4)`` (paused) rather than ``emergency_stop()`` so the arm
+        can be resumed without operator intervention. Intended for normal shutdown
+        and KeyboardInterrupt paths where queued commands must be cancelled
+        immediately.
+        """
+        with self._lock:
+            try:
+                self.arm.set_state(4)
+            except Exception as exc:
+                print(f"graceful_stop: set_state(4) failed: {exc}")

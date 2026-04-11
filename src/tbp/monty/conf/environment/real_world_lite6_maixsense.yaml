@@ -69,8 +69,8 @@ env_init_args:
       z: 0.0
     workspace_min_xyz_m: [0.135, -0.23, 0.075]
     workspace_max_xyz_m: [0.40, 0.23, 0.4]
-    max_translation_step_m: 0.03
-    max_rotation_step_deg: 10.0
+    max_translation_step_m: 0.10
+    max_rotation_step_deg: 35.0
     orientation_min_euler_deg: [-180.0, -170.0, -180.0]
     orientation_max_euler_deg: [180.0, 170.0, 180.0]
     convergence_timeout_s: 4.0
@@ -91,6 +91,10 @@ env_init_args:
   home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
   # home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
   settle_time_s: 0.25
+  # Block each step until the robot reaches its commanded pose (or convergence_timeout_s
+  # elapses). Without this, observations can be captured mid-motion and the xArm command
+  # queue grows unboundedly because Python queues commands faster than the robot executes.
+  settle_use_goal_convergence_gate: true
   home_reset_timeout_s: 8.0
   home_reset_poll_s: 0.02
   home_reset_position_tolerance_mm: 20.0
