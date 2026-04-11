@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from multimodal_monty_meets_world.real_world_surface_policy import RealWorldSurfacePolicy; print\\('OK'\\)\")"
+    ]
+  }
+}

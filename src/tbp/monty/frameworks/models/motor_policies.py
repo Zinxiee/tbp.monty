@@ -751,6 +751,7 @@ class SurfacePolicy(InformedPolicy):
         self,
         alpha,
         desired_object_distance=0.025,
+        min_object_coverage=0.1,
         **kwargs,
     ) -> None:
         """Initialize policy.
@@ -760,12 +761,15 @@ class SurfacePolicy(InformedPolicy):
                 touch_object and move-forward. Defaults to 0.025.
             alpha: to what degree should the move_tangentially direction be the
                 same as the last step or totally random? 0~same as before, 1~random walk
+            min_object_coverage: Object-coverage fraction below which the policy
+                switches into the touch-object recovery loop. Defaults to 0.1.
             **kwargs: ?
         """
         super().__init__(**kwargs)
         self.tangential_angle = 0
         self.alpha = alpha
         self.desired_object_distance = desired_object_distance
+        self.min_object_coverage = min_object_coverage
 
         self.attempting_to_find_object: bool = False
         self.last_surface_policy_action: Action | None = None
@@ -1055,7 +1059,7 @@ class SurfacePolicy(InformedPolicy):
 
         # Check if we have poor visualization of the object
         if (
-            percept.get_feature_by_name("object_coverage") < 0.1
+            percept.get_feature_by_name("object_coverage") < self.min_object_coverage
             or self.attempting_to_find_object
         ):
             logger.debug(
