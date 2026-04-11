@@ -21,15 +21,17 @@ env_init_args:
 
   observation_adapter:
     _target_: multimodal_monty_meets_world.factory.create_observation_adapter
-    # Intrinsics: either use manufacturer calibration or fetch from HTTP /getinfo.
-    # Placeholder values below are conservative estimates for Maixsense A010.
-    # To get calibrated values: use create_adapter_from_http_calibration or set these from known calibration.
-    fx: 226.5142
-    fy: 227.8584
-    cx: 163.7246
-    cy: 123.3738
+    # Intrinsics: estimated from FOV (70° H × 60° V) at the native 100×100 resolution
+    fx: 71.41      # 50 / tan(35°)
+    fy: 86.60      # 50 / tan(30°)
+    cx: 50.0
+    cy: 50.0
     crop_center_to_square: true
     min_valid_depth_m: 1.0e-6
+    # Reject A010 specular/saturation returns at Stage C rather than letting them
+    # leak into the world-bounds filter. A010 saturates at ~2.5 m; objects of
+    # interest sit at 0.1–0.5 m, so 0.6 m gives headroom without clipping the scene.
+    max_valid_depth_m: 0.6
     # Filter the table out of the semantic mask.
     # Robot is mounted on the table (table ≈ 0 mm in robot-base Z = Monty world Y).
     # A 10 mm margin excludes table pixels in all sensor orientations because the
