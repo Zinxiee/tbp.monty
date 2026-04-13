@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \"from multimodal_monty_meets_world.real_world_surface_policy import RealWorldSurfacePolicy; print\\('OK'\\)\")"
+      "Bash(python -c \"from multimodal_monty_meets_world.real_world_surface_policy import RealWorldSurfacePolicy; print\\('OK'\\)\")",
+      "Bash(find /home/zach/tbp/tbp.monty -name \"*.py\" -type f -exec grep -l \"def _matching_step\\\\|def _exploratory_step\" {} \\\\;)",
+      "Bash(find /home/zach/tbp/tbp.monty/src -name \"*.py\" -type f -exec grep -l \"motor_only_step\" {} \\\\;)",
+      "Read(//home/zach/.claude/plans/**)",
+      "Read(//home/zach/.claude/memory/**)",
+      "Bash(ls -lht /home/zach/tbp/tbp.monty/src/tbp/monty/conf/experiment/real_world/*.yaml)",
+      "Bash(grep -n \"def _collect_inputs_to_lm\" /home/zach/tbp/tbp.monty/src/tbp/monty/frameworks/models/*.py)",
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(find /home/zach/tbp/tbp.monty -name \"real_world_environment.py\" -exec wc -l {} \\\\;)",
+      "Bash(grep -E \"\\\\.yaml$\")",
+      "Bash(grep -n \"def _matching_step\\\\|def _exploratory_step\" /home/zach/tbp/tbp.monty/src/tbp/monty/frameworks/models/*.py)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }
