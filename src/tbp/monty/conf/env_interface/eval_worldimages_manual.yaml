@@ -1,0 +1,15 @@
+# @package experiment.config
+
+do_eval: true
+eval_env_interface_args:
+  scenes:
+  - 0
+  versions:
+  - 0
+  enable_manual_scene_picker: true
+  allow_dynamic_scene_refresh: true
+  enable_scene_picker_captures: true
+  scene_capture_prefix: zed_capture
+  episodes_per_epoch: 12
+  scene_picker_prompt: "Select next worldimage option by index, or type keep/capture/quit"
+eval_env_interface_class: ${monty.class:tbp.monty.frameworks.environments.embodied_data.SaccadeOnImageEnvironmentInterface}
