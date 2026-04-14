@@ -26,6 +26,8 @@ env_init_args:
     fy: 86.60      # 50 / tan(30°)
     cx: 50.0
     cy: 50.0
+    # crop_center_to_square: true causes no actual crop here. 
+    # It only matters if incoming frame is rectangular.
     crop_center_to_square: true # Sensor's native 100×100 resolution is already square
     min_valid_depth_m: 0.05
     # Reject A010 specular/saturation returns at Stage C rather than letting them
