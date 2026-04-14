@@ -279,7 +279,8 @@ class MontyGoalToRobotAdapterTest(unittest.TestCase):
         self.assertAlmostEqual(pitch_deg, 0.0, places=3)
         self.assertAlmostEqual(yaw_deg, 90.0, places=3)
 
-    def test_workspace_rejection_sets_rejection_details(self) -> None:
+    def test_workspace_out_of_bounds_is_clamped_not_rejected(self) -> None:
+        """Out-of-bounds goals are clamped to workspace boundary, not rejected."""
         robot = _FakeRobotInterface()
         adapter = self.module.MontyGoalToRobotAdapter(
             robot=robot,
@@ -294,11 +295,55 @@ class MontyGoalToRobotAdapterTest(unittest.TestCase):
             MotorPolicyResult(goal_pose=(np.array([0.3, 0.0, 0.2]), qt.one))
         )
 
-        self.assertFalse(dispatched)
-        self.assertIsNotNone(adapter.last_rejection_details)
-        assert adapter.last_rejection_details is not None
-        self.assertEqual(adapter.last_rejection_details["reason_code"], "workspace_bounds")
-        self.assertIn("workspace_bounds", adapter.last_rejection_details["details"])
+        self.assertTrue(dispatched)
+        assert robot.last_command is not None
+        x_mm, _, z_mm, _, _, _ = robot.last_command
+        self.assertAlmostEqual(x_mm, 100.0, places=1)  # clamped to max 0.1m
+        self.assertAlmostEqual(z_mm, 100.0, places=1)  # clamped to max 0.1m
+
+
+    def test_very_relaxed_profile_still_checks_workspace_bounds(self) -> None:
+        robot = _FakeRobotInterface()
+        adapter = self.module.MontyGoalToRobotAdapter(
+            robot=robot,
+            world_to_robot=self.module.identity_world_to_robot_transform(),
+            safety_config=self.module.SafetyConfig(
+                workspace_min_xyz_m=np.array([0.0, -0.5, 0.10]),
+                workspace_max_xyz_m=np.array([1.0, 0.5, 0.50]),
+                safety_profile="very_relaxed",
+            ),
+        )
+
+        # Z=0.004 is below workspace min Z=0.10.  Clamping brings it to 0.10,
+        # so the command should still be dispatched (at the boundary).
+        dispatched = adapter.dispatch_motor_policy_result(
+            MotorPolicyResult(goal_pose=(np.array([0.3, 0.0, 0.004]), qt.one))
+        )
+        self.assertTrue(dispatched)
+        assert robot.last_command is not None
+        _, _, z_mm, _, _, _ = robot.last_command
+        self.assertAlmostEqual(z_mm, 100.0, places=1)
+
+    def test_workspace_clamping_moves_to_boundary(self) -> None:
+        robot = _FakeRobotInterface()
+        adapter = self.module.MontyGoalToRobotAdapter(
+            robot=robot,
+            world_to_robot=self.module.identity_world_to_robot_transform(),
+            safety_config=self.module.SafetyConfig(
+                workspace_min_xyz_m=np.array([0.0, -0.5, 0.10]),
+                workspace_max_xyz_m=np.array([1.0, 0.5, 0.50]),
+                safety_profile="strict",
+            ),
+        )
+
+        # Z=0.004 below min Z=0.10 — clamped to boundary.
+        dispatched = adapter.dispatch_motor_policy_result(
+            MotorPolicyResult(goal_pose=(np.array([0.3, 0.0, 0.004]), qt.one))
+        )
+        self.assertTrue(dispatched)
+        assert robot.last_command is not None
+        _, _, z_mm, _, _, _ = robot.last_command
+        self.assertAlmostEqual(z_mm, 100.0, places=1)
 
 
 if __name__ == "__main__":

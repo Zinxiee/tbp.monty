@@ -189,6 +189,7 @@ class MontyGoalToRobotAdapter:
             location_m=location_m,
             rotation_quat_wxyz=rotation_quat_wxyz,
         )
+        robot_position_m = self._clamp_to_workspace_bounds(robot_position_m)
         roll_deg, pitch_deg, yaw_deg = self._quat_to_command_euler_deg(robot_quat_wxyz)
         x_mm, y_mm, z_mm = (robot_position_m * 1000.0).tolist()
         self._log_debug(
@@ -320,6 +321,15 @@ class MontyGoalToRobotAdapter:
     ) -> tuple[bool, str]:
         """Run safety and feasibility checks before dispatching robot commands."""
         if self._is_very_relaxed_profile():
+            if not self._check_workspace_bounds(target_position_m):
+                return (
+                    False,
+                    "workspace_bounds"
+                    f" target_m={np.round(target_position_m, 6).tolist()}"
+                    f" min_m={np.round(self.safety_config.workspace_min_xyz_m, 6).tolist()}"
+                    f" max_m={np.round(self.safety_config.workspace_max_xyz_m, 6).tolist()}",
+                )
+
             if not self._check_ik_feasibility(target_pose_mm_deg):
                 return (
                     False,
@@ -382,6 +392,21 @@ class MontyGoalToRobotAdapter:
             np.all(position_m >= self.safety_config.workspace_min_xyz_m)
             and np.all(position_m <= self.safety_config.workspace_max_xyz_m)
         )
+
+    def _clamp_to_workspace_bounds(self, position_m: np.ndarray) -> np.ndarray:
+        """Clamp robot-frame position to workspace bounds."""
+        clamped = np.clip(
+            position_m,
+            self.safety_config.workspace_min_xyz_m,
+            self.safety_config.workspace_max_xyz_m,
+        )
+        if not np.array_equal(clamped, position_m):
+            self._log_debug(
+                "WORKSPACE_CLAMP",
+                original_m=np.round(position_m, 6).tolist(),
+                clamped_m=np.round(clamped, 6).tolist(),
+            )
+        return clamped
 
     def _check_command_interval(self) -> bool:
         if self._last_command_timestamp_s is None:

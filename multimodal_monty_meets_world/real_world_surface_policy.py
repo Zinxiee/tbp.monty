@@ -1,3 +1,12 @@
+# Copyright 2025-2026 Thousand Brains Project
+#
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
 """Real-world surface policy for the Lite6 + Maixsense A010 setup.
 
 Provides ``RealWorldSurfacePolicy``, a subclass of ``SurfacePolicy`` that
@@ -9,17 +18,19 @@ Behavioral overrides layered on top of the parent policy:
 1. ``_touch_sensor_id`` returns ``"patch"`` instead of ``"view_finder"``.
 
 2. ``_touch_object`` reads forward distance from the semantically-filtered
-   point cloud instead of the raw center-pixel depth.
+   point cloud instead of the raw center-pixel depth.  Falls back to a
+   distance-constrained arc search instead of the parent's 0.48 m-radius
+   random search.
 
 3. ``_orient_horizontal`` / ``_orient_vertical`` clamp the computed rotation
-   angle to ``_MAX_ORIENT_DEG`` **before** computing compensating distances.
-   The parent computes distances from the raw angle and lets the env clip the
-   rotation separately, creating a magnitude/direction mismatch that causes
-   oversized translation steps in the real world.
+   angle to ``_MAX_ORIENT_DEG`` **before** computing compensating distances,
+   and use the semantically-filtered median depth instead of the percept's
+   ``mean_depth`` (which includes background pixels and inflates distances
+   2-4x on real hardware).
 
 4. ``_move_forward`` uses the same semantic-filtered depth as ``_touch_object``
-   instead of the percept's ``min_depth`` feature, which can be noisy on a
-   real ToF sensor.
+   instead of the percept's ``min_depth`` feature, capped to
+   ``_MAX_FORWARD_STEP_M``.
 
 The default ``min_object_coverage`` is also lowered (0.1 -> 0.05).
 """
@@ -48,6 +59,17 @@ logger = logging.getLogger(__name__)
 # Maximum orient rotation per step (degrees). Keeps compensating translation
 # distances sane: tan(15) * 0.22m = 6cm vs tan(35) * 0.22m = 15cm.
 _MAX_ORIENT_DEG = 15.0
+
+# Forward-step limits.  Even valid filtered depth can overshoot on real
+# hardware when the sensor axis is slightly tilted.
+_MAX_FORWARD_STEP_M = 0.05
+_FALLBACK_FORWARD_STEP_M = 0.01
+
+# Touch-object search: cap the arc radius so search steps stay small.
+# Parent uses desired_object_distance * 4 = 0.48 m → 0.287 m steps.
+_MAX_SEARCH_RADIUS_M = 0.10
+_SEARCH_ROTATION_DEG = 15.0
+_SEARCH_RANDOM_RANGE_DEG = 90.0
 
 
 class RealWorldSurfacePolicy(SurfacePolicy):
@@ -98,11 +120,11 @@ class RealWorldSurfacePolicy(SurfacePolicy):
     def _orient_horizontal(
         self, state: MotorSystemState, percept: Message
     ) -> OrientHorizontal:
-        """Orient horizontally with clamped rotation angle.
+        """Orient horizontally with clamped angle and object-only depth.
 
-        Clamps the rotation to ±_MAX_ORIENT_DEG *before* computing the
-        compensating lateral/forward distances so the distances match
-        the actual rotation that will be applied.
+        Uses filtered median depth (object pixels only) instead of the
+        percept's ``mean_depth`` which includes background pixels and
+        inflates compensating distances 2-4x on real hardware.
 
         Returns:
             OrientHorizontal action.
@@ -115,7 +137,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         rotation_degrees = float(
             np.clip(rotation_degrees, -_MAX_ORIENT_DEG, _MAX_ORIENT_DEG)
         )
-        left_distance, forward_distance = self.horizontal_distances(
+        left_distance, forward_distance = self._compensating_distances(
             rotation_degrees, percept
         )
         return OrientHorizontal(
@@ -128,7 +150,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
     def _orient_vertical(
         self, state: MotorSystemState, percept: Message
     ) -> OrientVertical:
-        """Orient vertically with clamped rotation angle.
+        """Orient vertically with clamped angle and object-only depth.
 
         Returns:
             OrientVertical action.
@@ -141,7 +163,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         rotation_degrees = float(
             np.clip(rotation_degrees, -_MAX_ORIENT_DEG, _MAX_ORIENT_DEG)
         )
-        down_distance, forward_distance = self.vertical_distances(
+        down_distance, forward_distance = self._compensating_distances(
             rotation_degrees, percept
         )
         return OrientVertical(
@@ -151,23 +173,20 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             forward_distance=forward_distance,
         )
 
-    def _move_forward(self, percept: Message) -> MoveForward:
-        """Move forward using semantic-filtered depth when available.
-
-        Falls back to the parent's ``min_depth`` approach if no filtered
-        observations are available.
+    def _move_forward(self, percept: Message) -> MoveForward:  # noqa: ARG002
+        """Move forward using semantic-filtered depth, capped for safety.
 
         Returns:
             MoveForward action.
         """
         filtered = self._filtered_forward_depth_from_stashed_obs()
         if filtered is not None:
-            distance = filtered - self.desired_object_distance
-        else:
-            distance = (
-                percept.get_feature_by_name("min_depth")
-                - self.desired_object_distance
+            distance = min(
+                filtered - self.desired_object_distance,
+                _MAX_FORWARD_STEP_M,
             )
+        else:
+            distance = _FALLBACK_FORWARD_STEP_M
         return MoveForward(agent_id=self.agent_id, distance=distance)
 
     # ------------------------------------------------------------------
@@ -199,21 +218,88 @@ class RealWorldSurfacePolicy(SurfacePolicy):
                 .sensors[view_sensor_id]
                 .position[2]
             )
+            distance = min(distance, _MAX_FORWARD_STEP_M)
             self.attempting_to_find_object = False
             return MoveForward(
                 agent_id=self.agent_id, distance=distance
             )
 
-        spoofed = self._observations_with_spoofed_center_depth(
-            observations, view_sensor_id, value=10.0
+        return self._constrained_search(ctx)
+
+    def _constrained_search(
+        self, ctx: RuntimeContext
+    ) -> OrientHorizontal | OrientVertical:
+        """Search for the object with distance-constrained arc movements.
+
+        Replaces the parent's 0.48 m-radius random search with a tighter
+        arc (``_MAX_SEARCH_RADIUS_M``) and smaller rotation steps so the
+        sensor stays near the last known object position.
+
+        Returns:
+            An orient action that arcs the sensor around a nearby point.
+        """
+        self.attempting_to_find_object = True
+
+        radius = min(
+            self.desired_object_distance * 4,
+            _MAX_SEARCH_RADIUS_M,
         )
-        return super()._touch_object(
-            ctx, spoofed, view_sensor_id, state
+        rotation_degrees = _SEARCH_ROTATION_DEG
+
+        if self.touch_search_amount >= 720:
+            orientation = "vertical" if ctx.rng.uniform() < 0.5 else "horizontal"
+            rotation_degrees = ctx.rng.uniform(
+                -_SEARCH_RANDOM_RANGE_DEG, _SEARCH_RANDOM_RANGE_DEG
+            )
+        elif self.touch_search_amount >= 360:
+            orientation = "vertical"
+        else:
+            orientation = "horizontal"
+
+        lateral = np.tan(np.radians(rotation_degrees)) * radius
+        cos_r = np.cos(np.radians(rotation_degrees))
+        forward = radius * (1.0 - cos_r) / cos_r
+
+        self.touch_search_amount += rotation_degrees
+
+        if orientation == "vertical":
+            return OrientVertical(
+                agent_id=self.agent_id,
+                rotation_degrees=rotation_degrees,
+                down_distance=lateral,
+                forward_distance=forward,
+            )
+        return OrientHorizontal(
+            agent_id=self.agent_id,
+            rotation_degrees=rotation_degrees,
+            left_distance=lateral,
+            forward_distance=forward,
         )
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _compensating_distances(
+        self, rotation_degrees: float, percept: Message
+    ) -> tuple[float, float]:
+        """Lateral and forward distances for an orient step.
+
+        Uses filtered object-only depth instead of ``percept.mean_depth``
+        which includes background pixels.  Falls back to the percept value
+        when filtered depth is unavailable.
+
+        Returns:
+            (lateral_distance, forward_distance) in metres.
+        """
+        depth = self._filtered_forward_depth_from_stashed_obs()
+        if depth is None:
+            depth = percept.get_feature_by_name("mean_depth")
+        rotation_radians = np.radians(rotation_degrees)
+        cos_r = np.cos(rotation_radians)
+        lateral = np.tan(rotation_radians) * depth
+        forward = depth * (1.0 - cos_r) / cos_r
+        return lateral, forward
 
     def _filtered_forward_depth_from_stashed_obs(self) -> float | None:
         """Convenience wrapper using stashed observations.
@@ -257,20 +343,3 @@ class RealWorldSurfacePolicy(SurfacePolicy):
 
         return float(np.median(forward_depths[finite]))
 
-    def _observations_with_spoofed_center_depth(
-        self,
-        observations: Observations,
-        view_sensor_id: SensorID,
-        value: float,
-    ) -> Observations:
-        """Return a copy with the center depth pixel set to ``value``."""
-        agent_obs = dict(observations[self.agent_id])
-        sensor_obs = dict(agent_obs[view_sensor_id])
-        depth = np.array(sensor_obs["depth"], copy=True)
-        h, w = depth.shape[0], depth.shape[1]
-        depth[h // 2, w // 2] = value
-        sensor_obs["depth"] = depth
-        agent_obs[view_sensor_id] = sensor_obs
-        spoofed = dict(observations)
-        spoofed[self.agent_id] = agent_obs
-        return spoofed
