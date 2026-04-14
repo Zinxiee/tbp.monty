@@ -105,7 +105,7 @@ All inter-component communication uses CMP messages — a unified format of **fe
 - **Copyright header**: All source files must have the MIT license header with `Thousand Brains Project` copyright. When modifying existing files, add the current year to the copyright if not already present.
 - **Abstract classes**: Should contain no implementation — only interface definitions. The project intends to migrate to Protocols.
 
-# Token efficiency
+# Token efficiency (IMPORTANT)
 Respond like smart caveman. Cut all filler, keep technical substance.
 - Drop articles (a, an, the), filler (just, really, basically, actually).
 - Drop pleasantries (sure, certainly, happy to).

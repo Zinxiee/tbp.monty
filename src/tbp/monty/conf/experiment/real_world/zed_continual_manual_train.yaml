@@ -1,0 +1,32 @@
+# @package _global_
+
+defaults:
+  - /monty: noresetevidencegraph_exp1000_e3_t100_tot2500
+  - /monty/motor_system_config: informed_10
+  - /monty/learning_module: noresetevidence_1lm
+  - /monty/sensor_module: camera_dist
+  - /monty/connectivity: 1lm_1sm
+  - /environment: two_d_data_incoming
+  - /env_interface: train_worldimages_manual
+  - /env_interface/transform: none
+  - /logging: basic_info_monty_runs
+
+experiment:
+  _target_: tbp.monty.frameworks.experiments.object_recognition_experiments.MontyObjectRecognitionExperiment
+  config:
+    show_sensor_output: true
+    capture_initial_scene: true
+    initial_capture_scene_prefix: zed_capture
+    max_train_steps: 1000
+    max_eval_steps: 500
+    max_total_steps: 6000
+    n_train_epochs: 3
+    n_eval_epochs: 1
+    model_name_or_path: ''
+    min_lms_match: 1
+    seed: 42
+    supervised_lm_ids: []
+    do_eval: false
+    python_log_level: DEBUG
+    logging:
+      run_name: zed_continual_manual_train

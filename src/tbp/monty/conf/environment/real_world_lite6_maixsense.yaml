@@ -21,15 +21,17 @@ env_init_args:
 
   observation_adapter:
     _target_: multimodal_monty_meets_world.factory.create_observation_adapter
-    # Intrinsics: either use manufacturer calibration or fetch from HTTP /getinfo.
-    # Placeholder values below are conservative estimates for Maixsense A010.
-    # To get calibrated values: use create_adapter_from_http_calibration or set these from known calibration.
-    fx: 226.5142
-    fy: 227.8584
-    cx: 163.7246
-    cy: 123.3738
+    # Intrinsics: estimated from FOV (70° H × 60° V) at the native 100×100 resolution
+    fx: 71.41      # 50 / tan(35°)
+    fy: 86.60      # 50 / tan(30°)
+    cx: 50.0
+    cy: 50.0
     crop_center_to_square: true
     min_valid_depth_m: 1.0e-6
+    # Reject A010 specular/saturation returns at Stage C rather than letting them
+    # leak into the world-bounds filter. A010 saturates at ~2.5 m; objects of
+    # interest sit at 0.1–0.5 m, so 0.6 m gives headroom without clipping the scene.
+    max_valid_depth_m: 0.6
     # Filter the table out of the semantic mask.
     # Robot is mounted on the table (table ≈ 0 mm in robot-base Z = Monty world Y).
     # A 10 mm margin excludes table pixels in all sensor orientations because the
@@ -69,8 +71,8 @@ env_init_args:
       z: 0.0
     workspace_min_xyz_m: [0.135, -0.23, 0.075]
     workspace_max_xyz_m: [0.40, 0.23, 0.4]
-    max_translation_step_m: 0.03
-    max_rotation_step_deg: 10.0
+    max_translation_step_m: 0.10
+    max_rotation_step_deg: 35.0
     orientation_min_euler_deg: [-180.0, -170.0, -180.0]
     orientation_max_euler_deg: [180.0, 170.0, 180.0]
     convergence_timeout_s: 4.0
@@ -91,6 +93,10 @@ env_init_args:
   home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
   # home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
   settle_time_s: 0.25
+  # Block each step until the robot reaches its commanded pose (or convergence_timeout_s
+  # elapses). Without this, observations can be captured mid-motion and the xArm command
+  # queue grows unboundedly because Python queues commands faster than the robot executes.
+  settle_use_goal_convergence_gate: true
   home_reset_timeout_s: 8.0
   home_reset_poll_s: 0.02
   home_reset_position_tolerance_mm: 20.0

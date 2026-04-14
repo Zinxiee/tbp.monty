@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import logging
+import os
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
 
 from .models import A010UsbFrame, HttpFrame, LensCoefficients
+
+logger = logging.getLogger(__name__)
+
+_DEBUG_DUMP_ENV_VAR = "MONTY_ADAPTER_DEBUG_DUMP"
+_DEBUG_DUMP_DIR_ENV_VAR = "MONTY_ADAPTER_DEBUG_DUMP_DIR"
+_DEFAULT_DEBUG_DUMP_DIR = "~/monty_diag"
 
 
 @dataclass(frozen=True)
@@ -212,6 +222,7 @@ class MaixsenseMontyObservationAdapter:
 
         world_xyz = _transform_xyz(sensor_xyz, world_camera_t)
         semantic_mask = semantic_mask.reshape(-1)
+        valid_mask_pre_world = semantic_mask.copy()
 
         # Optionally filter out background (e.g. table) and out-of-bounds points
         # in the fixed world frame so filtering remains invariant to sensor rotation.
@@ -224,6 +235,25 @@ class MaixsenseMontyObservationAdapter:
             world_z_min_m=self._world_z_min_m,
             world_z_max_m=self._world_z_max_m,
         )
+
+        if os.environ.get(_DEBUG_DUMP_ENV_VAR):
+            _dump_pipeline_stage(
+                depth_m=depth,
+                valid_mask=valid_mask_pre_world,
+                sensor_xyz=sensor_xyz,
+                world_xyz=world_xyz,
+                world_camera=world_camera_t,
+                final_semantic_mask=semantic_mask,
+                world_bounds={
+                    "world_y_min_m": self._world_y_min_m,
+                    "world_x_min_m": self._world_x_min_m,
+                    "world_x_max_m": self._world_x_max_m,
+                    "world_z_min_m": self._world_z_min_m,
+                    "world_z_max_m": self._world_z_max_m,
+                },
+                min_valid_depth_m=self._min_valid_depth_m,
+                max_valid_depth_m=self._max_valid_depth_m,
+            )
 
         sensor_xyz4 = np.column_stack([sensor_xyz, semantic_mask])
         world_xyz4 = np.column_stack([world_xyz, semantic_mask])
@@ -435,3 +465,95 @@ def _transform_xyz(sensor_xyz: np.ndarray, world_camera: np.ndarray) -> np.ndarr
     xyz_h = np.hstack([sensor_xyz, ones])
     xyz_world_h = (world_camera @ xyz_h.T).T
     return xyz_world_h[:, :3]
+
+
+def _axis_stats(arr: np.ndarray, mask: np.ndarray) -> dict:
+    """Per-axis min/max/mean for the rows where mask is truthy.
+
+    Returns:
+        Dict with keys ``count``, ``min``, ``max``, ``mean``. The min/max/mean
+        values are ``None`` when no rows are selected.
+    """
+    selected = arr[mask.astype(bool)]
+    if selected.size == 0:
+        return {"count": 0, "min": None, "max": None, "mean": None}
+    return {
+        "count": int(selected.shape[0]),
+        "min": np.min(selected, axis=0).tolist(),
+        "max": np.max(selected, axis=0).tolist(),
+        "mean": np.mean(selected, axis=0).tolist(),
+    }
+
+
+def _dump_pipeline_stage(
+    *,
+    depth_m: np.ndarray,
+    valid_mask: np.ndarray,
+    sensor_xyz: np.ndarray,
+    world_xyz: np.ndarray,
+    world_camera: np.ndarray,
+    final_semantic_mask: np.ndarray,
+    world_bounds: dict,
+    min_valid_depth_m: float,
+    max_valid_depth_m: float | None,
+) -> None:
+    """Dump one frame's worth of pipeline state for diagnostic inspection.
+
+    Triggered when the MONTY_ADAPTER_DEBUG_DUMP env var is set.
+    Saves a .npz alongside a single summary log line.
+    """
+    dump_dir = Path(
+        os.environ.get(_DEBUG_DUMP_DIR_ENV_VAR, _DEFAULT_DEBUG_DUMP_DIR)
+    ).expanduser()
+    dump_dir.mkdir(parents=True, exist_ok=True)
+    millis_suffix = int(time.monotonic() * 1000) % 1000
+    timestamp = time.strftime("%Y%m%d_%H%M%S") + f"_{millis_suffix:03d}"
+    npz_path = dump_dir / f"frame_{timestamp}.npz"
+
+    h, w = depth_m.shape
+    finite_depth = depth_m[np.isfinite(depth_m)]
+    nonzero_finite = finite_depth[finite_depth > min_valid_depth_m]
+    histogram_max = float(finite_depth.max()) if finite_depth.size > 0 else 0.0
+    histogram_edges = np.linspace(0.0, max(histogram_max, 1e-6), 11)
+    histogram, _ = np.histogram(finite_depth, bins=histogram_edges)
+
+    center_depth = float(depth_m[h // 2, w // 2])
+
+    sensor_stats = _axis_stats(sensor_xyz, valid_mask)
+    world_pre_filter_stats = _axis_stats(world_xyz, valid_mask)
+    world_post_filter_stats = _axis_stats(world_xyz, final_semantic_mask)
+
+    summary = {
+        "depth_shape": (h, w),
+        "depth_min": float(depth_m.min()),
+        "depth_max": float(depth_m.max()),
+        "depth_mean": float(depth_m.mean()),
+        "depth_median": float(np.median(depth_m)),
+        "depth_zero_count": int(np.sum(depth_m == 0)),
+        "depth_finite_count": int(finite_depth.size),
+        "depth_above_min_count": int(nonzero_finite.size),
+        "depth_at_center": center_depth,
+        "depth_histogram_edges": histogram_edges.tolist(),
+        "depth_histogram_counts": histogram.tolist(),
+        "valid_mask_pre_world_filter_count": int(valid_mask.sum()),
+        "sensor_xyz_valid": sensor_stats,
+        "world_xyz_valid_pre_filter": world_pre_filter_stats,
+        "world_xyz_post_filter": world_post_filter_stats,
+        "world_camera": world_camera.tolist(),
+        "world_bounds": world_bounds,
+        "min_valid_depth_m": min_valid_depth_m,
+        "max_valid_depth_m": max_valid_depth_m,
+    }
+
+    np.savez(
+        npz_path,
+        depth_m=depth_m,
+        valid_mask_pre_world_filter=valid_mask.reshape(h, w),
+        sensor_xyz=sensor_xyz,
+        world_xyz=world_xyz,
+        final_semantic_mask=final_semantic_mask.reshape(h, w),
+        world_camera=world_camera,
+    )
+
+    logger.warning("MONTY_ADAPTER_DEBUG_DUMP %s", summary)
+    logger.warning("MONTY_ADAPTER_DEBUG_DUMP saved arrays to %s", npz_path)
