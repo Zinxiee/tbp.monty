@@ -26,9 +26,18 @@ env_init_args:
     fy: 86.60      # 50 / tan(30°)
     cx: 50.0
     cy: 50.0
-    # crop_center_to_square: true causes no actual crop here. 
-    # It only matters if incoming frame is rectangular.
-    crop_center_to_square: true # Sensor's native 100×100 resolution is already square
+    # crop_center_to_square is a fallback guardrail for rectangular inputs.
+    # When patch_* params are set, they take precedence and define the ROI.
+    crop_center_to_square: true
+    # ROI crop applied to the raw 100×100 sensor frame before unprojection.
+    # Default: 10×10 patch, 20 px up from the bottom, 45 px from either side
+    # (horizontally centered, vertically biased toward the bottom of the FOV).
+    # Principal point (cx, cy) is shifted by (left, top) internally so
+    # unprojection geometry stays correct.
+    patch_height: 10
+    patch_width: 10
+    patch_offset_bottom_px: 20
+    patch_offset_left_px: 45
     min_valid_depth_m: 0.05
     # Reject A010 specular/saturation returns at Stage C rather than letting them
     # leak into the world-bounds filter. A010 saturates at ~2.5 m; objects of
@@ -92,7 +101,8 @@ env_init_args:
   agent_id: agent_id_0
   sensor_id: patch
   # Home pose in robot-base frame: [x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg]
-  home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
+  home_pose_mm_deg: [220, 9, 236, 180, 0.0, 0.0]
+  # home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
   # home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
   settle_time_s: 0.25
   # Block each step until the robot reaches its commanded pose (or convergence_timeout_s

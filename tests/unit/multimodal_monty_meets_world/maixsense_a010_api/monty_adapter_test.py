@@ -122,6 +122,65 @@ class MaixsenseMontyObservationAdapterTest(unittest.TestCase):
         self.assertAlmostEqual(adapter.intrinsics.cx, 13.0)
         self.assertAlmostEqual(adapter.intrinsics.cy, 14.0)
 
+    def test_roi_patch_crop_shape_and_unprojection(self) -> None:
+        raw_h, raw_w = 100, 100
+        patch_h, patch_w = 10, 10
+        offset_bottom, offset_left = 20, 45
+        top = raw_h - offset_bottom - patch_h
+        left = offset_left
+
+        fx, fy, cx, cy = 71.41, 86.60, 50.0, 50.0
+        adapter = self.monty_adapter.MaixsenseMontyObservationAdapter(
+            self.monty_adapter.CameraIntrinsics(fx=fx, fy=fy, cx=cx, cy=cy),
+            patch_height=patch_h,
+            patch_width=patch_w,
+            patch_offset_bottom_px=offset_bottom,
+            patch_offset_left_px=offset_left,
+        )
+
+        yy, xx = np.mgrid[0:raw_h, 0:raw_w]
+        depth = (0.1 + 0.001 * (yy + xx)).astype(np.float64)
+
+        obs = adapter.from_depth_m(depth)
+        self.assertEqual(obs["depth"].shape, (patch_h, patch_w))
+
+        cropped = depth[top : top + patch_h, left : left + patch_w]
+        u, v = np.meshgrid(
+            np.arange(patch_w, dtype=np.float64),
+            np.arange(patch_h, dtype=np.float64),
+        )
+        expected_x = ((u - (cx - left)) / fx) * cropped
+        expected_y = -((v - (cy - top)) / fy) * cropped
+        expected_z = -cropped
+        np.testing.assert_allclose(
+            obs["sensor_frame_data"][:, 0], expected_x.reshape(-1)
+        )
+        np.testing.assert_allclose(
+            obs["sensor_frame_data"][:, 1], expected_y.reshape(-1)
+        )
+        np.testing.assert_allclose(
+            obs["sensor_frame_data"][:, 2], expected_z.reshape(-1)
+        )
+
+    def test_roi_patch_out_of_bounds_raises(self) -> None:
+        adapter = self.monty_adapter.MaixsenseMontyObservationAdapter(
+            self.monty_adapter.CameraIntrinsics(fx=1.0, fy=1.0, cx=50.0, cy=50.0),
+            patch_height=10,
+            patch_width=10,
+            patch_offset_bottom_px=95,
+            patch_offset_left_px=0,
+        )
+        depth = np.ones((100, 100), dtype=np.float64)
+        with self.assertRaises(ValueError):
+            adapter.from_depth_m(depth)
+
+    def test_roi_patch_params_require_all_or_none(self) -> None:
+        with self.assertRaises(ValueError):
+            self.monty_adapter.MaixsenseMontyObservationAdapter(
+                self.monty_adapter.CameraIntrinsics(fx=1.0, fy=1.0, cx=0.0, cy=0.0),
+                patch_height=10,
+            )
+
     def test_create_adapter_from_http_calibration_raises_when_missing(self) -> None:
         client = _FakeHttpClient(None)
 

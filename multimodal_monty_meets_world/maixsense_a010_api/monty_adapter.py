@@ -62,6 +62,10 @@ class MaixsenseMontyObservationAdapter:
         intrinsics: CameraIntrinsics,
         *,
         crop_center_to_square: bool = True,
+        patch_height: int | None = None,
+        patch_width: int | None = None,
+        patch_offset_bottom_px: int | None = None,
+        patch_offset_left_px: int | None = None,
         min_valid_depth_m: float = 1e-6,
         max_valid_depth_m: float | None = None,
         semantic_zero_bottom_fraction: float = 0.0,
@@ -73,6 +77,21 @@ class MaixsenseMontyObservationAdapter:
     ) -> None:
         self._intrinsics = intrinsics
         self._crop_center_to_square = crop_center_to_square
+        roi_params = (
+            patch_height,
+            patch_width,
+            patch_offset_bottom_px,
+            patch_offset_left_px,
+        )
+        if any(p is not None for p in roi_params) and any(p is None for p in roi_params):
+            raise ValueError(
+                "patch_height, patch_width, patch_offset_bottom_px, and "
+                "patch_offset_left_px must all be set together, or all be None."
+            )
+        self._patch_height = patch_height
+        self._patch_width = patch_width
+        self._patch_offset_bottom_px = patch_offset_bottom_px
+        self._patch_offset_left_px = patch_offset_left_px
         self._min_valid_depth_m = min_valid_depth_m
         self._max_valid_depth_m = (
             None if max_valid_depth_m is None else float(max_valid_depth_m)
@@ -191,17 +210,50 @@ class MaixsenseMontyObservationAdapter:
         if depth.ndim != 2:
             raise ValueError(f"Expected 2D depth image, got shape {depth.shape}")
 
-        if self._crop_center_to_square:
+        if self._patch_height is not None:
+            raw_h, raw_w = depth.shape
+            top = raw_h - self._patch_offset_bottom_px - self._patch_height
+            left = self._patch_offset_left_px
+            if (
+                top < 0
+                or left < 0
+                or top + self._patch_height > raw_h
+                or left + self._patch_width > raw_w
+            ):
+                raise ValueError(
+                    f"ROI patch (top={top}, left={left}, "
+                    f"h={self._patch_height}, w={self._patch_width}) "
+                    f"falls outside raw frame of shape {depth.shape}."
+                )
+            depth = _crop_to_roi(depth, top, left, self._patch_height, self._patch_width)
+            if rgba is not None:
+                rgba = _crop_to_roi(
+                    rgba, top, left, self._patch_height, self._patch_width
+                )
+            if semantic is not None:
+                semantic = _crop_to_roi(
+                    semantic, top, left, self._patch_height, self._patch_width
+                )
+            effective_intrinsics = CameraIntrinsics(
+                fx=self._intrinsics.fx,
+                fy=self._intrinsics.fy,
+                cx=self._intrinsics.cx - left,
+                cy=self._intrinsics.cy - top,
+            )
+        elif self._crop_center_to_square:
             depth = _center_crop_to_square(depth)
             if rgba is not None:
                 rgba = _center_crop_to_square(rgba)
             if semantic is not None:
                 semantic = _center_crop_to_square(semantic)
+            effective_intrinsics = self._intrinsics
         elif depth.shape[0] != depth.shape[1]:
             raise ValueError(
                 "CameraSM assumes square patches. Enable center-cropping or provide "
                 "a square depth image."
             )
+        else:
+            effective_intrinsics = self._intrinsics
 
         h, w = depth.shape
         world_camera_t = _ensure_world_camera(world_camera)
@@ -218,7 +270,7 @@ class MaixsenseMontyObservationAdapter:
                 self._semantic_zero_bottom_fraction,
             )
 
-        sensor_xyz = _unproject_depth_to_sensor_xyz(depth, self._intrinsics)
+        sensor_xyz = _unproject_depth_to_sensor_xyz(depth, effective_intrinsics)
 
         world_xyz = _transform_xyz(sensor_xyz, world_camera_t)
         semantic_mask = semantic_mask.reshape(-1)
@@ -332,6 +384,14 @@ def _ensure_world_camera(world_camera: Optional[np.ndarray]) -> np.ndarray:
     if mat.shape != (4, 4):
         raise ValueError(f"world_camera must be shape (4, 4), got {mat.shape}")
     return mat
+
+
+def _crop_to_roi(
+    arr: np.ndarray, top: int, left: int, height: int, width: int
+) -> np.ndarray:
+    if arr.ndim < 2:
+        raise ValueError(f"Expected array with at least 2 dims, got shape {arr.shape}")
+    return arr[top : top + height, left : left + width, ...]
 
 
 def _center_crop_to_square(arr: np.ndarray) -> np.ndarray:
