@@ -23,9 +23,9 @@ experiment:
     min_lms_match: 1
     seed: 42
     supervised_lm_ids: []
-    python_log_level: INFO
     logging:
       run_name: real_world_lite6_maixsense_unsupervised
+      python_log_level: DEBUG
     monty_config:
       motor_system_config:
         policy_selector:
