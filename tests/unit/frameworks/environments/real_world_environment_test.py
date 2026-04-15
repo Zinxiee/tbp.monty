@@ -415,6 +415,71 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
 
         self.assertEqual(len(states), 0)
 
+    def test_step_convergence_requires_consecutive_in_tolerance_samples(self) -> None:
+        goal_adapter = _FakeGoalAdapter(dispatch_ok=True)
+        goal_adapter._last_command_position_m = np.array([0.3363, 0.0107, 0.2877])
+        robot = _FakeRobot(end_effector=[336.3, 10.7, 287.7, 0.0, 0.0, 0.0])
+        states = [
+            {"end_effector": [335.3, 10.7, 287.7, 0.0, 0.0, 0.0], "timestamp_s": 0.1},
+            {"end_effector": [325.3, 10.7, 287.7, 0.0, 0.0, 0.0], "timestamp_s": 0.2},
+            {"end_effector": [336.3, 10.7, 287.7, 0.0, 0.0, 0.0], "timestamp_s": 0.3},
+            {"end_effector": [336.3, 10.7, 287.7, 0.0, 0.0, 0.0], "timestamp_s": 0.4},
+        ]
+
+        def get_state() -> dict[str, list[float]]:
+            return states.pop(0) if states else {
+                "end_effector": [336.3, 10.7, 287.7, 0.0, 0.0, 0.0],
+                "timestamp_s": 0.5,
+            }
+
+        robot.get_sense_state = get_state  # type: ignore[method-assign]
+        env = self._make_env(
+            robot=robot,
+            goal_adapter=goal_adapter,
+            settle_use_goal_convergence_gate=True,
+            settle_convergence_timeout_s=0.5,
+            settle_convergence_position_tolerance_mm=5.0,
+            settle_convergence_required_consecutive_samples=2,
+            settle_convergence_poll_s=0.0,
+        )
+
+        with patch(
+            "tbp.monty.frameworks.environments.real_world_environment.time.monotonic",
+            side_effect=[0.0, 0.1, 0.2, 0.3],
+        ):
+            env._wait_for_step_command_convergence()
+
+        self.assertEqual(len(states), 0)
+        self.assertEqual(robot.stop_motion_calls, [])
+
+    def test_step_convergence_timeout_triggers_hard_stop(self) -> None:
+        goal_adapter = _FakeGoalAdapter(dispatch_ok=True)
+        goal_adapter._last_command_position_m = np.array([0.3363, 0.0107, 0.2877])
+        robot = _FakeRobot(end_effector=[300.0, 10.7, 287.7, 0.0, 0.0, 0.0])
+        robot.get_sense_state = lambda: {  # type: ignore[method-assign]
+            "end_effector": [300.0, 10.7, 287.7, 0.0, 0.0, 0.0],
+            "timestamp_s": 0.1,
+        }
+        env = self._make_env(
+            robot=robot,
+            goal_adapter=goal_adapter,
+            settle_use_goal_convergence_gate=True,
+            settle_convergence_timeout_s=0.01,
+            settle_convergence_position_tolerance_mm=5.0,
+            settle_convergence_required_consecutive_samples=2,
+            settle_convergence_poll_s=0.0,
+        )
+
+        with patch(
+            "tbp.monty.frameworks.environments.real_world_environment.time.monotonic",
+            side_effect=[0.0, 0.02],
+        ):
+            with self.assertRaises(RealWorldSafetyStopError) as exc:
+                env._wait_for_step_command_convergence()
+
+        self.assertEqual(exc.exception.reason_code, "SETTLE_CONVERGENCE_TIMEOUT")
+        self.assertEqual(len(robot.stop_motion_calls), 1)
+
     def test_world_camera_matrix_uses_sensor_extrinsics(self) -> None:
         env = self._make_env(
             goal_adapter=_FakeGoalAdapter(),

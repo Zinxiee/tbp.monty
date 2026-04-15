@@ -91,6 +91,7 @@ class RealWorldLite6A010Environment:
         settle_use_goal_convergence_gate: bool = False,
         settle_convergence_timeout_s: float | None = None,
         settle_convergence_position_tolerance_mm: float | None = None,
+        settle_convergence_required_consecutive_samples: int = 2,
         settle_convergence_poll_s: float = 0.02,
         goal_adapter_config: dict[str, Any] | None = None,
         motion_debug_logging: bool = False,
@@ -152,6 +153,9 @@ class RealWorldLite6A010Environment:
             None
             if settle_convergence_position_tolerance_mm is None
             else max(0.0, float(settle_convergence_position_tolerance_mm))
+        )
+        self.settle_convergence_required_consecutive_samples = max(
+            1, int(settle_convergence_required_consecutive_samples)
         )
         self.settle_convergence_poll_s = max(0.0, float(settle_convergence_poll_s))
         self.motion_debug_logging = bool(motion_debug_logging)
@@ -649,7 +653,9 @@ class RealWorldLite6A010Environment:
 
         timeout_s = self._resolve_settle_convergence_timeout_s()
         tolerance_mm = self._resolve_settle_convergence_tolerance_mm()
+        required_samples = self._resolve_settle_convergence_required_samples()
         deadline = time.monotonic() + timeout_s
+        consecutive_in_tolerance = 0
 
         while True:
             current_position_m = self._get_current_robot_position_m()
@@ -657,21 +663,32 @@ class RealWorldLite6A010Environment:
                 error_mm = float(
                     np.linalg.norm(current_position_m - target_position_m) * 1000.0
                 )
+                is_within_tolerance = error_mm <= tolerance_mm
+                if is_within_tolerance:
+                    consecutive_in_tolerance += 1
+                else:
+                    consecutive_in_tolerance = 0
+
                 if error_mm <= tolerance_mm:
-                    self._log_motion_debug(
-                        "SETTLE_POSE_TARGET_VS_SENSED",
-                        target_position_m=np.round(target_position_m, 6).tolist(),
-                        sensed_position_m=np.round(current_position_m, 6).tolist(),
-                        gap_mm=round(error_mm, 3),
-                        tolerance_mm=round(tolerance_mm, 3),
-                        outcome="reached",
-                    )
-                    self._log_motion_debug(
-                        "SETTLE_CONVERGENCE_REACHED",
-                        error_mm=round(error_mm, 3),
-                        tolerance_mm=round(tolerance_mm, 3),
-                    )
-                    return
+                    if consecutive_in_tolerance >= required_samples:
+                        self._log_motion_debug(
+                            "SETTLE_POSE_TARGET_VS_SENSED",
+                            target_position_m=np.round(target_position_m, 6).tolist(),
+                            sensed_position_m=np.round(current_position_m, 6).tolist(),
+                            gap_mm=round(error_mm, 3),
+                            tolerance_mm=round(tolerance_mm, 3),
+                            consecutive_samples=consecutive_in_tolerance,
+                            required_consecutive_samples=required_samples,
+                            outcome="reached",
+                        )
+                        self._log_motion_debug(
+                            "SETTLE_CONVERGENCE_REACHED",
+                            error_mm=round(error_mm, 3),
+                            tolerance_mm=round(tolerance_mm, 3),
+                            consecutive_samples=consecutive_in_tolerance,
+                            required_consecutive_samples=required_samples,
+                        )
+                        return
 
             if time.monotonic() >= deadline:
                 timeout_error_mm = None
@@ -693,14 +710,32 @@ class RealWorldLite6A010Environment:
                         else None
                     ),
                     tolerance_mm=round(tolerance_mm, 3),
+                    consecutive_samples=consecutive_in_tolerance,
+                    required_consecutive_samples=required_samples,
                     outcome="timeout",
                 )
                 self._log_motion_debug(
                     "SETTLE_CONVERGENCE_TIMEOUT",
                     timeout_s=round(timeout_s, 3),
                     tolerance_mm=round(tolerance_mm, 3),
+                    last_error_mm=(
+                        round(timeout_error_mm, 3)
+                        if timeout_error_mm is not None
+                        else None
+                    ),
+                    consecutive_samples=consecutive_in_tolerance,
+                    required_consecutive_samples=required_samples,
                 )
-                return
+                self._hard_stop(
+                    "SETTLE_CONVERGENCE_TIMEOUT",
+                    (
+                        "robot did not converge to commanded step pose: "
+                        f"last_error_mm={timeout_error_mm}, "
+                        f"tolerance_mm={tolerance_mm}, "
+                        f"required_consecutive_samples={required_samples}, "
+                        f"achieved_consecutive_samples={consecutive_in_tolerance}"
+                    ),
+                )
 
             if self.settle_convergence_poll_s > 0:
                 time.sleep(self.settle_convergence_poll_s)
@@ -717,7 +752,10 @@ class RealWorldLite6A010Environment:
             return self.settle_convergence_position_tolerance_mm
 
         safety_config = getattr(self.goal_adapter, "safety_config", None)
-        return float(getattr(safety_config, "convergence_position_tolerance_mm", 5.0))
+        return float(getattr(safety_config, "convergence_position_tolerance_mm", 3.0))
+
+    def _resolve_settle_convergence_required_samples(self) -> int:
+        return self.settle_convergence_required_consecutive_samples
 
     def _get_current_robot_position_m(self) -> np.ndarray | None:
         if not hasattr(self.robot_interface, "get_sense_state"):

@@ -16,7 +16,8 @@ experiment:
         motion_debug_logging: true
         settle_use_goal_convergence_gate: true
         settle_convergence_timeout_s: 4.0
-        settle_convergence_position_tolerance_mm: 5.0
+        settle_convergence_position_tolerance_mm: 3.0
+        settle_convergence_required_consecutive_samples: 2
         settle_convergence_poll_s: 0.02
         probe_move_forward_only: true
         probe_move_forward_distance_m: 0.01

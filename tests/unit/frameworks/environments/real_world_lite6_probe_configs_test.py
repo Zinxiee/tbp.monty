@@ -47,6 +47,8 @@ class RealWorldLite6ProbeConfigTest(unittest.TestCase):
         self.assertTrue(cfg.experiment.config.eval_env_interface_args.use_goal_pose_dispatch)
         self.assertFalse(env_args.require_object_swap_confirmation)
         self.assertTrue(env_args.motion_debug_logging)
+        self.assertEqual(env_args.settle_convergence_position_tolerance_mm, 3.0)
+        self.assertEqual(env_args.settle_convergence_required_consecutive_samples, 2)
         self.assertTrue(env_args.probe_move_forward_only)
         self.assertEqual(env_args.probe_move_forward_distance_m, 0.01)
         self.assertEqual(env_args.probe_max_steps, 6)

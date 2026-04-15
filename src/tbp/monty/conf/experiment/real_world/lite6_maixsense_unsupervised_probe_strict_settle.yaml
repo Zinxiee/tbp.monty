@@ -19,6 +19,7 @@ experiment:
         probe_move_forward_only: false
         probe_max_steps: 6
         settle_convergence_position_tolerance_mm: 5.0
+        settle_convergence_required_consecutive_samples: 2
         goal_adapter_config:
           debug_logging: true
           max_rotation_step_deg: 35

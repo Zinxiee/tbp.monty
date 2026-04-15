@@ -16,6 +16,8 @@ experiment:
       env_init_args:
         require_object_swap_confirmation: false
         motion_debug_logging: true
+        settle_convergence_position_tolerance_mm: 3.0
+        settle_convergence_required_consecutive_samples: 2
         probe_move_forward_only: true
         probe_move_forward_distance_m: 0.01
         probe_max_steps: 6
