@@ -659,6 +659,14 @@ class RealWorldLite6A010Environment:
                 )
                 if error_mm <= tolerance_mm:
                     self._log_motion_debug(
+                        "SETTLE_POSE_TARGET_VS_SENSED",
+                        target_position_m=np.round(target_position_m, 6).tolist(),
+                        sensed_position_m=np.round(current_position_m, 6).tolist(),
+                        gap_mm=round(error_mm, 3),
+                        tolerance_mm=round(tolerance_mm, 3),
+                        outcome="reached",
+                    )
+                    self._log_motion_debug(
                         "SETTLE_CONVERGENCE_REACHED",
                         error_mm=round(error_mm, 3),
                         tolerance_mm=round(tolerance_mm, 3),
@@ -666,6 +674,27 @@ class RealWorldLite6A010Environment:
                     return
 
             if time.monotonic() >= deadline:
+                timeout_error_mm = None
+                if current_position_m is not None:
+                    timeout_error_mm = float(
+                        np.linalg.norm(current_position_m - target_position_m) * 1000.0
+                    )
+                self._log_motion_debug(
+                    "SETTLE_POSE_TARGET_VS_SENSED",
+                    target_position_m=np.round(target_position_m, 6).tolist(),
+                    sensed_position_m=(
+                        np.round(current_position_m, 6).tolist()
+                        if current_position_m is not None
+                        else None
+                    ),
+                    gap_mm=(
+                        round(timeout_error_mm, 3)
+                        if timeout_error_mm is not None
+                        else None
+                    ),
+                    tolerance_mm=round(tolerance_mm, 3),
+                    outcome="timeout",
+                )
                 self._log_motion_debug(
                     "SETTLE_CONVERGENCE_TIMEOUT",
                     timeout_s=round(timeout_s, 3),
