@@ -159,3 +159,6 @@ monty_runs/
 
 # logs
 logs/
+
+# Claude
+.claude/
