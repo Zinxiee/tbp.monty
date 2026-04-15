@@ -1,0 +1,26 @@
+# @package _global_
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised
+
+experiment:
+  config:
+    max_train_steps: 12
+    max_eval_steps: 4
+    max_total_steps: 24
+    train_env_interface_args:
+      use_goal_pose_dispatch: false
+    eval_env_interface_args:
+      use_goal_pose_dispatch: false
+    environment:
+      env_init_args:
+        require_object_swap_confirmation: false
+        motion_debug_logging: true
+        probe_move_forward_only: false
+        probe_max_steps: 6
+        goal_adapter_config:
+          debug_logging: true
+          max_rotation_step_deg: 35
+    logging:
+      python_log_level: DEBUG
+      run_name: real_world_lite6_maixsense_unsupervised_probe_no_dispatch
