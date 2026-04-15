@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, ClassVar, Protocol
 
@@ -181,7 +182,14 @@ class ObservationProcessor:
         self._surface_normal_method = surface_normal_method
         self._weight_curvature = weight_curvature
 
-    def process(self, observation: SensorObservation) -> Message:
+    def process(
+        self,
+        observation: SensorObservation,
+        *,
+        debug_step_id: int | None = None,
+        debug_ts_utc: str | None = None,
+        debug_frame_id: Any | None = None,
+    ) -> Message:
         """Processes observation.
 
         Args:
@@ -205,6 +213,13 @@ class ObservationProcessor:
         obs_dim = int(np.sqrt(obs_3d.shape[0]))
         half_obs_dim = obs_dim // 2
         center_id = half_obs_dim + obs_dim * half_obs_dim
+        debug_prefix = (
+            "SM debug: "
+            f"sm_id={self._sensor_module_id}, "
+            f"step_id={debug_step_id}, "
+            f"frame_id={debug_frame_id}, "
+            f"ts_utc={debug_ts_utc}"
+        )
         # Extract all specified features
         features = {}
         if "object_coverage" in self._features:
@@ -216,7 +231,45 @@ class ObservationProcessor:
 
         x, y, z, semantic_id = obs_3d[center_id]
         on_object = semantic_id > 0
-        if on_object or (self._is_surface_sm and features["object_coverage"] > 0):
+        object_coverage = features.get("object_coverage")
+        extract_reason_code = "unknown"
+        try:
+            should_extract = on_object or (
+                self._is_surface_sm and features["object_coverage"] > 0
+            )
+        except KeyError:
+            logger.debug(
+                "%s\nSM gating: missing object_coverage feature for surface SM; "
+                "is_surface_sm=%s, features=%s, reason_code=missing_object_coverage",
+                debug_prefix,
+                self._is_surface_sm,
+                list(features.keys()),
+            )
+            raise
+
+        if should_extract:
+            if on_object:
+                extract_reason_code = "center_on_object"
+            else:
+                extract_reason_code = "surface_fallback"
+        else:
+            extract_reason_code = "center_off_object_no_surface_fallback"
+
+        logger.debug(
+            "%s\nSM gating: center_id=%d, semantic_id=%s, on_object=%s, "
+            "is_surface_sm=%s, object_coverage=%s, should_extract=%s, "
+            "reason_code=%s",
+            debug_prefix,
+            center_id,
+            semantic_id,
+            on_object,
+            self._is_surface_sm,
+            "n/a" if object_coverage is None else f"{object_coverage:.4f}",
+            should_extract,
+            extract_reason_code,
+        )
+
+        if should_extract:
             (
                 features,
                 morphological_features,
@@ -230,10 +283,17 @@ class ObservationProcessor:
                 center_row_col,
                 sensor_frame_data,
                 world_camera,
+                debug_prefix=debug_prefix,
             )
         else:
             valid_signals = False
             morphological_features = {}
+            logger.debug(
+                "%s\nSM gating: skipping feature extraction; center semantic "
+                "off-object and no surface fallback; "
+                "reason_code=center_off_object_no_surface_fallback.",
+                debug_prefix,
+            )
 
         if "on_object" in self._features:
             morphological_features["on_object"] = float(on_object)
@@ -254,6 +314,23 @@ class ObservationProcessor:
             sender_id=self._sensor_module_id,
             sender_type="SM",
         )
+        use_state_reason_code = "accepted"
+        if not percept.use_state:
+            if not on_object:
+                use_state_reason_code = "center_off_object"
+            elif not valid_signals:
+                use_state_reason_code = "invalid_morphology"
+            else:
+                use_state_reason_code = "suppressed_unknown"
+        logger.debug(
+            "%s\nSM use_state gate: on_object=%s, valid_signals=%s, "
+            "use_state=%s, reason_code=%s",
+            debug_prefix,
+            on_object,
+            valid_signals,
+            percept.use_state,
+            use_state_reason_code,
+        )
         # This is just for logging! Do not use _ attributes for matching
         percept._semantic_id = semantic_id
 
@@ -269,6 +346,7 @@ class ObservationProcessor:
         center_row_col: int,
         sensor_frame_data: np.ndarray,
         world_camera: np.ndarray,
+        debug_prefix: str | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any], bool]:
         """Extract features configured for extraction from sensor patch.
 
@@ -289,6 +367,34 @@ class ObservationProcessor:
 
         k1, k2, dir1, dir2, valid_pc = principal_curvatures(
             obs_3d, center_id, surface_normal, weighted=self._weight_curvature
+        )
+        debug_prefix = (
+            debug_prefix
+            if debug_prefix is not None
+            else f"SM dbg: sm_id={self._sensor_module_id}"
+        )
+        if valid_sn and valid_pc:
+            morphology_reason_code = "morphology_ok"
+        elif (not valid_sn) and (not valid_pc):
+            morphology_reason_code = "invalid_sn_and_pc"
+        elif not valid_sn:
+            morphology_reason_code = "invalid_sn"
+        else:
+            morphology_reason_code = "invalid_pc"
+
+        logger.debug(
+            "%s\nSM morphology: method=%s, center_id=%d, valid_pixels=%d/%d, "
+            "valid_sn=%s, valid_pc=%s, k1=%.6f, k2=%.6f, reason_code=%s",
+            debug_prefix,
+            self._surface_normal_method.value,
+            center_id,
+            int(np.sum(obs_3d[:, 3] > 0)),
+            int(obs_3d.shape[0]),
+            valid_sn,
+            valid_pc,
+            float(k1),
+            float(k2),
+            morphology_reason_code,
         )
         # TODO: test using log curvatures instead
         if np.abs(k1 - k2) < self._pc1_is_pc2_threshold:
@@ -357,7 +463,15 @@ class ObservationProcessor:
 
         valid_signals = valid_sn and valid_pc
         if not valid_signals:
-            logger.debug("Either the surface-normal or pc-directions were ill-defined")
+            logger.debug(
+                "%s\nSM morphology invalid: valid_sn=%s, valid_pc=%s, "
+                "surface_normal=%s, reason_code=%s",
+                debug_prefix,
+                valid_sn,
+                valid_pc,
+                np.round(surface_normal, 6),
+                morphology_reason_code,
+            )
 
         return features, morphological_features, valid_signals
 
@@ -616,6 +730,7 @@ class CameraSM(SensorModule):
         self.features = features
         self.processed_obs: list[dict[str, Any]] = []
         self.states: list[SensorState] = []
+        self._debug_step_counter = 0
         # TODO: give more descriptive & distinct names
         self.sensor_module_id = sensor_module_id
         self.save_raw_obs = save_raw_obs
@@ -626,6 +741,15 @@ class CameraSM(SensorModule):
         self.is_exploring = False
         self.processed_obs = []
         self.states = []
+        self._debug_step_counter = 0
+
+    @staticmethod
+    def _extract_frame_id(observation: SensorObservation) -> Any | None:
+        """Return frame identifier from observation when present."""
+        for key in ("frame_id", "sensor_frame_id", "id"):
+            if key in observation:
+                return observation[key]
+        return None
 
     def update_state(self, agent: AgentState):
         """Update information about the sensors location and rotation."""
@@ -663,15 +787,60 @@ class CameraSM(SensorModule):
                 observation, self.state.rotation, self.state.position
             )
 
-        percept = self._observation_processor.process(observation)
+        debug_step_id = self._debug_step_counter
+        self._debug_step_counter += 1
+        debug_frame_id = self._extract_frame_id(observation)
+        debug_ts_utc = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+        percept = self._observation_processor.process(
+            observation,
+            debug_step_id=debug_step_id,
+            debug_ts_utc=debug_ts_utc,
+            debug_frame_id=debug_frame_id,
+        )
+        pre_noise_use_state = percept.use_state
 
         if percept.use_state:
             percept = self._message_noise(percept, rng=ctx.rng)
+        post_noise_use_state = percept.use_state
 
         if motor_only_step:
+            logger.debug(
+                "SM dbg: sm_id=%s, step_id=%s, frame_id=%s, ts_utc=%s\n"
+                "SM step gate: motor_only_step=True, forcing use_state False; "
+                "reason_code=motor_only_step",
+                self.sensor_module_id,
+                debug_step_id,
+                debug_frame_id,
+                debug_ts_utc,
+            )
             percept.use_state = False
 
+        pre_filter_use_state = percept.use_state
         percept = self._percept_filter(percept)
+        post_filter_use_state = percept.use_state
+        step_reason_code = "passed"
+        if motor_only_step:
+            step_reason_code = "motor_only_step"
+        elif pre_filter_use_state and not post_filter_use_state:
+            step_reason_code = f"{type(self._percept_filter).__name__}_suppressed"
+        elif not pre_filter_use_state:
+            step_reason_code = "pre_filter_false"
+        logger.debug(
+            "SM dbg: sm_id=%s, step_id=%s, frame_id=%s, ts_utc=%s\n"
+            "SM step summary: pre_noise_use_state=%s, "
+            "post_noise_use_state=%s, pre_filter_use_state=%s, "
+            "post_filter_use_state=%s, reason_code=%s",
+            self.sensor_module_id,
+            debug_step_id,
+            debug_frame_id,
+            debug_ts_utc,
+            pre_noise_use_state,
+            post_noise_use_state,
+            pre_filter_use_state,
+            post_filter_use_state,
+            step_reason_code,
+        )
 
         if not self.is_exploring:
             self.processed_obs.append(percept.__dict__)
