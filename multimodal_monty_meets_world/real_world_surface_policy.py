@@ -50,7 +50,10 @@ from tbp.monty.frameworks.actions.actions import (
     OrientVertical,
 )
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
-from tbp.monty.frameworks.models.motor_policies import SurfacePolicy
+from tbp.monty.frameworks.models.motor_policies import (
+    MotorPolicyResult,
+    SurfacePolicy,
+)
 from tbp.monty.frameworks.models.motor_system_state import MotorSystemState
 from tbp.monty.frameworks.sensors import SensorID
 
@@ -59,6 +62,10 @@ logger = logging.getLogger(__name__)
 # Maximum orient rotation per step (degrees). Keeps compensating translation
 # distances sane: tan(15) * 0.22m = 6cm vs tan(35) * 0.22m = 15cm.
 _MAX_ORIENT_DEG = 15.0
+
+# Suppress orient corrections smaller than this. Small noise-driven angles
+# produce compensating translations that accumulate into drift across cycles. (Disabled because I don't think this fixes anything)
+_ORIENT_DEADBAND_DEG = 3.0
 
 # Forward-step limits.  Even valid filtered depth can overshoot on real
 # hardware when the sensor axis is slightly tilted.
@@ -85,7 +92,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         self,
         *args: Any,
         patch_sensor_id: str = "patch",
-        min_object_coverage: float = 0.05,
+        min_object_coverage: float = 0.01,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -109,36 +116,63 @@ class RealWorldSurfacePolicy(SurfacePolicy):
     # ------------------------------------------------------------------
 
     def __call__(self, ctx, observations, state, percept, goal):
-        """Stash observations for ``_move_forward``, then delegate.
+        """Stash observations, delegate, then feed LM whenever object is in view.
+
+        Parent marks all cycle actions except OrientVertical as ``motor_only``
+        and makes every ``_touch_object`` step motor-only too.  On real
+        hardware this starves the LM: with noisy data the sensor frequently
+        drops below ``min_object_coverage`` and all subsequent steps go
+        through ``_touch_object``, so no observation ever reaches the LM and
+        ``exploratory_steps`` never advances.  Here we rewrite the result
+        to send data whenever the filtered depth is available — i.e., when
+        the sensor actually sees the object.
 
         Returns:
-            MotorPolicyResult from the parent ``__call__``.
+            MotorPolicyResult, possibly with ``motor_only_step`` rewritten.
         """
         self._last_observations = observations
-        return super().__call__(ctx, observations, state, percept, goal)
+        result = super().__call__(ctx, observations, state, percept, goal)
+        if result.motor_only_step and self._sensor_sees_object():
+            result = MotorPolicyResult(
+                actions=result.actions,
+                motor_only_step=False,
+                telemetry=result.telemetry,
+                goal_pose=result.goal_pose,
+            )
+        return result
+
+    def _sensor_sees_object(self) -> bool:
+        """True when filtered (semantic) depth is available from last obs.
+
+        Returns:
+            ``True`` when the last observation yields a valid filtered depth.
+        """
+        return self._filtered_forward_depth_from_stashed_obs() is not None
 
     def _orient_horizontal(
         self, state: MotorSystemState, percept: Message
     ) -> OrientHorizontal:
-        """Orient horizontally with clamped angle and object-only depth.
-
-        Uses filtered median depth (object pixels only) instead of the
-        percept's ``mean_depth`` which includes background pixels and
-        inflates compensating distances 2-4x on real hardware.
+        """Orient horizontally with dead-banded clamped angle + object depth.
 
         Returns:
             OrientHorizontal action.
         """
-        rotation_degrees = self.orienting_angle_from_normal(
+        raw_angle = self.orienting_angle_from_normal(
             orienting="horizontal",
             state=state,
             percept=percept,
         )
-        rotation_degrees = float(
-            np.clip(rotation_degrees, -_MAX_ORIENT_DEG, _MAX_ORIENT_DEG)
-        )
+        rotation_degrees = self._shape_orient_angle(raw_angle)
         left_distance, forward_distance = self._compensating_distances(
             rotation_degrees, percept
+        )
+        self._log_orient_diagnostics(
+            "horizontal",
+            raw_angle=raw_angle,
+            rotation_degrees=rotation_degrees,
+            lateral=left_distance,
+            forward=forward_distance,
+            percept=percept,
         )
         return OrientHorizontal(
             agent_id=self.agent_id,
@@ -150,27 +184,73 @@ class RealWorldSurfacePolicy(SurfacePolicy):
     def _orient_vertical(
         self, state: MotorSystemState, percept: Message
     ) -> OrientVertical:
-        """Orient vertically with clamped angle and object-only depth.
+        """Orient vertically with dead-banded clamped angle + object depth.
 
         Returns:
             OrientVertical action.
         """
-        rotation_degrees = self.orienting_angle_from_normal(
+        raw_angle = self.orienting_angle_from_normal(
             orienting="vertical",
             state=state,
             percept=percept,
         )
-        rotation_degrees = float(
-            np.clip(rotation_degrees, -_MAX_ORIENT_DEG, _MAX_ORIENT_DEG)
-        )
+        rotation_degrees = self._shape_orient_angle(raw_angle)
         down_distance, forward_distance = self._compensating_distances(
             rotation_degrees, percept
+        )
+        self._log_orient_diagnostics(
+            "vertical",
+            raw_angle=raw_angle,
+            rotation_degrees=rotation_degrees,
+            lateral=down_distance,
+            forward=forward_distance,
+            percept=percept,
         )
         return OrientVertical(
             agent_id=self.agent_id,
             rotation_degrees=rotation_degrees,
             down_distance=down_distance,
             forward_distance=forward_distance,
+        )
+
+    def _shape_orient_angle(self, raw_angle: float) -> float:
+        """Apply dead-band then clamp to ``_MAX_ORIENT_DEG``.
+
+        Returns:
+            The shaped rotation angle in degrees.
+        """
+        angle = float(raw_angle)
+        if abs(angle) < _ORIENT_DEADBAND_DEG:
+            return 0.0
+        return float(np.clip(angle, -_MAX_ORIENT_DEG, _MAX_ORIENT_DEG))
+
+    def _log_orient_diagnostics(
+        self,
+        axis: str,
+        *,
+        raw_angle: float,
+        rotation_degrees: float,
+        lateral: float,
+        forward: float,
+        percept: Message,
+    ) -> None:
+        """Log raw normal, computed angle, depth, and compensating distances."""
+        try:
+            normal = np.asarray(percept.get_surface_normal(), dtype=float)
+            normal_str = np.round(normal, 4).tolist()
+        except Exception:  # noqa: BLE001
+            normal_str = "unavailable"
+        depth = self._filtered_forward_depth_from_stashed_obs()
+        logger.info(
+            "orient_%s: raw=%.3f° shaped=%.3f° lateral=%.4fm fwd=%.4fm "
+            "depth=%s normal=%s",
+            axis,
+            float(raw_angle),
+            float(rotation_degrees),
+            float(lateral),
+            float(forward),
+            f"{depth:.4f}m" if depth is not None else "None",
+            normal_str,
         )
 
     def _move_forward(self, percept: Message) -> MoveForward:  # noqa: ARG002
