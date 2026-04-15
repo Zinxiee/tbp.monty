@@ -26,8 +26,8 @@ env_init_args:
     fy: 86.60      # 50 / tan(30°)
     cx: 50.0
     cy: 50.0
-    crop_center_to_square: true
-    min_valid_depth_m: 1.0e-6
+    crop_center_to_square: true # Sensor's native 100×100 resolution is already square
+    min_valid_depth_m: 0.05
     # Reject A010 specular/saturation returns at Stage C rather than letting them
     # leak into the world-bounds filter. A010 saturates at ~2.5 m; objects of
     # interest sit at 0.1–0.5 m, so 0.6 m gives headroom without clipping the scene.
