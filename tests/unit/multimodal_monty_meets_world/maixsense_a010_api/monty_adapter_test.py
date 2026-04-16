@@ -204,6 +204,37 @@ class MaixsenseMontyObservationAdapterTest(unittest.TestCase):
             any("SEMANTIC_FILTER_COUNTS" in msg for msg in captured.output)
         )
 
+    def test_y_min_only_can_zero_mask_and_reports_reject_counts(self) -> None:
+        adapter = self.monty_adapter.MaixsenseMontyObservationAdapter(
+            self.monty_adapter.CameraIntrinsics(fx=2.0, fy=2.0, cx=1.0, cy=1.0),
+            semantic_debug_logging=True,
+            world_y_min_m=0.01,
+        )
+        depth = np.full((2, 2), 0.1, dtype=np.float64)
+        world_camera = np.eye(4, dtype=np.float64)
+        world_camera[1, 3] = -0.2
+
+        with self.assertLogs(
+            "multimodal_monty_meets_world.maixsense_a010_api.monty_adapter",
+            level="INFO",
+        ) as captured:
+            obs = adapter.from_depth_m(depth, world_camera=world_camera)
+
+        semantic = obs["semantic_3d"][:, 3]
+        np.testing.assert_array_equal(semantic, np.zeros_like(semantic))
+
+        self.assertTrue(
+            any(
+                (
+                    "SEMANTIC_FILTER_COUNTS" in msg
+                    and "pre_world=4" in msg
+                    and "post_world=0" in msg
+                    and "rejects={y_min:4,x_min:0,x_max:0,z_min:0,z_max:0,any:4}" in msg
+                )
+                for msg in captured.output
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -329,6 +329,46 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
             any("orient_horizontal_decomposition" in msg for msg in captured.output)
         )
 
+    def test_orient_vertical_large_raw_angle_has_cm_scale_translation(self) -> None:
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import LookUp
+        from tbp.monty.frameworks.agents import AgentID
+
+        class _FakeAgentState:
+            def __init__(self):
+                self.rotation = qt.one
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+        )
+        state = {agent_id: _FakeAgentState()}
+        percept = mock.Mock()
+        percept.get_feature_by_name.return_value = 0.2
+
+        with mock.patch.object(
+            policy,
+            "orienting_angle_from_normal",
+            return_value=66.129,
+        ), mock.patch.object(
+            policy,
+            "_filtered_forward_depth_from_stashed_obs",
+            return_value=0.1121,
+        ):
+            action = policy._orient_vertical(state, percept)
+
+        self.assertAlmostEqual(action.rotation_degrees, 15.0, places=6)
+        self.assertAlmostEqual(action.down_distance, 0.030036, places=5)
+        self.assertAlmostEqual(action.forward_distance, 0.003933, places=5)
+
 
 class MotionValidationConfigTest(unittest.TestCase):
     """Tests for the motion validation experiment config and action file."""
