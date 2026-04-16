@@ -444,13 +444,20 @@ class RealWorldLite6A010Environment:
                 quat_xyzw[2],
             )
 
-        delta = self._clip_translation_step(delta)
+        raw_delta = np.asarray(delta, dtype=float)
+        raw_delta_norm = float(np.linalg.norm(raw_delta))
+        delta = self._clip_translation_step(raw_delta)
+        clipped_delta_norm = float(np.linalg.norm(delta))
         goal_pos = current_pos + delta
         self._log_motion_debug(
             "RELATIVE_ACTION_GOAL",
             action_type=type(action).__name__,
             current_position_m=np.round(current_pos, 6).tolist(),
+            raw_delta_m=np.round(raw_delta, 6).tolist(),
+            raw_delta_norm_m=round(raw_delta_norm, 6),
             delta_m=np.round(delta, 6).tolist(),
+            delta_norm_m=round(clipped_delta_norm, 6),
+            translation_was_clipped=bool(clipped_delta_norm + 1e-12 < raw_delta_norm),
             goal_position_m=np.round(goal_pos, 6).tolist(),
             goal_quaternion_wxyz=np.round(qt.as_float_array(goal_quat), 6).tolist(),
         )
@@ -929,6 +936,15 @@ class RealWorldLite6A010Environment:
         sensor_position_m = agent_position_m + rot.from_quat(
             _quat_wxyz_to_xyzw(agent_rotation)
         ).apply(self.sensor_translation_m)
+        sensor_relative_to_agent_m = sensor_position_m - agent_position_m
+
+        self._log_motion_debug(
+            "PROPRIO_SENSOR_POSE",
+            agent_position_m=np.round(agent_position_m, 6).tolist(),
+            sensor_position_m=np.round(sensor_position_m, 6).tolist(),
+            sensor_relative_to_agent_m=np.round(sensor_relative_to_agent_m, 6).tolist(),
+            configured_sensor_translation_m=np.round(self.sensor_translation_m, 6).tolist(),
+        )
 
         return ProprioceptiveState(
             {

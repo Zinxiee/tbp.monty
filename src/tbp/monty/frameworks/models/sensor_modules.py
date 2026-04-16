@@ -268,6 +268,14 @@ class ObservationProcessor:
             should_extract,
             extract_reason_code,
         )
+        if extract_reason_code == "surface_fallback":
+            logger.info(
+                "%s\nSM fallback: center_off_object_with_coverage; "
+                "object_coverage=%s, semantic_center=%s, reason_code=surface_fallback",
+                debug_prefix,
+                "n/a" if object_coverage is None else f"{object_coverage:.4f}",
+                semantic_id,
+            )
 
         if should_extract:
             (
@@ -331,6 +339,14 @@ class ObservationProcessor:
             percept.use_state,
             use_state_reason_code,
         )
+        if (extract_reason_code == "surface_fallback") and (not percept.use_state):
+            logger.info(
+                "%s\nSM fallback->use_state_off: LM input suppressed during fallback; "
+                "valid_signals=%s, reason_code=%s",
+                debug_prefix,
+                valid_signals,
+                use_state_reason_code,
+            )
         # This is just for logging! Do not use _ attributes for matching
         percept._semantic_id = semantic_id
 

@@ -297,12 +297,22 @@ class MaixsenseMontyObservationAdapter:
             world_z_max_m=self._world_z_max_m,
         )
         semantic_count_post_world = int(np.sum(semantic_mask > 0))
+        per_axis_rejects = _world_bounds_reject_counts(
+            valid_mask_pre_world,
+            world_xyz,
+            world_y_min_m=self._world_y_min_m,
+            world_x_min_m=self._world_x_min_m,
+            world_x_max_m=self._world_x_max_m,
+            world_z_min_m=self._world_z_min_m,
+            world_z_max_m=self._world_z_max_m,
+        )
 
         if self._semantic_debug_logging:
             logger.info(
                 "SEMANTIC_FILTER_COUNTS depth_valid=%d normalized=%d post_bottom=%d "
                 "pre_world=%d post_world=%d total=%d bounds={y_min:%s,x_min:%s,"
-                "x_max:%s,z_min:%s,z_max:%s}",
+                "x_max:%s,z_min:%s,z_max:%s} rejects={y_min:%d,x_min:%d,"
+                "x_max:%d,z_min:%d,z_max:%d,any:%d}",
                 depth_valid_count,
                 semantic_count_normalized,
                 semantic_count_post_bottom,
@@ -314,6 +324,12 @@ class MaixsenseMontyObservationAdapter:
                 self._world_x_max_m,
                 self._world_z_min_m,
                 self._world_z_max_m,
+                per_axis_rejects["y_min"],
+                per_axis_rejects["x_min"],
+                per_axis_rejects["x_max"],
+                per_axis_rejects["z_min"],
+                per_axis_rejects["z_max"],
+                per_axis_rejects["any"],
             )
 
         if os.environ.get(_DEBUG_DUMP_ENV_VAR):
@@ -530,6 +546,67 @@ def _apply_world_bounds_filter(
         include &= world_xyz[:, 2] < world_z_max_m
 
     return (filtered.astype(bool) & include).astype(np.int32)
+
+
+def _world_bounds_reject_counts(
+    pre_world_semantic_mask: np.ndarray,
+    world_xyz: np.ndarray,
+    *,
+    world_y_min_m: float | None = None,
+    world_x_min_m: float | None = None,
+    world_x_max_m: float | None = None,
+    world_z_min_m: float | None = None,
+    world_z_max_m: float | None = None,
+) -> dict[str, int]:
+    """Count semantic points rejected by each world-bound criterion.
+
+    Counts are computed over points that were semantic-positive before world-bounds
+    filtering (``pre_world_semantic_mask > 0``).
+    """
+    pre_world_mask = np.asarray(pre_world_semantic_mask, dtype=bool)
+
+    rejects_y_min = (
+        pre_world_mask & (world_xyz[:, 1] <= world_y_min_m)
+        if world_y_min_m is not None
+        else np.zeros_like(pre_world_mask)
+    )
+    rejects_x_min = (
+        pre_world_mask & (world_xyz[:, 0] <= world_x_min_m)
+        if world_x_min_m is not None
+        else np.zeros_like(pre_world_mask)
+    )
+    rejects_x_max = (
+        pre_world_mask & (world_xyz[:, 0] >= world_x_max_m)
+        if world_x_max_m is not None
+        else np.zeros_like(pre_world_mask)
+    )
+    rejects_z_min = (
+        pre_world_mask & (world_xyz[:, 2] <= world_z_min_m)
+        if world_z_min_m is not None
+        else np.zeros_like(pre_world_mask)
+    )
+    rejects_z_max = (
+        pre_world_mask & (world_xyz[:, 2] >= world_z_max_m)
+        if world_z_max_m is not None
+        else np.zeros_like(pre_world_mask)
+    )
+
+    rejects_any = (
+        rejects_y_min
+        | rejects_x_min
+        | rejects_x_max
+        | rejects_z_min
+        | rejects_z_max
+    )
+
+    return {
+        "y_min": int(np.sum(rejects_y_min)),
+        "x_min": int(np.sum(rejects_x_min)),
+        "x_max": int(np.sum(rejects_x_max)),
+        "z_min": int(np.sum(rejects_z_min)),
+        "z_max": int(np.sum(rejects_z_max)),
+        "any": int(np.sum(rejects_any)),
+    }
 
 
 def _unproject_depth_to_sensor_xyz(

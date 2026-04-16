@@ -328,12 +328,23 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         """
         filtered = self._filtered_forward_depth_from_stashed_obs()
         if filtered is not None:
-            distance = min(
-                filtered - self.desired_object_distance,
-                _MAX_FORWARD_STEP_M,
+            raw_distance = filtered - self.desired_object_distance
+            distance = min(raw_distance, _MAX_FORWARD_STEP_M)
+            logger.info(
+                "move_forward_distance: filtered_depth=%.6fm desired=%.6fm "
+                "raw=%.6fm capped=%.6fm cap=%.6fm",
+                float(filtered),
+                float(self.desired_object_distance),
+                float(raw_distance),
+                float(distance),
+                float(_MAX_FORWARD_STEP_M),
             )
         else:
             distance = _FALLBACK_FORWARD_STEP_M
+            logger.info(
+                "move_forward_distance: filtered_depth=None fallback_step=%.6fm",
+                float(distance),
+            )
         return MoveForward(agent_id=self.agent_id, distance=distance)
 
     # ------------------------------------------------------------------
@@ -358,14 +369,35 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         )
 
         if filtered_depth is not None and filtered_depth < 1.0:
-            distance = (
-                filtered_depth
-                - self.desired_object_distance
-                - state[self.agent_id]
+            sensor_state_z = (
+                state[self.agent_id]
                 .sensors[view_sensor_id]
                 .position[2]
             )
+            raw_distance = (
+                filtered_depth
+                - self.desired_object_distance
+                - sensor_state_z
+            )
+            no_sensor_z_distance = filtered_depth - self.desired_object_distance
+            distance = (
+                filtered_depth
+                - self.desired_object_distance
+                - sensor_state_z
+            )
             distance = min(distance, _MAX_FORWARD_STEP_M)
+            logger.info(
+                "touch_object_distance: filtered_depth=%.6fm desired=%.6fm "
+                "sensor_state_z=%.6fm raw=%.6fm raw_no_sensor_z=%.6fm "
+                "capped=%.6fm cap=%.6fm",
+                float(filtered_depth),
+                float(self.desired_object_distance),
+                float(sensor_state_z),
+                float(raw_distance),
+                float(no_sensor_z_distance),
+                float(distance),
+                float(_MAX_FORWARD_STEP_M),
+            )
             self.attempting_to_find_object = False
             return MoveForward(
                 agent_id=self.agent_id, distance=distance
