@@ -41,6 +41,7 @@ import logging
 from typing import Any
 
 import numpy as np
+import quaternion as qt
 
 from tbp.monty.cmp import Message
 from tbp.monty.context import RuntimeContext
@@ -93,6 +94,8 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         *args: Any,
         patch_sensor_id: str = "patch",
         min_object_coverage: float = 0.01,
+        disable_orient_compensation_translation: bool = False,
+        enable_orient_decomposition_logging: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -102,6 +105,12 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         )
         self._patch_sensor_id = SensorID(patch_sensor_id)
         self._last_observations: Observations | None = None
+        self._disable_orient_compensation_translation = bool(
+            disable_orient_compensation_translation
+        )
+        self._enable_orient_decomposition_logging = bool(
+            enable_orient_decomposition_logging
+        )
 
     def _touch_sensor_id(self) -> SensorID:
         """Use the real sensor patch instead of the non-existent view-finder.
@@ -172,6 +181,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             rotation_degrees=rotation_degrees,
             lateral=left_distance,
             forward=forward_distance,
+            state=state,
             percept=percept,
         )
         return OrientHorizontal(
@@ -204,6 +214,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             rotation_degrees=rotation_degrees,
             lateral=down_distance,
             forward=forward_distance,
+            state=state,
             percept=percept,
         )
         return OrientVertical(
@@ -232,6 +243,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         rotation_degrees: float,
         lateral: float,
         forward: float,
+        state: MotorSystemState,
         percept: Message,
     ) -> None:
         """Log raw normal, computed angle, depth, and compensating distances."""
@@ -240,10 +252,25 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             normal_str = np.round(normal, 4).tolist()
         except Exception:  # noqa: BLE001
             normal_str = "unavailable"
+
+        if self._enable_orient_decomposition_logging:
+            decomposition = self._orient_decomposition(axis, state, percept)
+            logger.info(
+                "orient_%s_decomposition: branch=%s rotated_normal=%s x=%.6f y=%.6f "
+                "z=%.6f raw_from_components=%.3f",
+                axis,
+                decomposition["branch"],
+                decomposition["rotated_normal"],
+                decomposition["x"],
+                decomposition["y"],
+                decomposition["z"],
+                decomposition["raw_from_components"],
+            )
+
         depth = self._filtered_forward_depth_from_stashed_obs()
         logger.info(
             "orient_%s: raw=%.3f° shaped=%.3f° lateral=%.4fm fwd=%.4fm "
-            "depth=%s normal=%s",
+            "depth=%s normal=%s translation_disabled=%s",
             axis,
             float(raw_angle),
             float(rotation_degrees),
@@ -251,7 +278,47 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             float(forward),
             f"{depth:.4f}m" if depth is not None else "None",
             normal_str,
+            self._disable_orient_compensation_translation,
         )
+
+    def _orient_decomposition(
+        self,
+        axis: str,
+        state: MotorSystemState,
+        percept: Message,
+    ) -> dict[str, Any]:
+        """Return intermediate values used by orient angle computation."""
+        original_surface_normal = np.asarray(percept.get_surface_normal(), dtype=float)
+        inverse_quaternion_rotation = self.get_inverse_agent_rot(state)
+        rotated_surface_normal = np.asarray(
+            qt.rotate_vectors(inverse_quaternion_rotation, original_surface_normal),
+            dtype=float,
+        )
+        x, y, z = rotated_surface_normal
+
+        if axis == "horizontal":
+            if z != 0:
+                raw_from_components = -np.degrees(np.arctan(x / z))
+                branch = "atan_x_over_z"
+            else:
+                raw_from_components = -np.sign(x) * 90.0
+                branch = "z_zero_sign_x"
+        else:
+            if z != 0:
+                raw_from_components = -np.degrees(np.arctan(y / z))
+                branch = "atan_y_over_z"
+            else:
+                raw_from_components = -np.sign(y) * 90.0
+                branch = "z_zero_sign_y"
+
+        return {
+            "rotated_normal": np.round(rotated_surface_normal, 6).tolist(),
+            "x": float(x),
+            "y": float(y),
+            "z": float(z),
+            "branch": branch,
+            "raw_from_components": float(raw_from_components),
+        }
 
     def _move_forward(self, percept: Message) -> MoveForward:  # noqa: ARG002
         """Move forward using semantic-filtered depth, capped for safety.
@@ -375,6 +442,8 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         depth = self._filtered_forward_depth_from_stashed_obs()
         if depth is None:
             depth = percept.get_feature_by_name("mean_depth")
+        if self._disable_orient_compensation_translation:
+            return 0.0, 0.0
         rotation_radians = np.radians(rotation_degrees)
         cos_r = np.cos(rotation_radians)
         lateral = np.tan(rotation_radians) * depth

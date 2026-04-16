@@ -1,0 +1,19 @@
+# @package _global_
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised_probe_baseline
+
+experiment:
+  config:
+    environment:
+      env_init_args:
+        observation_adapter:
+          semantic_debug_logging: true
+    monty_config:
+      motor_system_config:
+        policy_selector:
+          policy:
+            enable_orient_decomposition_logging: true
+            disable_orient_compensation_translation: false
+    logging:
+      run_name: real_world_lite6_maixsense_unsupervised_probe_diagnostics_control

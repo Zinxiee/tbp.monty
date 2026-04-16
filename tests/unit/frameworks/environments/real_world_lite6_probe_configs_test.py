@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import numpy.testing as nptest
+import quaternion as qt
 from omegaconf import OmegaConf
 from scipy.spatial.transform import Rotation as rot
 
@@ -255,6 +257,77 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
         )
 
         self.assertEqual(policy._touch_sensor_id(), SensorID("my_sensor"))
+
+    def test_disable_orient_compensation_translation_zeros_offsets(self) -> None:
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import LookUp
+        from tbp.monty.frameworks.agents import AgentID
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+            disable_orient_compensation_translation=True,
+        )
+        percept = mock.Mock()
+        percept.get_feature_by_name.return_value = 0.2
+
+        lateral, forward = policy._compensating_distances(15.0, percept)
+
+        self.assertEqual(lateral, 0.0)
+        self.assertEqual(forward, 0.0)
+
+    def test_orient_decomposition_logging_emits_diagnostics(self) -> None:
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import LookUp
+        from tbp.monty.frameworks.agents import AgentID
+
+        class _FakeAgentState:
+            def __init__(self):
+                self.rotation = qt.one
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+            enable_orient_decomposition_logging=True,
+        )
+        state = {agent_id: _FakeAgentState()}
+        percept = mock.Mock()
+        percept.get_feature_by_name.return_value = 0.2
+        percept.get_surface_normal.return_value = np.array([0.2, -0.3, 0.9])
+
+        with self.assertLogs(
+            "multimodal_monty_meets_world.real_world_surface_policy",
+            level="INFO",
+        ) as captured:
+            policy._log_orient_diagnostics(
+                "horizontal",
+                raw_angle=5.0,
+                rotation_degrees=5.0,
+                lateral=0.01,
+                forward=0.001,
+                state=state,
+                percept=percept,
+            )
+
+        self.assertTrue(
+            any("orient_horizontal_decomposition" in msg for msg in captured.output)
+        )
 
 
 class MotionValidationConfigTest(unittest.TestCase):

@@ -20,7 +20,7 @@ experiment:
         settle_convergence_required_consecutive_samples: 2
         probe_move_forward_only: true
         probe_move_forward_distance_m: 0.01
-        probe_max_steps: 6
+        probe_max_steps: 2
         goal_adapter_config:
           debug_logging: true
     logging:

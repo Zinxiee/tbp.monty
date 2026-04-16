@@ -187,6 +187,23 @@ class MaixsenseMontyObservationAdapterTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.monty_adapter.create_adapter_from_http_calibration(client)
 
+    def test_semantic_debug_logging_emits_filter_counts(self) -> None:
+        adapter = self.monty_adapter.MaixsenseMontyObservationAdapter(
+            self.monty_adapter.CameraIntrinsics(fx=2.0, fy=2.0, cx=1.0, cy=1.0),
+            semantic_debug_logging=True,
+        )
+        depth = np.array([[1.0, 1.0], [1.0, 1.0]], dtype=np.float64)
+
+        with self.assertLogs(
+            "multimodal_monty_meets_world.maixsense_a010_api.monty_adapter",
+            level="INFO",
+        ) as captured:
+            adapter.from_depth_m(depth)
+
+        self.assertTrue(
+            any("SEMANTIC_FILTER_COUNTS" in msg for msg in captured.output)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -173,11 +173,13 @@ class TestCreateObservationAdapter:
                 cy=120.0,
                 crop_center_to_square=False,
                 min_valid_depth_m=0.1,
+                semantic_debug_logging=True,
             )
             
             call_args = mock_adapter_class.call_args
             assert call_args[1]["crop_center_to_square"] is False
             assert call_args[1]["min_valid_depth_m"] == 0.1
+            assert call_args[1]["semantic_debug_logging"] is True
 
 
 class TestCreateGoalAdapter:

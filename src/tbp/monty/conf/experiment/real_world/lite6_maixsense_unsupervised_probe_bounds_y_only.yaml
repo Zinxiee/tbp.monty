@@ -1,0 +1,17 @@
+# @package _global_
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised_probe_diagnostics_control
+
+experiment:
+  config:
+    environment:
+      env_init_args:
+        observation_adapter:
+          world_y_min_m: 0.01
+          world_x_min_m: null
+          world_x_max_m: null
+          world_z_min_m: null
+          world_z_max_m: null
+    logging:
+      run_name: real_world_lite6_maixsense_unsupervised_probe_bounds_y_only

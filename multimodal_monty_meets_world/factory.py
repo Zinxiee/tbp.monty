@@ -168,6 +168,7 @@ def create_observation_adapter(
     world_x_min_m: float | None = None,
     world_z_max_m: float | None = None,
     world_z_min_m: float | None = None,
+    semantic_debug_logging: bool = False,
 ) -> MaixsenseMontyObservationAdapter:
     """Create an observation adapter for Maixsense A010 frames.
 
@@ -192,6 +193,7 @@ def create_observation_adapter(
              Can be used to exclude areas outside the robot's reachable workspace.
         world_z_min_m: Optional minimum Monty world-frame Z (meters) for semantic mask inclusion.
                 Can be used to exclude areas outside the robot's reachable workspace.
+           semantic_debug_logging: If True, emits per-frame semantic count diagnostics.
 
     Returns:
         Initialized MaixsenseMontyObservationAdapter instance.
@@ -212,6 +214,7 @@ def create_observation_adapter(
         world_x_min_m=world_x_min_m,
         world_z_max_m=world_z_max_m,
         world_z_min_m=world_z_min_m,
+        semantic_debug_logging=semantic_debug_logging,
     )
 
 

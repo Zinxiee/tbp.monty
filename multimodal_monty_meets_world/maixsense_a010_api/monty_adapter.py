@@ -74,6 +74,7 @@ class MaixsenseMontyObservationAdapter:
         world_x_min_m: float | None = None,
         world_z_max_m: float | None = None,
         world_z_min_m: float | None = None,
+        semantic_debug_logging: bool = False,
     ) -> None:
         self._intrinsics = intrinsics
         self._crop_center_to_square = crop_center_to_square
@@ -104,6 +105,7 @@ class MaixsenseMontyObservationAdapter:
         self._world_x_min_m = None if world_x_min_m is None else float(world_x_min_m)
         self._world_z_max_m = None if world_z_max_m is None else float(world_z_max_m)
         self._world_z_min_m = None if world_z_min_m is None else float(world_z_min_m)
+        self._semantic_debug_logging = bool(semantic_debug_logging)
 
     @property
     def intrinsics(self) -> CameraIntrinsics:
@@ -264,11 +266,18 @@ class MaixsenseMontyObservationAdapter:
             min_valid_depth_m=self._min_valid_depth_m,
             max_valid_depth_m=self._max_valid_depth_m,
         )
+        semantic_count_normalized = int(np.sum(semantic_mask > 0))
         if self._semantic_zero_bottom_fraction > 0.0:
             semantic_mask = _zero_semantic_bottom_rows(
                 semantic_mask,
                 self._semantic_zero_bottom_fraction,
             )
+        semantic_count_post_bottom = int(np.sum(semantic_mask > 0))
+
+        depth_valid_mask = np.isfinite(depth) & (depth > self._min_valid_depth_m)
+        if self._max_valid_depth_m is not None:
+            depth_valid_mask = depth_valid_mask & (depth < self._max_valid_depth_m)
+        depth_valid_count = int(np.sum(depth_valid_mask))
 
         sensor_xyz = _unproject_depth_to_sensor_xyz(depth, effective_intrinsics)
 
@@ -287,6 +296,25 @@ class MaixsenseMontyObservationAdapter:
             world_z_min_m=self._world_z_min_m,
             world_z_max_m=self._world_z_max_m,
         )
+        semantic_count_post_world = int(np.sum(semantic_mask > 0))
+
+        if self._semantic_debug_logging:
+            logger.info(
+                "SEMANTIC_FILTER_COUNTS depth_valid=%d normalized=%d post_bottom=%d "
+                "pre_world=%d post_world=%d total=%d bounds={y_min:%s,x_min:%s,"
+                "x_max:%s,z_min:%s,z_max:%s}",
+                depth_valid_count,
+                semantic_count_normalized,
+                semantic_count_post_bottom,
+                int(np.sum(valid_mask_pre_world > 0)),
+                semantic_count_post_world,
+                int(semantic_mask.shape[0]),
+                self._world_y_min_m,
+                self._world_x_min_m,
+                self._world_x_max_m,
+                self._world_z_min_m,
+                self._world_z_max_m,
+            )
 
         if os.environ.get(_DEBUG_DUMP_ENV_VAR):
             _dump_pipeline_stage(
