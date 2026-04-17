@@ -105,19 +105,25 @@ class RealWorldLite6A010Environment:
         sensed_orientation_signs: Sequence[float] = (1.0, 1.0, 1.0),
         sensed_orientation_offset_wxyz: Sequence[float] = (1.0, 0.0, 0.0, 0.0),
         sensed_motion_offset_wxyz: Sequence[float] = (1.0, 0.0, 0.0, 0.0),
+        min_sensor_height_m: float | None = None,
     ) -> None:
         self.robot_interface = robot_interface
         self.sensor_client = sensor_client
         self.observation_adapter = observation_adapter
-        
+
         # Instantiate goal_adapter from config if not provided as object.
         if goal_adapter is None and goal_adapter_config is not None:
             try:
                 from multimodal_monty_meets_world.factory import create_goal_adapter
-                goal_adapter = create_goal_adapter(robot=robot_interface, **goal_adapter_config)
+
+                goal_adapter = create_goal_adapter(
+                    robot=robot_interface, **goal_adapter_config
+                )
             except ImportError as e:
-                logger.warning(f"Failed to instantiate goal_adapter from config: {e}. Goal dispatch disabled.")
-        
+                logger.warning(
+                    f"Failed to instantiate goal_adapter from config: {e}. Goal dispatch disabled."
+                )
+
         self.goal_adapter = goal_adapter
         self.agent_id = AgentID(agent_id)
         self.sensor_id = SensorID(sensor_id)
@@ -160,7 +166,9 @@ class RealWorldLite6A010Environment:
         self.settle_convergence_poll_s = max(0.0, float(settle_convergence_poll_s))
         self.motion_debug_logging = bool(motion_debug_logging)
         self.probe_move_forward_only = bool(probe_move_forward_only)
-        self.probe_move_forward_distance_m = max(0.0, float(probe_move_forward_distance_m))
+        self.probe_move_forward_distance_m = max(
+            0.0, float(probe_move_forward_distance_m)
+        )
         self.probe_max_steps = max(0, int(probe_max_steps))
         self.sensed_orientation_sequence = str(sensed_orientation_sequence)
         self.sensed_orientation_degrees = bool(sensed_orientation_degrees)
@@ -168,12 +176,15 @@ class RealWorldLite6A010Environment:
         self.sensed_orientation_index_order = tuple(
             int(index) for index in sensed_orientation_index_order
         )
-        self.sensed_orientation_signs = np.asarray(sensed_orientation_signs, dtype=float)
+        self.sensed_orientation_signs = np.asarray(
+            sensed_orientation_signs, dtype=float
+        )
         self.sensed_orientation_offset_wxyz = _as_wxyz_quaternion(
             sensed_orientation_offset_wxyz
         )
-        self.sensed_motion_offset_wxyz = _as_wxyz_quaternion(
-            sensed_motion_offset_wxyz
+        self.sensed_motion_offset_wxyz = _as_wxyz_quaternion(sensed_motion_offset_wxyz)
+        self.min_sensor_height_m = (
+            None if min_sensor_height_m is None else float(min_sensor_height_m)
         )
         self._probe_step_count = 0
         self._last_home_command_time_s: float | None = None
@@ -181,7 +192,9 @@ class RealWorldLite6A010Environment:
         if len(self.sensed_orientation_sequence) != 3:
             raise ValueError("sensed_orientation_sequence must contain exactly 3 axes")
         if len(self.sensed_orientation_index_order) != 3:
-            raise ValueError("sensed_orientation_index_order must contain exactly 3 indices")
+            raise ValueError(
+                "sensed_orientation_index_order must contain exactly 3 indices"
+            )
         if self.sensed_orientation_signs.shape != (3,):
             raise ValueError("sensed_orientation_signs must contain exactly 3 values")
 
@@ -340,8 +353,7 @@ class RealWorldLite6A010Environment:
         )
         if not accepted and self.goal_rejection_hard_stop:
             details = self._goal_adapter_rejection_details(
-                default="goal_adapter rejected a motor policy result"
-                " with goal_pose"
+                default="goal_adapter rejected a motor policy result with goal_pose"
             )
             self._hard_stop(
                 "GOAL_DISPATCH_REJECTED",
@@ -410,10 +422,9 @@ class RealWorldLite6A010Environment:
 
             agent_left = np.array([-1.0, 0.0, 0.0], dtype=float)
             agent_forward = np.array([0.0, 0.0, -1.0], dtype=float)
-            delta = (
-                new_motion_rot.apply(agent_left) * float(action.left_distance)
-                + new_motion_rot.apply(agent_forward) * float(action.forward_distance)
-            )
+            delta = new_motion_rot.apply(agent_left) * float(
+                action.left_distance
+            ) + new_motion_rot.apply(agent_forward) * float(action.forward_distance)
 
             quat_xyzw = new_agent_rot.as_quat()
             goal_quat = qt.quaternion(
@@ -431,10 +442,9 @@ class RealWorldLite6A010Environment:
 
             agent_down = np.array([0.0, -1.0, 0.0], dtype=float)
             agent_forward = np.array([0.0, 0.0, -1.0], dtype=float)
-            delta = (
-                new_motion_rot.apply(agent_down) * float(action.down_distance)
-                + new_motion_rot.apply(agent_forward) * float(action.forward_distance)
-            )
+            delta = new_motion_rot.apply(agent_down) * float(
+                action.down_distance
+            ) + new_motion_rot.apply(agent_forward) * float(action.forward_distance)
 
             quat_xyzw = new_agent_rot.as_quat()
             goal_quat = qt.quaternion(
@@ -449,6 +459,21 @@ class RealWorldLite6A010Environment:
         delta = self._clip_translation_step(raw_delta)
         clipped_delta_norm = float(np.linalg.norm(delta))
         goal_pos = current_pos + delta
+
+        # Prevent sensor from drifting below the table boundary.  World Y
+        # (index 1) points up; the table sits at Y ≈ 0.  When the surface
+        # agent follows a curved object downward, OrientVertical corrections
+        # can push the sensor FOV into the table rejection zone.
+        if (
+            self.min_sensor_height_m is not None
+            and goal_pos[1] < self.min_sensor_height_m
+        ):
+            logger.warning(
+                "Goal Y=%.4fm below min_sensor_height=%.4fm, clipping",
+                goal_pos[1],
+                self.min_sensor_height_m,
+            )
+            goal_pos[1] = self.min_sensor_height_m
         self._log_motion_debug(
             "RELATIVE_ACTION_GOAL",
             action_type=type(action).__name__,
@@ -506,9 +531,7 @@ class RealWorldLite6A010Environment:
             return 20.0
         return float(getattr(safety_config, "max_rotation_step_deg", 20.0))
 
-    def _first_relative_action(
-        self, actions: Sequence[Action]
-    ) -> Action | None:
+    def _first_relative_action(self, actions: Sequence[Action]) -> Action | None:
         """Return the first relative motion action, or None."""
         for action in actions:
             if isinstance(
@@ -539,7 +562,9 @@ class RealWorldLite6A010Environment:
             self._log_motion_debug(
                 "SEND_WORLD_POSE_RESULT",
                 accepted=accepted,
-                rejection=self._goal_adapter_rejection_details(default="ok") if not accepted else "ok",
+                rejection=self._goal_adapter_rejection_details(default="ok")
+                if not accepted
+                else "ok",
             )
             if not accepted:
                 if self.goal_rejection_hard_stop:
@@ -582,7 +607,9 @@ class RealWorldLite6A010Environment:
         )
         self._step_dispatched_command = True
 
-    def _goal_adapter_rejection_details(self, default: str = "goal_adapter rejected command") -> str:
+    def _goal_adapter_rejection_details(
+        self, default: str = "goal_adapter rejected command"
+    ) -> str:
         if self.goal_adapter is None:
             return default
         details = getattr(self.goal_adapter, "last_rejection_details", None)
@@ -655,7 +682,9 @@ class RealWorldLite6A010Environment:
             return
 
         target_position_m = np.asarray(target_position_m, dtype=float)
-        if target_position_m.shape != (3,) or not np.all(np.isfinite(target_position_m)):
+        if target_position_m.shape != (3,) or not np.all(
+            np.isfinite(target_position_m)
+        ):
             return
 
         timeout_s = self._resolve_settle_convergence_timeout_s()
@@ -804,10 +833,9 @@ class RealWorldLite6A010Environment:
                 current_orientation_quat = _xyz_euler_rad_to_quat_wxyz(
                     current_orientation_rad
                 )
-                relative_rotation = (
-                    rot.from_quat(_quat_wxyz_to_xyzw(current_orientation_quat)).inv()
-                    * rot.from_quat(_quat_wxyz_to_xyzw(home_orientation_quat))
-                )
+                relative_rotation = rot.from_quat(
+                    _quat_wxyz_to_xyzw(current_orientation_quat)
+                ).inv() * rot.from_quat(_quat_wxyz_to_xyzw(home_orientation_quat))
                 orientation_error_deg = float(np.degrees(relative_rotation.magnitude()))
                 last_position_error_mm = position_error_mm
                 last_orientation_error_deg = orientation_error_deg
@@ -818,7 +846,8 @@ class RealWorldLite6A010Environment:
                 )
                 within_tolerance = (
                     position_error_mm <= self.home_reset_position_tolerance_mm
-                    and orientation_error_deg <= self.home_reset_orientation_tolerance_deg
+                    and orientation_error_deg
+                    <= self.home_reset_orientation_tolerance_deg
                 )
                 if is_fresh_enough and within_tolerance:
                     self._log_motion_debug(
@@ -896,7 +925,9 @@ class RealWorldLite6A010Environment:
 
             supports_timeout = False
             try:
-                supports_timeout = "timeout_s" in inspect.signature(get_frame).parameters
+                supports_timeout = (
+                    "timeout_s" in inspect.signature(get_frame).parameters
+                )
             except (TypeError, ValueError):
                 supports_timeout = False
 
@@ -943,7 +974,9 @@ class RealWorldLite6A010Environment:
             agent_position_m=np.round(agent_position_m, 6).tolist(),
             sensor_position_m=np.round(sensor_position_m, 6).tolist(),
             sensor_relative_to_agent_m=np.round(sensor_relative_to_agent_m, 6).tolist(),
-            configured_sensor_translation_m=np.round(self.sensor_translation_m, 6).tolist(),
+            configured_sensor_translation_m=np.round(
+                self.sensor_translation_m, 6
+            ).tolist(),
         )
 
         return ProprioceptiveState(
@@ -1030,7 +1063,9 @@ class RealWorldLite6A010Environment:
         if orientation_values.shape != (3,):
             raise ValueError("Expected sensed orientation with exactly 3 values")
 
-        ordered_orientation = orientation_values[list(self.sensed_orientation_index_order)]
+        ordered_orientation = orientation_values[
+            list(self.sensed_orientation_index_order)
+        ]
         signed_orientation = ordered_orientation * self.sensed_orientation_signs
 
         euler_sequence = (

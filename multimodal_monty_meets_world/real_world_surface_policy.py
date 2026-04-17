@@ -108,6 +108,8 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         self._disable_orient_compensation_translation = bool(
             disable_orient_compensation_translation
         )
+        self._effective_max_orient_deg = _MAX_ORIENT_DEG
+        self._orient_axis: str = "horizontal"
         self._enable_orient_decomposition_logging = bool(
             enable_orient_decomposition_logging
         )
@@ -166,6 +168,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         Returns:
             OrientHorizontal action.
         """
+        self._orient_axis = "horizontal"
         raw_angle = self.orienting_angle_from_normal(
             orienting="horizontal",
             state=state,
@@ -194,11 +197,32 @@ class RealWorldSurfacePolicy(SurfacePolicy):
     def _orient_vertical(
         self, state: MotorSystemState, percept: Message
     ) -> OrientVertical:
-        """Orient vertically with dead-banded clamped angle + object depth.
+        """Orient vertically with coverage-aware throttling.
+
+        When ``object_coverage`` is below 0.5 the sensor is likely near the
+        table boundary — skip the correction entirely.  Between 0.5 and 0.8,
+        scale the maximum orient angle proportionally to avoid large
+        downward displacements.
 
         Returns:
             OrientVertical action.
         """
+        coverage = percept.get_feature_by_name("object_coverage")
+        if coverage is not None and coverage < 0.5:
+            logger.info("orient_vertical: SKIPPED (coverage=%.2f < 0.5)", coverage)
+            return OrientVertical(
+                agent_id=self.agent_id,
+                rotation_degrees=0.0,
+                down_distance=0.0,
+                forward_distance=0.0,
+            )
+
+        if coverage is not None and coverage < 0.8:
+            self._effective_max_orient_deg = _MAX_ORIENT_DEG * coverage
+        else:
+            self._effective_max_orient_deg = _MAX_ORIENT_DEG
+
+        self._orient_axis = "vertical"
         raw_angle = self.orienting_angle_from_normal(
             orienting="vertical",
             state=state,
@@ -217,6 +241,8 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             state=state,
             percept=percept,
         )
+        # Reset to default for subsequent horizontal orients.
+        self._effective_max_orient_deg = _MAX_ORIENT_DEG
         return OrientVertical(
             agent_id=self.agent_id,
             rotation_degrees=rotation_degrees,
@@ -224,8 +250,44 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             forward_distance=forward_distance,
         )
 
+    def tangential_direction(
+        self,
+        ctx: RuntimeContext,
+        state: MotorSystemState,
+        percept: Message,
+    ) -> tuple[float, float, float]:
+        """Bias tangential movement away from table when near boundary.
+
+        When ``object_coverage`` drops below a threshold, the sensor is
+        likely near the table edge (y_min rejections).  Forcing the
+        world-Y component of the tangential direction positive steers the
+        agent back toward the upper part of the object.
+
+        Returns:
+            Direction vector in world frame.
+        """
+        direction = super().tangential_direction(ctx, state, percept)
+        coverage = percept.get_feature_by_name("object_coverage")
+        if coverage is not None and coverage < 0.8:
+            dx, dy, dz = direction
+            if dy < 0:
+                dy = -dy  # flip to upward
+            norm = float(np.sqrt(dx * dx + dy * dy + dz * dz))
+            if norm > 0:
+                direction = (dx / norm, dy / norm, dz / norm)
+            logger.debug(
+                "tangential_direction: coverage=%.2f < 0.8, biased upward direction=%s",
+                coverage,
+                direction,
+            )
+        return direction
+
     def _shape_orient_angle(self, raw_angle: float) -> float:
-        """Apply dead-band then clamp to ``_MAX_ORIENT_DEG``.
+        """Apply dead-band then clamp to effective max orient angle.
+
+        The effective cap is normally ``_MAX_ORIENT_DEG`` but may be reduced
+        by ``_orient_vertical`` when coverage is low (table-boundary
+        proximity).
 
         Returns:
             The shaped rotation angle in degrees.
@@ -233,7 +295,8 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         angle = float(raw_angle)
         if abs(angle) < _ORIENT_DEADBAND_DEG:
             return 0.0
-        return float(np.clip(angle, -_MAX_ORIENT_DEG, _MAX_ORIENT_DEG))
+        cap = self._effective_max_orient_deg
+        return float(np.clip(angle, -cap, cap))
 
     def _log_orient_diagnostics(
         self,
@@ -364,27 +427,15 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             A ``MoveForward`` if filtered depth is available, otherwise
             the parent's search action.
         """
-        filtered_depth = self._filtered_forward_depth(
-            observations, view_sensor_id
-        )
+        filtered_depth = self._filtered_forward_depth(observations, view_sensor_id)
 
         if filtered_depth is not None and filtered_depth < 1.0:
-            sensor_state_z = (
-                state[self.agent_id]
-                .sensors[view_sensor_id]
-                .position[2]
-            )
+            sensor_state_z = state[self.agent_id].sensors[view_sensor_id].position[2]
             raw_distance = (
-                filtered_depth
-                - self.desired_object_distance
-                - sensor_state_z
+                filtered_depth - self.desired_object_distance - sensor_state_z
             )
             no_sensor_z_distance = filtered_depth - self.desired_object_distance
-            distance = (
-                filtered_depth
-                - self.desired_object_distance
-                - sensor_state_z
-            )
+            distance = filtered_depth - self.desired_object_distance - sensor_state_z
             distance = min(distance, _MAX_FORWARD_STEP_M)
             logger.info(
                 "touch_object_distance: filtered_depth=%.6fm desired=%.6fm "
@@ -399,9 +450,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
                 float(_MAX_FORWARD_STEP_M),
             )
             self.attempting_to_find_object = False
-            return MoveForward(
-                agent_id=self.agent_id, distance=distance
-            )
+            return MoveForward(agent_id=self.agent_id, distance=distance)
 
         return self._constrained_search(ctx)
 
@@ -414,11 +463,45 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         arc (``_MAX_SEARCH_RADIUS_M``) and smaller rotation steps so the
         sensor stays near the last known object position.
 
+        When search begins (``touch_search_amount`` near zero) the sensor
+        has typically just drifted into the table rejection zone.  The
+        first few search steps move the sensor **upward** to escape the
+        table boundary before starting the normal arc search.
+
         Returns:
             An orient action that arcs the sensor around a nearby point.
         """
         self.attempting_to_find_object = True
 
+        # --- Escape-upward phase ---
+        # The first few search steps tilt the sensor upward (negative
+        # rotation = tilt up) and translate upward (negative
+        # down_distance = move up) to leave the table zone.
+        escape_steps = 3
+        escape_deg = -10.0  # negative = tilt up
+        escape_dist_m = -0.02  # negative = move up (opposite of down)
+
+        if self.touch_search_amount < abs(escape_deg) * escape_steps:
+            step_idx = (
+                int(self.touch_search_amount / abs(escape_deg))
+                if escape_deg != 0
+                else 0
+            )
+            if step_idx < escape_steps:
+                self.touch_search_amount += abs(escape_deg)
+                logger.info(
+                    "constrained_search: escape-upward step %d/%d",
+                    step_idx + 1,
+                    escape_steps,
+                )
+                return OrientVertical(
+                    agent_id=self.agent_id,
+                    rotation_degrees=escape_deg,
+                    down_distance=escape_dist_m,
+                    forward_distance=0.0,
+                )
+
+        # --- Normal arc search ---
         radius = min(
             self.desired_object_distance * 4,
             _MAX_SEARCH_RADIUS_M,
@@ -460,26 +543,46 @@ class RealWorldSurfacePolicy(SurfacePolicy):
     # ------------------------------------------------------------------
 
     def _compensating_distances(
-        self, rotation_degrees: float, percept: Message
+        self,
+        rotation_degrees: float,
+        percept: Message,  # noqa: ARG002
     ) -> tuple[float, float]:
         """Lateral and forward distances for an orient step.
 
         Uses filtered object-only depth instead of ``percept.mean_depth``
-        which includes background pixels.  Falls back to the percept value
-        when filtered depth is unavailable.
+        which includes background pixels.  Falls back to
+        ``desired_object_distance`` when filtered depth is unavailable
+        (the percept ``mean_depth`` includes background and inflates
+        distances 2-4x on real hardware).
+
+        For **vertical** orient steps, positive ``lateral`` means
+        "move down" (toward the table).  When the resulting down-distance
+        would push the sensor toward the table, it is suppressed to
+        prevent cumulative downward drift.
 
         Returns:
             (lateral_distance, forward_distance) in metres.
         """
         depth = self._filtered_forward_depth_from_stashed_obs()
         if depth is None:
-            depth = percept.get_feature_by_name("mean_depth")
+            depth = self.desired_object_distance
         if self._disable_orient_compensation_translation:
             return 0.0, 0.0
         rotation_radians = np.radians(rotation_degrees)
         cos_r = np.cos(rotation_radians)
         lateral = np.tan(rotation_radians) * depth
         forward = depth * (1.0 - cos_r) / cos_r
+
+        # For vertical orient: positive lateral = down_distance toward table.
+        # Suppress to prevent cumulative downward drift.
+        if self._orient_axis == "vertical" and lateral > 0:
+            logger.debug(
+                "compensating_distances: suppressed downward lateral "
+                "%.4fm for vertical orient",
+                lateral,
+            )
+            lateral = 0.0
+
         return lateral, forward
 
     def _filtered_forward_depth_from_stashed_obs(self) -> float | None:
@@ -523,4 +626,3 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             return None
 
         return float(np.median(forward_depths[finite]))
-

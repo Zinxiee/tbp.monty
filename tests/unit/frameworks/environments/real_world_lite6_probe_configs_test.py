@@ -352,7 +352,13 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
         )
         state = {agent_id: _FakeAgentState()}
         percept = mock.Mock()
-        percept.get_feature_by_name.return_value = 0.2
+
+        def _feature_by_name(name: str):
+            if name == "object_coverage":
+                return 0.9  # High coverage: no throttling
+            return 0.2
+
+        percept.get_feature_by_name.side_effect = _feature_by_name
 
         with mock.patch.object(
             policy,
@@ -366,8 +372,10 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
             action = policy._orient_vertical(state, percept)
 
         self.assertAlmostEqual(action.rotation_degrees, 15.0, places=6)
-        self.assertAlmostEqual(action.down_distance, 0.030036, places=5)
-        self.assertAlmostEqual(action.forward_distance, 0.003933, places=5)
+        # Fix 5 suppresses positive down_distance for vertical orient
+        # (prevents cumulative downward drift toward the table).
+        self.assertAlmostEqual(action.down_distance, 0.0, places=5)
+        self.assertAlmostEqual(action.forward_distance, 0.003954, places=5)
 
 
 class MotionValidationConfigTest(unittest.TestCase):

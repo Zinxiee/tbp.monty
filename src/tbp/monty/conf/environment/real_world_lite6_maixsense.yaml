@@ -134,4 +134,9 @@ env_init_args:
   sensed_orientation_offset_wxyz: [1.0, 0.0, 0.0, 0.0]
   sensed_motion_offset_wxyz: [1.0, 0.0, 0.0, 0.0]
   # sensed_motion_offset_wxyz: [0.70710678, -0.70710678, 0.0, 0.0]
+  # Minimum world-Y for the sensor position.  Prevents the surface agent
+  # from drifting into the table rejection zone during vertical orient
+  # corrections on curved objects.  Should be above world_y_min_m (0.01)
+  # with enough margin for the sensor FOV footprint.
+  min_sensor_height_m: 0.05
 transform: null
