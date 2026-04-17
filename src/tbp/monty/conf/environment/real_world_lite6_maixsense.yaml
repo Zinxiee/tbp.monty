@@ -71,16 +71,17 @@ env_init_args:
       x: 0.5
       y: -0.5
       z: -0.5
-    link6_to_sensor_translation_m: [0.0, -0.060, 0.0135]
+    link6_to_sensor_translation_m: [0.060, 0.0, 0.0135]
     link6_to_sensor_rotation_dict:
       # Sensor optical axis faces link6 +Z (downward at home pose, roll=180°).
       # In Monty right-up-backward convention sensor -Z = look direction, so
-      # sensor +Z → link6 -Z.  The image is also rotated 90° CW in the XY
-      # plane: image top (sensor +Y) → link6 +X (robot forward = Monty -Z).
-      # Derivation: Rz(-90°) @ Ry(180°) → quaternion [w=0, x=1/√2, y=1/√2, z=0].
+      # sensor -Z → link6 +Z.
+      # Image right (sensor +X) points toward robot base (link6 -X at home).
+      # Image top (sensor +Y) points robot-right (link6 +Y at home = world +X).
+      # Derivation: Ry(180°) → quaternion [w=0, x=0, y=1, z=0].
       w: 0.0
-      x: 0.70710678
-      y: 0.70710678
+      x: 0.0
+      y: 1.0
       z: 0.0
     workspace_min_xyz_m: [0.135, -0.23, 0.075]
     workspace_max_xyz_m: [0.40, 0.23, 0.4]

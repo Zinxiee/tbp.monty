@@ -84,7 +84,9 @@ class MaixsenseMontyObservationAdapter:
             patch_offset_bottom_px,
             patch_offset_left_px,
         )
-        if any(p is not None for p in roi_params) and any(p is None for p in roi_params):
+        if any(p is not None for p in roi_params) and any(
+            p is None for p in roi_params
+        ):
             raise ValueError(
                 "patch_height, patch_width, patch_offset_bottom_px, and "
                 "patch_offset_left_px must all be set together, or all be None."
@@ -227,7 +229,9 @@ class MaixsenseMontyObservationAdapter:
                     f"h={self._patch_height}, w={self._patch_width}) "
                     f"falls outside raw frame of shape {depth.shape}."
                 )
-            depth = _crop_to_roi(depth, top, left, self._patch_height, self._patch_width)
+            depth = _crop_to_roi(
+                depth, top, left, self._patch_height, self._patch_width
+            )
             if rgba is not None:
                 rgba = _crop_to_roi(
                     rgba, top, left, self._patch_height, self._patch_width
@@ -330,6 +334,29 @@ class MaixsenseMontyObservationAdapter:
                 per_axis_rejects["z_min"],
                 per_axis_rejects["z_max"],
                 per_axis_rejects["any"],
+            )
+            valid_world = world_xyz[valid_mask_pre_world.astype(bool)]
+            if valid_world.shape[0] > 0:
+                logger.info(
+                    "WORLD_XYZ_STATS valid_count=%d "
+                    "Y_min=%.4f Y_max=%.4f Y_mean=%.4f Y_median=%.4f "
+                    "X_min=%.4f X_max=%.4f Z_min=%.4f Z_max=%.4f",
+                    valid_world.shape[0],
+                    valid_world[:, 1].min(),
+                    valid_world[:, 1].max(),
+                    valid_world[:, 1].mean(),
+                    float(np.median(valid_world[:, 1])),
+                    valid_world[:, 0].min(),
+                    valid_world[:, 0].max(),
+                    valid_world[:, 2].min(),
+                    valid_world[:, 2].max(),
+                )
+            logger.info(
+                "WORLD_CAMERA t=%s R_col0=%s R_col1=%s R_col2=%s",
+                np.round(world_camera_t[:3, 3], 4).tolist(),
+                np.round(world_camera_t[:3, 0], 4).tolist(),
+                np.round(world_camera_t[:3, 1], 4).tolist(),
+                np.round(world_camera_t[:3, 2], 4).tolist(),
             )
 
         if os.environ.get(_DEBUG_DUMP_ENV_VAR):
@@ -504,7 +531,9 @@ def _normalize_semantic(
     return (sem > 0).astype(np.int32)
 
 
-def _zero_semantic_bottom_rows(semantic_mask: np.ndarray, bottom_fraction: float) -> np.ndarray:
+def _zero_semantic_bottom_rows(
+    semantic_mask: np.ndarray, bottom_fraction: float
+) -> np.ndarray:
     if bottom_fraction <= 0.0:
         return semantic_mask
 
@@ -592,11 +621,7 @@ def _world_bounds_reject_counts(
     )
 
     rejects_any = (
-        rejects_y_min
-        | rejects_x_min
-        | rejects_x_max
-        | rejects_z_min
-        | rejects_z_max
+        rejects_y_min | rejects_x_min | rejects_x_max | rejects_z_min | rejects_z_max
     )
 
     return {
@@ -616,11 +641,21 @@ def _unproject_depth_to_sensor_xyz(
     h, w = depth_m.shape
     u, v = np.meshgrid(np.arange(w, dtype=np.float64), np.arange(h, dtype=np.float64))
 
-    # Keep right-handed coordinates with +x right, +y up, and camera looking along -z
-    # to align with Monty's existing transformed observations.
-    x = ((u - intrinsics.cx) / intrinsics.fx) * depth_m
-    y = -((v - intrinsics.cy) / intrinsics.fy) * depth_m
-    z = -depth_m
+    # Right-handed coordinates: +x right, +y up, camera looking along -z
+    # (Monty convention).
+    #
+    # The A010 ToF sensor reports *radial* distance (distance from the sensor
+    # origin along each pixel's ray), NOT the perpendicular z-component.
+    # We must normalize the ray direction before scaling by radial depth so
+    # that the resulting Cartesian coordinates are geometrically correct.
+    dir_x = (u - intrinsics.cx) / intrinsics.fx
+    dir_y = -((v - intrinsics.cy) / intrinsics.fy)
+    dir_z = -np.ones_like(depth_m)
+    ray_len = np.sqrt(dir_x**2 + dir_y**2 + dir_z**2)
+
+    x = (dir_x / ray_len) * depth_m
+    y = (dir_y / ray_len) * depth_m
+    z = (dir_z / ray_len) * depth_m
 
     return np.column_stack([x.reshape(-1), y.reshape(-1), z.reshape(-1)])
 
