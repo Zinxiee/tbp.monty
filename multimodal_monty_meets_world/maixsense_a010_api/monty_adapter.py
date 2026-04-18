@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+from scipy.ndimage import median_filter
 
 from .models import A010UsbFrame, HttpFrame, LensCoefficients
 
@@ -75,6 +76,7 @@ class MaixsenseMontyObservationAdapter:
         world_z_max_m: float | None = None,
         world_z_min_m: float | None = None,
         semantic_debug_logging: bool = False,
+        depth_median_filter_size: int | None = None,
     ) -> None:
         self._intrinsics = intrinsics
         self._crop_center_to_square = crop_center_to_square
@@ -108,6 +110,16 @@ class MaixsenseMontyObservationAdapter:
         self._world_z_max_m = None if world_z_max_m is None else float(world_z_max_m)
         self._world_z_min_m = None if world_z_min_m is None else float(world_z_min_m)
         self._semantic_debug_logging = bool(semantic_debug_logging)
+        if depth_median_filter_size is not None:
+            size = int(depth_median_filter_size)
+            if size < 1 or size % 2 == 0:
+                raise ValueError(
+                    "depth_median_filter_size must be a positive odd integer "
+                    f"or None; got {depth_median_filter_size!r}."
+                )
+            self._depth_median_filter_size: int | None = size
+        else:
+            self._depth_median_filter_size = None
 
     @property
     def intrinsics(self) -> CameraIntrinsics:
@@ -213,6 +225,14 @@ class MaixsenseMontyObservationAdapter:
         depth = np.asarray(depth_m, dtype=np.float64)
         if depth.ndim != 2:
             raise ValueError(f"Expected 2D depth image, got shape {depth.shape}")
+
+        if self._depth_median_filter_size is not None:
+            depth = _median_filter_valid_depth(
+                depth,
+                size=self._depth_median_filter_size,
+                min_valid_depth_m=self._min_valid_depth_m,
+                max_valid_depth_m=self._max_valid_depth_m,
+            )
 
         if self._patch_height is not None:
             raw_h, raw_w = depth.shape
@@ -358,6 +378,35 @@ class MaixsenseMontyObservationAdapter:
                 np.round(world_camera_t[:3, 1], 4).tolist(),
                 np.round(world_camera_t[:3, 2], 4).tolist(),
             )
+            # Raw depth distribution over the patch ROI, BEFORE unprojection.
+            # Distinguishes specular noise (high std), saturation (lots at max),
+            # crosstalk/IC bias (cluster near min) from clean unimodal returns.
+            finite_depth = depth[np.isfinite(depth)]
+            if finite_depth.size > 0:
+                if self._max_valid_depth_m is not None:
+                    sat_count = int(
+                        np.sum(finite_depth >= self._max_valid_depth_m)
+                    )
+                else:
+                    sat_count = 0
+                near_zero_count = int(
+                    np.sum(finite_depth <= self._min_valid_depth_m)
+                )
+                logger.info(
+                    "RAW_DEPTH_STATS patch_count=%d "
+                    "raw_min=%.4f raw_max=%.4f raw_mean=%.4f raw_std=%.4f "
+                    "raw_median=%.4f sat_count=%d near_zero_count=%d "
+                    "valid_after_filter=%d",
+                    finite_depth.size,
+                    float(finite_depth.min()),
+                    float(finite_depth.max()),
+                    float(finite_depth.mean()),
+                    float(finite_depth.std()),
+                    float(np.median(finite_depth)),
+                    sat_count,
+                    near_zero_count,
+                    depth_valid_count,
+                )
 
         if os.environ.get(_DEBUG_DUMP_ENV_VAR):
             _dump_pipeline_stage(
@@ -455,6 +504,27 @@ def _ensure_world_camera(world_camera: Optional[np.ndarray]) -> np.ndarray:
     if mat.shape != (4, 4):
         raise ValueError(f"world_camera must be shape (4, 4), got {mat.shape}")
     return mat
+
+
+def _median_filter_valid_depth(
+    depth: np.ndarray,
+    *,
+    size: int,
+    min_valid_depth_m: float,
+    max_valid_depth_m: float | None,
+) -> np.ndarray:
+    """Median-filter the depth image, restoring originally invalid pixels.
+
+    Reduces per-pixel ToF noise without bleeding values across `on_object`
+    boundaries: any pixel that was outside the valid-depth range before
+    filtering is restored from the input so the semantic mask derived from
+    the same thresholds stays consistent.
+    """
+    valid = np.isfinite(depth) & (depth > min_valid_depth_m)
+    if max_valid_depth_m is not None:
+        valid = valid & (depth < max_valid_depth_m)
+    filtered = median_filter(depth, size=size, mode="nearest")
+    return np.where(valid, filtered, depth)
 
 
 def _crop_to_roi(

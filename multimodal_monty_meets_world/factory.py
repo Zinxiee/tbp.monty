@@ -169,6 +169,7 @@ def create_observation_adapter(
     world_z_max_m: float | None = None,
     world_z_min_m: float | None = None,
     semantic_debug_logging: bool = False,
+    depth_median_filter_size: int | None = None,
 ) -> MaixsenseMontyObservationAdapter:
     """Create an observation adapter for Maixsense A010 frames.
 
@@ -215,6 +216,7 @@ def create_observation_adapter(
         world_z_max_m=world_z_max_m,
         world_z_min_m=world_z_min_m,
         semantic_debug_logging=semantic_debug_logging,
+        depth_median_filter_size=depth_median_filter_size,
     )
 
 

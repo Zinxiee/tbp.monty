@@ -66,7 +66,7 @@ _MAX_ORIENT_DEG = 15.0
 
 # Suppress orient corrections smaller than this. Small noise-driven angles
 # produce compensating translations that accumulate into drift across cycles. (Disabled because I don't think this fixes anything)
-_ORIENT_DEADBAND_DEG = 3.0
+_ORIENT_DEADBAND_DEG = 8.0
 
 # Forward-step limits.  Even valid filtered depth can overshoot on real
 # hardware when the sensor axis is slightly tilted.

@@ -5,6 +5,12 @@ sensor_module_0:
   sensor_module_args:
     is_surface_sm: true
     sensor_module_id: patch
+    surface_normal_method: OLS
+    # Use ~half the patch diameter for the OLS neighborhood (vs default 3.2,
+    # which sampled only ~30 pixels of a 10x10 patch). With a 20x20 patch
+    # this widens the OLS sample to ~140 pixels for better SNR on the
+    # plane fit at close range (~120mm depth, ~4.5mm depth noise).
+    surface_normal_neighbor_patch_frac: 1.5
     features:
     - pose_vectors
     - pose_fully_defined

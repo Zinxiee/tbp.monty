@@ -30,14 +30,20 @@ env_init_args:
     # When patch_* params are set, they take precedence and define the ROI.
     crop_center_to_square: true
     # ROI crop applied to the raw 100×100 sensor frame before unprojection.
-    # Default: 10×10 patch, 20 px up from the bottom, 45 px from either side
+    # 20×20 patch, 15 px up from the bottom, 40 px from either side
     # (horizontally centered, vertically biased toward the bottom of the FOV).
     # Principal point (cx, cy) is shifted by (left, top) internally so
     # unprojection geometry stays correct.
-    patch_height: 10
-    patch_width: 10
-    patch_offset_bottom_px: 20
-    patch_offset_left_px: 45
+    # 20×20 covers ~28×24mm world extent at ~120mm depth — quadruples sample
+    # count vs 10×10 to suppress per-pixel ToF noise in the OLS plane fit.
+    patch_height: 20
+    patch_width: 20
+    patch_offset_bottom_px: 15
+    patch_offset_left_px: 40
+    # 3×3 median filter on the raw depth image before unprojection. Reduces
+    # per-pixel ToF noise (~4.5mm std at 116mm depth) while preserving edges,
+    # so OLS surface-normal and curvature fits aren't dominated by noise.
+    depth_median_filter_size: 3
     min_valid_depth_m: 0.05
     # Reject A010 specular/saturation returns at Stage C rather than letting them
     # leak into the world-bounds filter. A010 saturates at ~2.5 m; objects of

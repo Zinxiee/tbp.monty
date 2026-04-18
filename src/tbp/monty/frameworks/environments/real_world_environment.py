@@ -894,8 +894,23 @@ class RealWorldLite6A010Environment:
         return observations, state
 
     def _capture_sensor_observation(self) -> dict[str, np.ndarray]:
+        # Time the frame read vs world_camera build to detect stale-frame
+        # mismatch between depth pixels and the proprioception used to build
+        # the world transform. Large gaps (>~50ms) plus large pose changes can
+        # produce frame-to-frame world XYZ instability that looks like depth
+        # noise but is actually a temporal alignment issue.
+        t_read_start = time.monotonic()
         frame = self._read_sensor_frame()
+        t_read_end = time.monotonic()
         world_camera = self._compute_world_camera_matrix()
+        t_camera_built = time.monotonic()
+        frame_id = getattr(frame, "frame_id", None)
+        self._log_motion_debug(
+            "FRAME_TIMING",
+            frame_id=frame_id,
+            frame_read_ms=round((t_read_end - t_read_start) * 1000.0, 2),
+            read_to_camera_ms=round((t_camera_built - t_read_end) * 1000.0, 2),
+        )
 
         if hasattr(frame, "distance_mm_image"):
             return self.observation_adapter.from_usb_frame(

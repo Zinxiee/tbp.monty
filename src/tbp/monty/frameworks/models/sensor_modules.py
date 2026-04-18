@@ -152,6 +152,7 @@ class ObservationProcessor:
         sensor_module_id: str,
         pc1_is_pc2_threshold=10,
         surface_normal_method=SurfaceNormalMethod.TLS,
+        surface_normal_neighbor_patch_frac: float = 3.2,
         weight_curvature=True,
         is_surface_sm=False,
     ) -> None:
@@ -179,7 +180,12 @@ class ObservationProcessor:
         self._is_surface_sm = is_surface_sm
         self._pc1_is_pc2_threshold = pc1_is_pc2_threshold
         self._sensor_module_id = sensor_module_id
+        if isinstance(surface_normal_method, str):
+            surface_normal_method = SurfaceNormalMethod(surface_normal_method)
         self._surface_normal_method = surface_normal_method
+        self._surface_normal_neighbor_patch_frac = float(
+            surface_normal_neighbor_patch_frac
+        )
         self._weight_curvature = weight_curvature
 
     def process(
@@ -500,11 +506,17 @@ class ObservationProcessor:
     ) -> tuple[np.ndarray, bool]:
         if self._surface_normal_method == SurfaceNormalMethod.TLS:
             surface_normal, valid_sn = surface_normal_total_least_squares(
-                obs_3d, center_id, world_camera[:3, 2]
+                obs_3d,
+                center_id,
+                world_camera[:3, 2],
+                neighbor_patch_frac=self._surface_normal_neighbor_patch_frac,
             )
         elif self._surface_normal_method == SurfaceNormalMethod.OLS:
             surface_normal, valid_sn = surface_normal_ordinary_least_squares(
-                sensor_frame_data, world_camera, center_id
+                sensor_frame_data,
+                world_camera,
+                center_id,
+                neighbor_patch_frac=self._surface_normal_neighbor_patch_frac,
             )
         elif self._surface_normal_method == SurfaceNormalMethod.NAIVE:
             surface_normal, valid_sn = surface_normal_naive(
@@ -691,6 +703,8 @@ class CameraSM(SensorModule):
         noise_params: dict[str, Any] | None = None,
         is_surface_sm: bool = False,
         delta_thresholds: dict[str, Any] | None = None,
+        surface_normal_method: SurfaceNormalMethod | str = SurfaceNormalMethod.TLS,
+        surface_normal_neighbor_patch_frac: float = 3.2,
     ) -> None:
         """Initialize Sensor Module.
 
@@ -725,6 +739,8 @@ class CameraSM(SensorModule):
             sensor_module_id=sensor_module_id,
             pc1_is_pc2_threshold=pc1_is_pc2_threshold,
             is_surface_sm=is_surface_sm,
+            surface_normal_method=surface_normal_method,
+            surface_normal_neighbor_patch_frac=surface_normal_neighbor_patch_frac,
         )
         # TODO: With DefaultMessageNoise not getting RNG on init anymore,
         #       then we can initialize CameraSM with MessageNoise, instead
