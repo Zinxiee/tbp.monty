@@ -263,7 +263,7 @@ def main() -> None:
         "WORLD",
         args.axis_length_m,
         "c",
-        axis_colors=("#eb07c5", "#00f7ff", "#ae00ff")
+        axis_colors=("#ff00003d", "#3bff0a37", "#4400ff44")
     )
     draw_frame(
         ax_base,
@@ -285,7 +285,7 @@ def main() -> None:
         "BASE",
         args.axis_length_m,
         "c",
-        axis_colors=("#eb07c5", "#00f7ff", "#ae00ff"),
+        axis_colors=("#ff00003d", "#3bff0a37", "#4400ff44"),
     )
     draw_frame(
         ax_world,
