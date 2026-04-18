@@ -525,8 +525,8 @@ class WorldTransformPipelineTest(unittest.TestCase):
 
     Physical setup (from YAML):
     - world_to_robot quaternion wxyz: [0.5, 0.5, -0.5, -0.5]
-    - link6_to_sensor quaternion wxyz: [0, √2/2, √2/2, 0]
-    - link6_to_sensor translation (link6 frame): [0, -0.060, 0.0135]
+    - link6_to_sensor quaternion wxyz: [0, 0, 1, 0]  (Ry(180°))
+    - link6_to_sensor translation (link6 frame): [0.060, 0, 0.0135]
     - Robot base is 7mm above the physical table (table at robot z = -7mm)
     - Home pose: robot [220, 9, 210] mm, roll=180°, pitch=0°, yaw=0°
     - Patch intrinsics: fx=71.41, fy=86.60, cx_eff=5.0, cy_eff=-20.0
@@ -540,8 +540,10 @@ class WorldTransformPipelineTest(unittest.TestCase):
         r_tcp = rot.from_euler("xyz", [np.pi, 0.0, 0.0], degrees=False)
         world_link6_rot = w2r.inv() * r_tcp
 
-        l2s_rot = rot.from_quat([0.70710678, 0.70710678, 0.0, 0.0])  # xyzw
-        l2s_trans = np.array([0.0, -0.060, 0.0135])
+        # Updated: Ry(180°) → wxyz [0,0,1,0] → xyzw [0,1,0,0]
+        l2s_rot = rot.from_quat([0.0, 1.0, 0.0, 0.0])  # xyzw
+        # Updated: 60mm in link6 +X (toward robot base at home), 13.5mm down
+        l2s_trans = np.array([0.060, 0.0, 0.0135])
 
         robot_pos_m = np.array([0.220, 0.009, 0.210])
         world_link6_pos = w2r.inv().apply(robot_pos_m)
@@ -559,8 +561,8 @@ class WorldTransformPipelineTest(unittest.TestCase):
         r_tcp = rot.from_euler("xyz", [np.pi, 0.0, 0.0], degrees=False)
         world_link6_rot = w2r.inv() * r_tcp
 
-        l2s_rot = rot.from_quat([0.70710678, 0.70710678, 0.0, 0.0])
-        l2s_trans = np.array([0.0, -0.060, 0.0135])
+        l2s_rot = rot.from_quat([0.0, 1.0, 0.0, 0.0])  # xyzw
+        l2s_trans = np.array([0.060, 0.0, 0.0135])
 
         world_sensor_rot_home = world_link6_rot * l2s_rot
         # OrientVertical: rotate around sensor X axis
