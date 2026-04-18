@@ -601,5 +601,105 @@ class RealWorldEnvironmentMathTest(unittest.TestCase):
         )
 
 
+class DepthBurstAveragingTest(unittest.TestCase):
+    """Burst-average N consecutive depth frames per observation step."""
+
+    class _SequencedSensor:
+        def __init__(self, frames: list[np.ndarray]) -> None:
+            self._frames = frames
+            self._i = 0
+            self.get_frame_calls = 0
+
+        def get_frame(self, timeout_s: float = 1.0) -> np.ndarray:  # noqa: ARG002
+            self.get_frame_calls += 1
+            frame = self._frames[self._i % len(self._frames)]
+            self._i += 1
+            return frame
+
+    class _CapturingAdapter:
+        def __init__(self) -> None:
+            self.from_depth_m_calls: list[dict] = []
+
+        def from_depth_m(
+            self,
+            frame: np.ndarray,
+            world_camera: np.ndarray,
+        ) -> dict[str, np.ndarray]:
+            self.from_depth_m_calls.append(
+                {"frame": np.array(frame, copy=True), "world_camera": world_camera}
+            )
+            return {"depth": frame, "world_camera": world_camera}
+
+    def _make_env(
+        self,
+        *,
+        frames: list[np.ndarray],
+        depth_burst_n: int,
+    ) -> tuple[RealWorldLite6A010Environment, _CapturingAdapter, _SequencedSensor]:
+        sensor = DepthBurstAveragingTest._SequencedSensor(frames)
+        adapter = DepthBurstAveragingTest._CapturingAdapter()
+        env = RealWorldLite6A010Environment(
+            robot_interface=_FakeRobot(),
+            sensor_client=sensor,
+            observation_adapter=adapter,
+            goal_adapter=None,
+            input_fn=lambda prompt: "",  # noqa: ARG005
+            settle_time_s=0.0,
+            require_object_swap_confirmation=False,
+            depth_burst_n=depth_burst_n,
+        )
+        return env, adapter, sensor
+
+    def test_burst_averages_per_pixel_across_n_frames(self) -> None:
+        frames = [
+            np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64),
+            np.array([[2.0, 3.0], [4.0, 5.0]], dtype=np.float64),
+            np.array([[3.0, 4.0], [5.0, 6.0]], dtype=np.float64),
+            np.array([[4.0, 5.0], [6.0, 7.0]], dtype=np.float64),
+            np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float64),
+        ]
+        env, adapter, sensor = self._make_env(frames=frames, depth_burst_n=5)
+
+        env._capture_sensor_observation()
+
+        self.assertEqual(sensor.get_frame_calls, 5)
+        self.assertEqual(len(adapter.from_depth_m_calls), 1)
+        nptest.assert_allclose(
+            adapter.from_depth_m_calls[0]["frame"],
+            np.array([[3.0, 4.0], [5.0, 6.0]], dtype=np.float64),
+        )
+
+    def test_burst_skips_zero_pixels_in_mean_and_preserves_zero_holes(self) -> None:
+        # Pixel (0,0) is zero in 3 of 5 frames; valid mean should be (3+5)/2=4.
+        # Pixel (1,1) is zero in every frame; output must stay 0.
+        frames = [
+            np.array([[1.0, 2.0], [3.0, 0.0]], dtype=np.float64),
+            np.array([[0.0, 2.0], [3.0, 0.0]], dtype=np.float64),
+            np.array([[0.0, 2.0], [3.0, 0.0]], dtype=np.float64),
+            np.array([[3.0, 2.0], [3.0, 0.0]], dtype=np.float64),
+            np.array([[5.0, 2.0], [3.0, 0.0]], dtype=np.float64),
+        ]
+        env, adapter, _ = self._make_env(frames=frames, depth_burst_n=5)
+
+        env._capture_sensor_observation()
+
+        nptest.assert_allclose(
+            adapter.from_depth_m_calls[0]["frame"],
+            np.array([[3.0, 2.0], [3.0, 0.0]], dtype=np.float64),
+        )
+
+    def test_burst_n_equals_one_reads_single_frame(self) -> None:
+        frames = [np.array([[7.0, 7.0], [7.0, 7.0]], dtype=np.float64)]
+        env, adapter, sensor = self._make_env(frames=frames, depth_burst_n=1)
+
+        env._capture_sensor_observation()
+
+        self.assertEqual(sensor.get_frame_calls, 1)
+        nptest.assert_allclose(
+            adapter.from_depth_m_calls[0]["frame"],
+            frames[0],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

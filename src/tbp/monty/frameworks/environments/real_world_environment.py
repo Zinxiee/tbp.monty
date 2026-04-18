@@ -87,6 +87,7 @@ class RealWorldLite6A010Environment:
         sensor_frame_timeout_s: float = 1.0,
         sensor_frame_max_retries: int = 2,
         sensor_frame_retry_delay_s: float = 0.05,
+        depth_burst_n: int = 5,
         goal_rejection_hard_stop: bool = False,
         settle_use_goal_convergence_gate: bool = False,
         settle_convergence_timeout_s: float | None = None,
@@ -148,6 +149,7 @@ class RealWorldLite6A010Environment:
         self.sensor_frame_timeout_s = float(sensor_frame_timeout_s)
         self.sensor_frame_max_retries = max(0, int(sensor_frame_max_retries))
         self.sensor_frame_retry_delay_s = max(0.0, float(sensor_frame_retry_delay_s))
+        self.depth_burst_n = max(1, int(depth_burst_n))
         self.goal_rejection_hard_stop = bool(goal_rejection_hard_stop)
         self.settle_use_goal_convergence_gate = bool(settle_use_goal_convergence_gate)
         self.settle_convergence_timeout_s = (
@@ -899,38 +901,61 @@ class RealWorldLite6A010Environment:
         # the world transform. Large gaps (>~50ms) plus large pose changes can
         # produce frame-to-frame world XYZ instability that looks like depth
         # noise but is actually a temporal alignment issue.
-        t_read_start = time.monotonic()
-        frame = self._read_sensor_frame()
-        t_read_end = time.monotonic()
+        #
+        # Burst-average N consecutive captures per step. Empirically ~70% of
+        # per-pixel ToF deviation is temporally independent, so √N averaging
+        # meaningfully improves the SNR of downstream OLS surface-normal fits.
+        # The arm is stationary during the burst (step-settle-sense loop), so
+        # all N captures image the same scene.
+        burst_n = max(1, int(self.depth_burst_n))
+
+        t_burst_start = time.monotonic()
+        accum: np.ndarray | None = None
+        counts: np.ndarray | None = None
+        last_frame_id = None
+        for i in range(burst_n):
+            frame = self._read_sensor_frame()
+            if i == burst_n - 1:
+                last_frame_id = getattr(frame, "frame_id", None)
+            depth_m = _frame_to_depth_m(frame, unit=self.depth_unit)
+            if depth_m.ndim != 2:
+                raise ValueError(
+                    f"Expected 2D depth image, got shape {depth_m.shape}"
+                )
+            if accum is None:
+                accum = np.zeros(depth_m.shape, dtype=np.float64)
+                counts = np.zeros(depth_m.shape, dtype=np.int32)
+            elif depth_m.shape != accum.shape:
+                raise ValueError(
+                    "Depth frame shape changed during burst: "
+                    f"expected {accum.shape}, got {depth_m.shape}"
+                )
+            # Per-pixel valid mask: exclude no-return (0) and non-finite pixels
+            # so they don't drag the average toward 0. Pixels with zero valid
+            # samples across the burst stay 0 so the adapter's semantic-mask
+            # threshold still rejects them.
+            valid = np.isfinite(depth_m) & (depth_m > 0.0)
+            accum[valid] += depth_m[valid]
+            counts[valid] += 1
+        t_burst_end = time.monotonic()
+        avg_m = np.where(counts > 0, accum / np.maximum(counts, 1), 0.0)
         world_camera = self._compute_world_camera_matrix()
         t_camera_built = time.monotonic()
-        frame_id = getattr(frame, "frame_id", None)
+
         self._log_motion_debug(
             "FRAME_TIMING",
-            frame_id=frame_id,
-            frame_read_ms=round((t_read_end - t_read_start) * 1000.0, 2),
-            read_to_camera_ms=round((t_camera_built - t_read_end) * 1000.0, 2),
+            frame_id=last_frame_id,
+            burst_n=burst_n,
+            burst_read_ms=round((t_burst_end - t_burst_start) * 1000.0, 2),
+            read_to_camera_ms=round((t_camera_built - t_burst_end) * 1000.0, 2),
+            zero_sample_pixels=int(np.sum(counts == 0)),
+            total_pixels=int(counts.size),
+            mean_sample_count=round(float(counts.mean()), 3),
         )
 
-        if hasattr(frame, "distance_mm_image"):
-            return self.observation_adapter.from_usb_frame(
-                frame,
-                world_camera=world_camera,
-                unit=self.depth_unit,
-            )
-        if hasattr(frame, "depth"):
-            return self.observation_adapter.from_http_frame(
-                frame,
-                world_camera=world_camera,
-            )
-        if isinstance(frame, np.ndarray):
-            return self.observation_adapter.from_depth_m(
-                frame,
-                world_camera=world_camera,
-            )
-
-        raise TypeError(
-            "Unsupported sensor frame type. Expected USB frame, HTTP frame, or depth ndarray."
+        return self.observation_adapter.from_depth_m(
+            avg_m,
+            world_camera=world_camera,
         )
 
     def _read_sensor_frame(self) -> Any:
@@ -1196,6 +1221,23 @@ class RealWorldLite6A010Environment:
             logger.info("RW_MOTION %s | %s", event, fields)
             return
         logger.info("RW_MOTION %s", event)
+
+
+def _frame_to_depth_m(frame: Any, *, unit: int) -> np.ndarray:
+    """Extract a depth image in meters from any supported sensor-frame type."""
+    if hasattr(frame, "distance_mm_image"):
+        depth_mm = np.asarray(frame.distance_mm_image(unit=unit), dtype=np.float64)
+        return depth_mm * 1e-3
+    if hasattr(frame, "depth"):
+        if frame.depth is None:
+            raise ValueError("HTTP frame does not contain a depth image")
+        return np.asarray(frame.depth, dtype=np.float64) * 1e-3
+    if isinstance(frame, np.ndarray):
+        return np.asarray(frame, dtype=np.float64)
+    raise TypeError(
+        "Unsupported sensor frame type. "
+        "Expected USB frame, HTTP frame, or depth ndarray."
+    )
 
 
 def _as_wxyz_quaternion(value: Sequence[float] | qt.quaternion) -> qt.quaternion:

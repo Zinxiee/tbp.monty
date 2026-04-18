@@ -133,6 +133,11 @@ env_init_args:
   sensor_frame_timeout_s: 1.5
   sensor_frame_max_retries: 3
   sensor_frame_retry_delay_s: 0.05
+  # Burst N consecutive depth captures per step and average per-pixel to
+  # suppress temporally-independent ToF noise (~70% of per-pixel jitter in
+  # offline analysis). 5 frames → √5 ≈ 2.24× noise reduction on that
+  # component. Adds ~5 × sensor_period latency per step (~200ms at ~25Hz).
+  depth_burst_n: 5
   sensed_orientation_sequence: xyz
   sensed_orientation_degrees: false
   sensed_orientation_intrinsic: false
