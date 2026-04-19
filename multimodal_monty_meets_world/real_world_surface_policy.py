@@ -38,6 +38,7 @@ The default ``min_object_coverage`` is also lowered (0.1 -> 0.05).
 from __future__ import annotations
 
 import logging
+from collections import deque
 from typing import Any
 
 import numpy as np
@@ -49,6 +50,7 @@ from tbp.monty.frameworks.actions.actions import (
     MoveForward,
     OrientHorizontal,
     OrientVertical,
+    SetAgentPose,
 )
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
 from tbp.monty.frameworks.models.motor_policies import (
@@ -78,6 +80,16 @@ _FALLBACK_FORWARD_STEP_M = 0.01
 _MAX_SEARCH_RADIUS_M = 0.10
 _SEARCH_ROTATION_DEG = 15.0
 _SEARCH_RANDOM_RANGE_DEG = 90.0
+
+# Recovery: rewind through the last N poses where the sensor saw the object.
+# At ~3cm/step this covers ~15cm of trajectory — larger than the 10cm arc
+# search radius, so this path dominates most realistic drift distances.
+_POSE_DEQUE_MAXLEN = 5
+
+# Escape-upward phase: world-frame lift and look-down pitch per step.
+_ESCAPE_STEPS = 3
+_ESCAPE_UP_M = 0.02
+_ESCAPE_PITCH_DEG = -10.0
 
 
 class RealWorldSurfacePolicy(SurfacePolicy):
@@ -113,6 +125,10 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         self._enable_orient_decomposition_logging = bool(
             enable_orient_decomposition_logging
         )
+        self._last_good_poses: deque[tuple[np.ndarray, qt.quaternion]] = deque(
+            maxlen=_POSE_DEQUE_MAXLEN
+        )
+        self._pose_return_grace_steps: int = 0
 
     def _touch_sensor_id(self) -> SensorID:
         """Use the real sensor patch instead of the non-existent view-finder.
@@ -142,6 +158,8 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             MotorPolicyResult, possibly with ``motor_only_step`` rewritten.
         """
         self._last_observations = observations
+        if self._sensor_sees_object():
+            self._stash_good_pose(state)
         result = super().__call__(ctx, observations, state, percept, goal)
         if result.motor_only_step and self._sensor_sees_object():
             result = MotorPolicyResult(
@@ -150,6 +168,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
                 telemetry=result.telemetry,
                 goal_pose=result.goal_pose,
             )
+        result = self._apply_pose_return_grace(result)
         return result
 
     def _sensor_sees_object(self) -> bool:
@@ -159,6 +178,75 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             ``True`` when the last observation yields a valid filtered depth.
         """
         return self._filtered_forward_depth_from_stashed_obs() is not None
+
+    def _stash_good_pose(self, state: MotorSystemState) -> None:
+        """Append the current agent pose to the last-good-pose deque."""
+        agent_state = state[self.agent_id]
+        position = np.asarray(agent_state.position, dtype=float).copy()
+        rotation = agent_state.rotation
+        self._last_good_poses.append((position, rotation))
+
+    def _recover_via_last_good_pose(self) -> SetAgentPose | None:
+        """Pop the most recent good pose and return a ``SetAgentPose`` to it.
+
+        Returns:
+            ``SetAgentPose`` command to the last-known-good pose, or ``None``
+            when the deque is empty.
+        """
+        if not self._last_good_poses:
+            return None
+        position, rotation = self._last_good_poses.pop()
+        self._pose_return_grace_steps = 1
+        logger.info(
+            "constrained_search: returning to last good pose "
+            "position=%s remaining=%d",
+            np.round(position, 4).tolist(),
+            len(self._last_good_poses),
+        )
+        return SetAgentPose(
+            agent_id=self.agent_id,
+            location=position,
+            rotation_quat=rotation,
+        )
+
+    def _apply_pose_return_grace(
+        self, result: MotorPolicyResult
+    ) -> MotorPolicyResult:
+        """Rewrite orient actions to a safe MoveForward during grace window.
+
+        Immediately after a last-good-pose recovery the sensor pose may not
+        have settled and the surface-normal reading at the returned pose
+        was, by definition, the one that led us to drift off. Skip any
+        orient corrections on the next step; fall back to a small
+        ``MoveForward`` so the agent stabilizes before re-engaging normal
+        policy.
+        """
+        if self._pose_return_grace_steps <= 0:
+            return result
+        self._pose_return_grace_steps -= 1
+        rewritten = [
+            MoveForward(
+                agent_id=self.agent_id,
+                distance=_FALLBACK_FORWARD_STEP_M,
+            )
+            if isinstance(action, (OrientHorizontal, OrientVertical))
+            else action
+            for action in result.actions
+        ]
+        if all(
+            a is b for a, b in zip(rewritten, result.actions)
+        ) and len(rewritten) == len(result.actions):
+            return result
+        logger.info(
+            "pose_return_grace: rewrote %d orient action(s) to MoveForward",
+            sum(1 for a, b in zip(rewritten, result.actions) if a is not b),
+        )
+        return MotorPolicyResult(
+            actions=rewritten,
+            motor_only_step=result.motor_only_step,
+            telemetry=result.telemetry,
+            goal_pose=result.goal_pose,
+        )
 
     def _orient_horizontal(
         self, state: MotorSystemState, percept: Message
@@ -452,53 +540,62 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             self.attempting_to_find_object = False
             return MoveForward(agent_id=self.agent_id, distance=distance)
 
-        return self._constrained_search(ctx)
+        return self._constrained_search(ctx, state)
 
     def _constrained_search(
-        self, ctx: RuntimeContext
-    ) -> OrientHorizontal | OrientVertical:
-        """Search for the object with distance-constrained arc movements.
+        self, ctx: RuntimeContext, state: MotorSystemState
+    ) -> SetAgentPose | OrientHorizontal | OrientVertical:
+        """Search for the object, preferring recovery to the last-good pose.
 
-        Replaces the parent's 0.48 m-radius random search with a tighter
-        arc (``_MAX_SEARCH_RADIUS_M``) and smaller rotation steps so the
-        sensor stays near the last known object position.
+        Recovery order:
 
-        When search begins (``touch_search_amount`` near zero) the sensor
-        has typically just drifted into the table rejection zone.  The
-        first few search steps move the sensor **upward** to escape the
-        table boundary before starting the normal arc search.
+        1. If the last-good-pose deque is non-empty, return a
+           ``SetAgentPose`` back to the most recent entry (deterministic,
+           handles drifts larger than the arc-search radius).
+        2. Otherwise run an escape-upward phase for ``_ESCAPE_STEPS`` steps
+           via world-frame ``SetAgentPose`` (avoids the sensor-frame
+           direction ambiguity that used to slide the sensor horizontally).
+        3. Finally, fall back to the original arc search around the current
+           pose.
 
         Returns:
-            An orient action that arcs the sensor around a nearby point.
+            Either a ``SetAgentPose`` (recovery / escape) or an
+            ``OrientHorizontal``/``OrientVertical`` (arc).
         """
         self.attempting_to_find_object = True
 
-        # --- Escape-upward phase ---
-        # The first few search steps tilt the sensor upward (negative
-        # rotation = tilt up) and translate upward (negative
-        # down_distance = move up) to leave the table zone.
-        escape_steps = 3
-        escape_deg = -10.0  # negative = tilt up
-        escape_dist_m = -0.02  # negative = move up (opposite of down)
+        # --- Primary recovery: return to last good pose ---
+        recovery = self._recover_via_last_good_pose()
+        if recovery is not None:
+            # Reset so a subsequent failure starts a fresh escape+arc cycle.
+            self.touch_search_amount = 0.0
+            return recovery
 
-        if self.touch_search_amount < abs(escape_deg) * escape_steps:
-            step_idx = (
-                int(self.touch_search_amount / abs(escape_deg))
-                if escape_deg != 0
-                else 0
+        # --- Escape-upward phase (world-frame) ---
+        if self.touch_search_amount < abs(_ESCAPE_PITCH_DEG) * _ESCAPE_STEPS:
+            step_idx = int(
+                self.touch_search_amount / abs(_ESCAPE_PITCH_DEG)
             )
-            if step_idx < escape_steps:
-                self.touch_search_amount += abs(escape_deg)
-                logger.info(
-                    "constrained_search: escape-upward step %d/%d",
-                    step_idx + 1,
-                    escape_steps,
+            if step_idx < _ESCAPE_STEPS:
+                self.touch_search_amount += abs(_ESCAPE_PITCH_DEG)
+                agent_state = state[self.agent_id]
+                current_pos = np.asarray(agent_state.position, dtype=float)
+                new_pos = current_pos + np.array([0.0, _ESCAPE_UP_M, 0.0])
+                pitch_quat = qt.from_rotation_vector(
+                    np.array([np.radians(_ESCAPE_PITCH_DEG), 0.0, 0.0])
                 )
-                return OrientVertical(
+                new_rot = pitch_quat * agent_state.rotation
+                logger.info(
+                    "constrained_search: world-frame escape-upward "
+                    "step %d/%d new_y=%.4fm",
+                    step_idx + 1,
+                    _ESCAPE_STEPS,
+                    float(new_pos[1]),
+                )
+                return SetAgentPose(
                     agent_id=self.agent_id,
-                    rotation_degrees=escape_deg,
-                    down_distance=escape_dist_m,
-                    forward_distance=0.0,
+                    location=new_pos,
+                    rotation_quat=new_rot,
                 )
 
         # --- Normal arc search ---

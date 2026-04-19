@@ -387,6 +387,179 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
         self.assertAlmostEqual(action.down_distance, 0.0, places=5)
         self.assertAlmostEqual(action.forward_distance, 0.003954, places=5)
 
+    def test_last_good_pose_stashed_when_sensor_sees_object(self) -> None:
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import LookUp
+        from tbp.monty.frameworks.agents import AgentID
+
+        class _FakeAgentState:
+            def __init__(self, position, rotation):
+                self.position = position
+                self.rotation = rotation
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+        )
+        state = {
+            agent_id: _FakeAgentState(
+                position=np.array([0.2, 0.15, -0.3]),
+                rotation=qt.one,
+            )
+        }
+
+        with mock.patch.object(policy, "_sensor_sees_object", return_value=True):
+            policy._stash_good_pose(state)
+
+        self.assertEqual(len(policy._last_good_poses), 1)
+        stored_pos, stored_rot = policy._last_good_poses[0]
+        nptest.assert_allclose(stored_pos, np.array([0.2, 0.15, -0.3]))
+        self.assertIs(stored_rot, qt.one)
+
+    def test_recovery_returns_last_good_pose_before_arc_search(self) -> None:
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import (
+            LookUp,
+            SetAgentPose,
+        )
+        from tbp.monty.frameworks.agents import AgentID
+
+        class _FakeAgentState:
+            def __init__(self, position, rotation):
+                self.position = position
+                self.rotation = rotation
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+        )
+        # Prime the deque with one good pose.
+        good_pos = np.array([0.2, 0.15, -0.3])
+        policy._last_good_poses.append((good_pos.copy(), qt.one))
+
+        # Current pose differs — recovery should target the stashed pose.
+        state = {
+            agent_id: _FakeAgentState(
+                position=np.array([0.25, 0.05, -0.35]),
+                rotation=qt.one,
+            )
+        }
+        ctx = mock.Mock()
+        action = policy._constrained_search(ctx, state)
+
+        self.assertIsInstance(action, SetAgentPose)
+        nptest.assert_allclose(action.location, good_pos)
+        self.assertEqual(len(policy._last_good_poses), 0)
+        self.assertEqual(policy._pose_return_grace_steps, 1)
+
+    def test_escape_upward_uses_world_frame_translation(self) -> None:
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+            _ESCAPE_UP_M,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import (
+            LookUp,
+            SetAgentPose,
+        )
+        from tbp.monty.frameworks.agents import AgentID
+
+        class _FakeAgentState:
+            def __init__(self, position, rotation):
+                self.position = position
+                self.rotation = rotation
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+        )
+        # Empty deque so recovery-to-last-pose is skipped and escape runs.
+        self.assertEqual(len(policy._last_good_poses), 0)
+
+        start_pos = np.array([0.2, 0.15, -0.3])
+        state = {
+            agent_id: _FakeAgentState(position=start_pos.copy(), rotation=qt.one)
+        }
+        ctx = mock.Mock()
+        action = policy._constrained_search(ctx, state)
+
+        self.assertIsInstance(action, SetAgentPose)
+        # World +Y exactly _ESCAPE_UP_M above current. Critical regression
+        # guard for the sensor-frame direction bug (#recovery-fix-01): the
+        # broken code slid the sensor along world-X instead of lifting.
+        nptest.assert_allclose(
+            action.location,
+            start_pos + np.array([0.0, _ESCAPE_UP_M, 0.0]),
+            atol=1e-9,
+        )
+
+    def test_grace_window_rewrites_orient_actions_to_moveforward(self) -> None:
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+            _FALLBACK_FORWARD_STEP_M,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import (
+            LookUp,
+            MoveForward,
+            OrientHorizontal,
+        )
+        from tbp.monty.frameworks.agents import AgentID
+        from tbp.monty.frameworks.models.motor_policies import MotorPolicyResult
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+        )
+        policy._pose_return_grace_steps = 1
+        orient = OrientHorizontal(
+            agent_id=agent_id,
+            rotation_degrees=10.0,
+            left_distance=0.01,
+            forward_distance=0.001,
+        )
+        result = MotorPolicyResult(
+            actions=[orient],
+            motor_only_step=False,
+            telemetry={},
+            goal_pose=None,
+        )
+
+        rewritten = policy._apply_pose_return_grace(result)
+
+        self.assertEqual(policy._pose_return_grace_steps, 0)
+        self.assertEqual(len(rewritten.actions), 1)
+        self.assertIsInstance(rewritten.actions[0], MoveForward)
+        self.assertAlmostEqual(
+            rewritten.actions[0].distance, _FALLBACK_FORWARD_STEP_M
+        )
+
 
 class MotionValidationConfigTest(unittest.TestCase):
     """Tests for the motion validation experiment config and action file."""
