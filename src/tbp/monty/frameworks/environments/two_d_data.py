@@ -275,6 +275,11 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         nan_fill_value_m: float = 10.0,
         start_location_mode: str = "center",
         default_hfov_deg: float = 54.201,
+        filter_plane: bool = False,
+        plane_distance_threshold_m: float = 0.015,
+        plane_min_inlier_fraction: float = 0.15,
+        plane_ransac_iters: int = 200,
+        plane_ransac_seed: int | None = 0,
     ):
         """Initialize environment.
 
@@ -286,10 +291,28 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
                 unprojection when a scene has no per-scene intrinsics metadata.
                 Defaults to the iPad front camera FOV (54.201°) for backward
                 compatibility with existing iPad captures.
+            filter_plane: If True, run RANSAC in 3D camera coordinates on each
+                newly loaded depth image and set pixels belonging to the
+                dominant plane (typically the work surface) to
+                ``nan_fill_value_m`` so downstream logic treats them as
+                invalid. Requires per-scene intrinsics; no-op without them.
+            plane_distance_threshold_m: Inlier half-width (meters) for RANSAC
+                plane fitting. Points within this distance of the fitted
+                plane are labelled as plane pixels.
+            plane_min_inlier_fraction: Minimum fraction of valid pixels that
+                must inlier the best plane before masking is applied; avoids
+                masking when no dominant surface is present.
+            plane_ransac_iters: Number of RANSAC iterations.
+            plane_ransac_seed: Seed for the RANSAC sampler.
         """
         self.patch_size = patch_size
         self.default_hfov_deg = float(default_hfov_deg)
         self.current_intrinsics: dict[str, Any] | None = None
+        self.filter_plane = bool(filter_plane)
+        self.plane_distance_threshold_m = float(plane_distance_threshold_m)
+        self.plane_min_inlier_fraction = float(plane_min_inlier_fraction)
+        self.plane_ransac_iters = int(plane_ransac_iters)
+        self.plane_ransac_seed = plane_ransac_seed
         self._configure_depth_handling(
             max_valid_depth_m=max_valid_depth_m,
             nan_fill_value_m=nan_fill_value_m,
@@ -629,6 +652,7 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         current_depth_image = self.load_depth_data(current_depth_path, height, width)
         current_depth_image = self.process_depth_data(current_depth_image)
         self.current_intrinsics = self._load_scene_intrinsics(metadata_path)
+        current_depth_image = self._mask_dominant_plane(current_depth_image)
         start_location = self._select_start_location(current_depth_image)
         return current_depth_image, current_rgb_image, start_location
 
@@ -661,6 +685,114 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
             )
             return None
         return intrinsics
+
+    def _mask_dominant_plane(
+        self, depth_2d: npt.NDArray[np.float32]
+    ) -> npt.NDArray[np.float32]:
+        """Remove the dominant planar surface (e.g. work table) from depth.
+
+        Runs a 3-point RANSAC plane fit in 3D camera coordinates and rewrites
+        inlier pixels to ``nan_fill_value_m``. No-op when ``filter_plane`` is
+        False or per-scene intrinsics are unavailable.
+
+        Args:
+            depth_2d: Depth image in meters.
+
+        Returns:
+            Depth image with plane inlier pixels set to ``nan_fill_value_m``.
+        """
+        if not self.filter_plane or self.current_intrinsics is None:
+            return depth_2d
+
+        valid = (
+            np.isfinite(depth_2d)
+            & (depth_2d > 0)
+            & (depth_2d < self.nan_fill_value_m)
+        )
+        vs, us = np.nonzero(valid)
+        if vs.size < 100:
+            return depth_2d
+
+        h, w = depth_2d.shape
+        fx = float(self.current_intrinsics["fx"])
+        fy = float(self.current_intrinsics["fy"])
+        cx = float(self.current_intrinsics["cx"])
+        cy = float(self.current_intrinsics["cy"])
+        cal_w = int(self.current_intrinsics.get("width", w))
+        cal_h = int(self.current_intrinsics.get("height", h))
+        if cal_w != w or cal_h != h:
+            scale_x = w / cal_w
+            scale_y = h / cal_h
+            fx *= scale_x
+            fy *= scale_y
+            cx *= scale_x
+            cy *= scale_y
+
+        zs = depth_2d[vs, us].astype(np.float64)
+        xs = (us.astype(np.float64) - cx) * zs / fx
+        ys = (vs.astype(np.float64) - cy) * zs / fy
+        pts = np.stack([xs, ys, zs], axis=-1)
+
+        rng = np.random.default_rng(self.plane_ransac_seed)
+        n_pts = pts.shape[0]
+        best_count = 0
+        best_inliers: np.ndarray | None = None
+        threshold = self.plane_distance_threshold_m
+        for _ in range(self.plane_ransac_iters):
+            idx = rng.choice(n_pts, size=3, replace=False)
+            p1, p2, p3 = pts[idx]
+            normal = np.cross(p2 - p1, p3 - p1)
+            n_mag = float(np.linalg.norm(normal))
+            if n_mag < 1e-6:
+                continue
+            normal /= n_mag
+            d = float(normal @ p1)
+            dists = np.abs(pts @ normal - d)
+            inliers = dists < threshold
+            count = int(inliers.sum())
+            if count > best_count:
+                best_count = count
+                best_inliers = inliers
+
+        if best_inliers is None:
+            return depth_2d
+        if best_count / n_pts < self.plane_min_inlier_fraction:
+            return depth_2d
+
+        # Refit the plane on the best inlier set to reduce 3-sample noise.
+        inlier_pts = pts[best_inliers]
+        refined_inliers: np.ndarray
+        try:
+            coeffs, _, _, _ = np.linalg.lstsq(
+                inlier_pts, np.ones(inlier_pts.shape[0]), rcond=None
+            )
+            n_mag = float(np.linalg.norm(coeffs))
+            if n_mag < 1e-6:
+                refined_inliers = best_inliers
+            else:
+                normal = coeffs / n_mag
+                d = 1.0 / n_mag
+                dists = np.abs(pts @ normal - d)
+                refined_inliers = dists < threshold
+                if refined_inliers.sum() < best_count:
+                    # Refit made things worse — keep the RANSAC hypothesis.
+                    refined_inliers = best_inliers
+        except np.linalg.LinAlgError:
+            refined_inliers = best_inliers
+
+        masked = depth_2d.copy()
+        masked[vs[refined_inliers], us[refined_inliers]] = self.nan_fill_value_m
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "Plane masking (scene=%s, version=%s): "
+                "masked %d / %d valid px (%.2f%%)",
+                self.current_scene,
+                getattr(self, "scene_version", "unknown"),
+                int(refined_inliers.sum()),
+                n_pts,
+                100.0 * refined_inliers.sum() / n_pts,
+            )
+        return masked
 
     def load_depth_data(self, depth_path: Path, height: int, width: int):
         """Load depth image from .data file.
