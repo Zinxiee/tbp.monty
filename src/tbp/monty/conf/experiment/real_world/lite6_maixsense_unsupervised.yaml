@@ -32,6 +32,10 @@ experiment:
       run_name: real_world_lite6_maixsense_unsupervised
       python_log_level: DEBUG
     monty_config:
+      monty_args:
+        num_exploratory_steps: 10
+        min_train_steps: 1
+        min_eval_steps: 1
       motor_system_config:
         policy_selector:
           policy:
