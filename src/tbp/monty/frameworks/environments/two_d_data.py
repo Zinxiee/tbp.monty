@@ -9,9 +9,10 @@
 # https://opensource.org/licenses/MIT.
 from __future__ import annotations
 
+import json
 import logging
 import time
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -273,6 +274,7 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         max_valid_depth_m: float = 0.4,
         nan_fill_value_m: float = 10.0,
         start_location_mode: str = "center",
+        default_hfov_deg: float = 54.201,
     ):
         """Initialize environment.
 
@@ -280,8 +282,14 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
             patch_size: height and width of patch in pixels, defaults to 64
             data_path: path to the image dataset. If None, defaults to
                 ~/tbp/data/worldimages/labeled_scenes/
+            default_hfov_deg: Horizontal FOV (degrees) used for depth-to-3D
+                unprojection when a scene has no per-scene intrinsics metadata.
+                Defaults to the iPad front camera FOV (54.201°) for backward
+                compatibility with existing iPad captures.
         """
         self.patch_size = patch_size
+        self.default_hfov_deg = float(default_hfov_deg)
+        self.current_intrinsics: dict[str, Any] | None = None
         self._configure_depth_handling(
             max_valid_depth_m=max_valid_depth_m,
             nan_fill_value_m=nan_fill_value_m,
@@ -611,21 +619,48 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
             start_location: The start location.
         """
         # Set data paths
-        current_depth_path = (
-            self.data_path
-            / f"{self.current_scene}"
-            / f"depth_{self.scene_version}.data"
-        )
-        current_rgb_path = (
-            self.data_path / f"{self.current_scene}" / f"rgb_{self.scene_version}.png"
-        )
+        scene_dir = self.data_path / f"{self.current_scene}"
+        current_depth_path = scene_dir / f"depth_{self.scene_version}.data"
+        current_rgb_path = scene_dir / f"rgb_{self.scene_version}.png"
+        metadata_path = scene_dir / f"metadata_{self.scene_version}.json"
         # Load & process data
         current_rgb_image = self.load_rgb_data(current_rgb_path)
         height, width, _ = current_rgb_image.shape
         current_depth_image = self.load_depth_data(current_depth_path, height, width)
         current_depth_image = self.process_depth_data(current_depth_image)
+        self.current_intrinsics = self._load_scene_intrinsics(metadata_path)
         start_location = self._select_start_location(current_depth_image)
         return current_depth_image, current_rgb_image, start_location
+
+    def _load_scene_intrinsics(
+        self, metadata_path: Path
+    ) -> dict[str, Any] | None:
+        """Load per-scene camera intrinsics from the capture metadata file.
+
+        Returns None when metadata is missing or does not contain an
+        ``intrinsics`` block, letting the 3D unprojection fall back to the
+        environment's ``default_hfov_deg``.
+        """
+        if not metadata_path.exists():
+            return None
+        try:
+            metadata = json.loads(metadata_path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Failed to read scene metadata %s: %s", metadata_path, exc)
+            return None
+        intrinsics = metadata.get("intrinsics")
+        if not isinstance(intrinsics, dict):
+            return None
+        required = ("fx", "fy", "cx", "cy")
+        if not all(k in intrinsics for k in required):
+            logger.warning(
+                "Scene metadata %s has an intrinsics block missing one of %s; "
+                "falling back to default hfov.",
+                metadata_path,
+                required,
+            )
+            return None
+        return intrinsics
 
     def load_depth_data(self, depth_path: Path, height: int, width: int):
         """Load depth image from .data file.
@@ -717,21 +752,24 @@ class SaccadeOnImageEnvironment(SimulatedEnvironment):
         # transform = GaussianSmoothing(agent_id=agent_id, sigma=2, kernel_width=3)
         # obs = transform.call(obs)
 
-        transform = DepthTo3DLocations(
+        transform_kwargs: dict[str, Any] = dict(
             agent_id=agent_id,
             sensor_ids=[sensor_id],
             resolutions=[self.current_depth_image.shape],
             world_coord=True,
             zooms=1,
-            # hfov of iPad front camera from
-            # https://developer.apple.com/library/archive/documentation/DeviceInformation/Reference/iOSDeviceCompatibility/Cameras/Cameras.html
-            # TODO: determine dynamically which device is sending data
-            hfov=54.201,
             get_all_points=True,
             use_semantic_sensor=False,
             depth_clip_sensors=[0],
             clip_value=1.1,
         )
+        if self.current_intrinsics is not None:
+            transform_kwargs["intrinsics"] = [self.current_intrinsics]
+        else:
+            # Fall back to a single hfov value (e.g. iPad captures which
+            # predate per-scene intrinsics metadata).
+            transform_kwargs["hfov"] = self.default_hfov_deg
+        transform = DepthTo3DLocations(**transform_kwargs)
         obs_3d = transform.call(obs, state=state)
         current_scene_point_cloud = obs_3d[agent_id][sensor_id]["semantic_3d"]
         image_shape = self.current_depth_image.shape
@@ -851,6 +889,7 @@ class SaccadeOnImageFromStreamEnvironment(SaccadeOnImageEnvironment):
         max_valid_depth_m: float = 0.4,
         nan_fill_value_m: float = 10.0,
         start_location_mode: str = "center",
+        default_hfov_deg: float = 54.201,
     ):
         """Initialize environment.
 
@@ -861,6 +900,8 @@ class SaccadeOnImageFromStreamEnvironment(SaccadeOnImageEnvironment):
         """
         # TODO: use super() to avoid repeating lines of code
         self.patch_size = patch_size
+        self.default_hfov_deg = float(default_hfov_deg)
+        self.current_intrinsics: dict[str, Any] | None = None
         self._configure_depth_handling(
             max_valid_depth_m=max_valid_depth_m,
             nan_fill_value_m=nan_fill_value_m,

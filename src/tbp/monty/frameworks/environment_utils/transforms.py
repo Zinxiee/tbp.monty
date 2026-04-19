@@ -429,9 +429,24 @@ class DepthTo3DLocations(Transform):
         world_coord: bool = True,
         get_all_points: bool = False,
         use_semantic_sensor: bool = False,
+        intrinsics: Sequence[dict] | None = None,
     ):
+        """Initialize the depth-to-3D transform.
+
+        Args:
+            intrinsics: Optional per-sensor pinhole intrinsics. When provided,
+                each entry must contain ``fx``, ``fy``, ``cx``, ``cy`` in pixel
+                units. ``width`` and ``height`` may also be provided so the
+                intrinsics are rescaled when the incoming depth image resolution
+                differs from the calibrated one. When ``intrinsics`` is given,
+                ``hfov`` and ``zooms`` are ignored for those sensors.
+        """
         self.inv_k = []
         self.h, self.w = [], []
+        # Per-sensor ray-direction grids populated when explicit intrinsics are
+        # supplied. Left as None for sensors that use the hfov path so the
+        # existing inv_k-based unprojection is preserved exactly.
+        self.ray_dirs: list[tuple[np.ndarray, np.ndarray] | None] = []
 
         if isinstance(zooms, (int, float)):
             zooms = [zooms] * len(sensor_ids)
@@ -440,6 +455,18 @@ class DepthTo3DLocations(Transform):
             hfov = [hfov] * len(sensor_ids)
 
         for i, zoom in enumerate(zooms):
+            h_pix = resolutions[i][0]
+            w_pix = resolutions[i][1]
+            self.h.append(h_pix)
+            self.w.append(w_pix)
+
+            if intrinsics is not None and intrinsics[i] is not None:
+                self.inv_k.append(None)
+                self.ray_dirs.append(
+                    self._build_ray_dirs(intrinsics[i], h_pix, w_pix)
+                )
+                continue
+
             # Pinhole camera, focal length fx = fy
             hfov[i] = float(hfov[i] * np.pi / 180.0)
 
@@ -447,9 +474,7 @@ class DepthTo3DLocations(Transform):
             fy = fx
 
             # Adjust fy for aspect ratio
-            self.h.append(resolutions[i][0])
-            self.w.append(resolutions[i][1])
-            fy = fy * self.h[i] / self.w[i]
+            fy = fy * h_pix / w_pix
 
             # Intrinsic matrix, K
             # Assuming skew is 0 for pinhole camera and center at (0,0)
@@ -463,6 +488,7 @@ class DepthTo3DLocations(Transform):
             )
             # Inverse K
             self.inv_k.append(np.linalg.inv(k))
+            self.ray_dirs.append(None)
 
         self.agent_id = agent_id
         self.sensor_ids = sensor_ids
@@ -473,6 +499,45 @@ class DepthTo3DLocations(Transform):
         self.depth_clip_sensors = (
             depth_clip_sensors if depth_clip_sensors is not None else []
         )
+
+    @staticmethod
+    def _build_ray_dirs(
+        intrinsics: dict, h_pix: int, w_pix: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Build per-pixel ray direction grids from pinhole intrinsics.
+
+        Returns ``(dir_x, dir_y)`` of shape ``(1, h_pix, w_pix)`` such that a
+        pixel at depth ``z`` unprojects to camera-frame coords
+        ``(dir_x * z, dir_y * z, -z)`` — matching the sign convention used by
+        the hfov path (Y axis flipped, Z into the scene negative).
+
+        If the calibrated resolution differs from ``(h_pix, w_pix)``,
+        intrinsics are scaled linearly so they remain valid for the resized
+        image.
+        """
+        fx = float(intrinsics["fx"])
+        fy = float(intrinsics["fy"])
+        cx = float(intrinsics["cx"])
+        cy = float(intrinsics["cy"])
+
+        cal_w = int(intrinsics.get("width", w_pix))
+        cal_h = int(intrinsics.get("height", h_pix))
+        if cal_w != w_pix or cal_h != h_pix:
+            scale_x = w_pix / cal_w
+            scale_y = h_pix / cal_h
+            fx *= scale_x
+            fy *= scale_y
+            cx *= scale_x
+            cy *= scale_y
+
+        u = np.arange(w_pix, dtype=np.float64)
+        v = np.arange(h_pix, dtype=np.float64)
+        uu, vv = np.meshgrid(u, v)
+        dir_x = ((uu - cx) / fx).reshape(1, h_pix, w_pix)
+        # Negate to match the existing hfov path, which places the image top
+        # at +Y (np.linspace(1, -1, H)).
+        dir_y = (-(vv - cy) / fy).reshape(1, h_pix, w_pix)
+        return dir_x, dir_y
 
     def __call__(
         self, observations: Observations, ctx: TransformContext
@@ -599,18 +664,28 @@ class DepthTo3DLocations(Transform):
                     default_on_surface_th,
                 )
 
-            # Approximate true world coordinates
-            x, y = np.meshgrid(
-                np.linspace(-1, 1, self.w[i]), np.linspace(1, -1, self.h[i])
-            )
-            x = x.reshape(1, self.h[i], self.w[i])
-            y = y.reshape(1, self.h[i], self.w[i])
-
             # Unproject 2D camera coordinates into 3D coordinates relative to the agent
             depth = depth_patch.reshape(1, self.h[i], self.w[i])
-            xyz = np.vstack((x * depth, y * depth, -depth, np.ones(depth.shape)))
-            xyz = xyz.reshape(4, -1)
-            xyz = np.matmul(self.inv_k[i], xyz)
+            if self.ray_dirs[i] is not None:
+                # Explicit pinhole intrinsics: ray dirs already encode
+                # (fx, fy, cx, cy), so the 3D point is simply dir * depth.
+                dir_x, dir_y = self.ray_dirs[i]
+                xyz = np.vstack(
+                    (dir_x * depth, dir_y * depth, -depth, np.ones(depth.shape))
+                )
+                xyz = xyz.reshape(4, -1)
+            else:
+                # Approximate true world coordinates via a normalized [-1, 1]
+                # grid multiplied by the inverse pinhole K. This preserves the
+                # original hfov-only code path.
+                x, y = np.meshgrid(
+                    np.linspace(-1, 1, self.w[i]), np.linspace(1, -1, self.h[i])
+                )
+                x = x.reshape(1, self.h[i], self.w[i])
+                y = y.reshape(1, self.h[i], self.w[i])
+                xyz = np.vstack((x * depth, y * depth, -depth, np.ones(depth.shape)))
+                xyz = xyz.reshape(4, -1)
+                xyz = np.matmul(self.inv_k[i], xyz)
             sensor_frame_data = xyz.T.copy()
 
             if self.world_coord and state is not None:

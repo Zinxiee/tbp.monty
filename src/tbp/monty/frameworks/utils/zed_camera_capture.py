@@ -57,6 +57,7 @@ class ZEDRGBDCapture:
         self._depth = None
         self._runtime = None
         self._available = False
+        self._intrinsics: dict[str, Any] | None = None
 
         try:
             sl = importlib.import_module("pyzed.sl")
@@ -86,9 +87,43 @@ class ZEDRGBDCapture:
             self._depth = sl.Mat()
             self._runtime = sl.RuntimeParameters()
             self._available = True
+            self._intrinsics = self._load_intrinsics()
         except Exception as exc:
             logger.warning("Failed to initialize ZED camera capture: %s", exc)
             self.close()
+
+    def _load_intrinsics(self) -> dict[str, Any] | None:
+        """Pull left-camera pinhole intrinsics from the ZED SDK.
+
+        Returns None if anything goes wrong so downstream consumers can fall back
+        to a default FOV.
+        """
+        if self._zed is None:
+            return None
+        try:
+            cam_info = self._zed.get_camera_information()
+            # ZED SDK v4 nests calibration under camera_configuration; older SDKs
+            # expose it directly on CameraInformation. Try both shapes.
+            cam_config = getattr(cam_info, "camera_configuration", None)
+            if cam_config is not None:
+                cal_params = cam_config.calibration_parameters
+                resolution = cam_config.resolution
+            else:
+                cal_params = cam_info.calibration_parameters
+                resolution = cam_info.camera_resolution
+            left_cam = cal_params.left_cam
+            return {
+                "fx": float(left_cam.fx),
+                "fy": float(left_cam.fy),
+                "cx": float(left_cam.cx),
+                "cy": float(left_cam.cy),
+                "width": int(resolution.width),
+                "height": int(resolution.height),
+                "model": "pinhole_left",
+            }
+        except Exception as exc:
+            logger.warning("Failed to read ZED calibration: %s", exc)
+            return None
 
     def is_available(self) -> bool:
         return self._available
@@ -113,11 +148,13 @@ class ZEDRGBDCapture:
         bgra_image = self._left.get_data().copy()
         depth_array = self._depth.get_data().copy().astype(np.float32)
 
-        metadata = {
+        metadata: dict[str, Any] = {
             "capture_time": datetime.now().isoformat(),
             "bgra_shape": list(bgra_image.shape),
             "depth_shape": list(depth_array.shape),
         }
+        if self._intrinsics is not None:
+            metadata["intrinsics"] = dict(self._intrinsics)
         return bgra_image, depth_array, metadata
 
     def close(self) -> None:
