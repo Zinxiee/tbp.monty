@@ -768,6 +768,10 @@ class SaccadeOnImageEnvironmentInterface(EnvironmentInterfacePerObject):
             self.change_object_by_idx(idx)
             return
 
+    def pre_epoch(self) -> None:
+        if self.enable_manual_scene_picker and self.epochs == 0:
+            self._prompt_for_next_scene_selection()
+
     def post_episode(self):
         if self.enable_manual_scene_picker:
             self._prompt_for_next_scene_selection()
