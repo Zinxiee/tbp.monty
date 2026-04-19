@@ -1,0 +1,42 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 4b (optional) — Continual Learning Under Active Exploration:
+#                             Surface Agent
+#
+# A shortened version of Exp 4 run on the Surface Agent (Lite6 + ToF).
+# Demonstrates human-like continual learning under active sensorimotor
+# exploration, not just from static camera captures.
+#
+# Hardware budget: ~1 hour. Drop this experiment first if time is tight.
+#
+# Object sequence (5 episodes, 3 objects):
+#   O1, O2, O3, O1, O3
+# O1 and O3 each revisited once — the system must recognise them without labels.
+# Use 3 geometrically distinct objects (e.g. mug, Rubik's cube, cylindrical can).
+#
+# The learning_module override here switches to NoResetEvidenceGraphLM so that
+# graph memory survives episode resets, mirroring the Exp 4 Distant Agent setup.
+#
+# Usage:
+#   python run.py experiment=real_world/dissertation/exp4b_surface_continual
+#
+# Compare against Exp 4 results: does active exploration improve incremental
+# recognition accuracy vs passive ZED captures?
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised
+  - /monty/learning_module: noresetevidence_1lm
+
+experiment:
+  config:
+    do_train: true
+    do_eval: false
+    n_train_epochs: 1
+    max_train_steps: 200
+    max_total_steps: 200
+    supervised_lm_ids: []
+    logging:
+      run_name: exp4b_surface_continual

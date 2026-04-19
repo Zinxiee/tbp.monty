@@ -1,0 +1,43 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 4 — Continual (Human-like) Unsupervised Learning: Distant Agent
+#
+# Tests whether Monty can learn new objects incrementally, without labels and
+# without resetting evidence between episodes — analogous to human learning.
+# Uses NoResetEvidenceGraphLM so graph memory persists across episode boundaries.
+#
+# Object presentation sequence (10 episodes):
+#   O1, O2, O3, O4, O5, O1, O3, O5, O2, O4
+# — each object seen once in the first half, then revisited in shuffled order.
+# At return visits the system must match to an existing graph (recognition),
+# not seed a new one (learning). No object labels are provided.
+#
+# Usage:
+#   python run.py experiment=real_world/dissertation/exp4_distant_continual
+#
+# Analysis after run:
+#   python -c "
+#   from tbp.monty.frameworks.utils.logging_utils import print_unsupervised_stats
+#   print_unsupervised_stats('<path>/exp4_distant_continual/train_stats.csv')
+#   "
+# Key metrics:
+#   mean_objects_per_graph  (ideally → 1: each graph = one object)
+#   mean_graphs_per_object  (ideally → 1: each object = one graph)
+#   episode-by-episode percent_correct for return-visit episodes
+
+defaults:
+  - /experiment/real_world/zed_continual_manual_train
+
+experiment:
+  config:
+    do_train: true
+    do_eval: false
+    n_train_epochs: 1
+    max_train_steps: 1000
+    max_total_steps: 1000
+    supervised_lm_ids: []
+    logging:
+      run_name: exp4_distant_continual

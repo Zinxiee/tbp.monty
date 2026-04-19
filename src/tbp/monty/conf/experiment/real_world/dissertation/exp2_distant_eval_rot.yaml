@@ -1,0 +1,34 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 2 — Pose/Rotation Invariance: Distant Agent
+#
+# Reuses the exp1_distant_train checkpoint (canonical orientation only).
+# Evaluates recognition when each object is captured by the ZED camera in
+# one of the 4 non-canonical orientations (90°, 180°, 270° yaw, off-axis tilt).
+# Use the manual scene picker to capture/select a new scene per orientation.
+#
+# Run this config ONCE PER ORIENTATION (4 runs total), overriding run_name:
+#   python run.py experiment=real_world/dissertation/exp2_distant_eval_rot \
+#     experiment.config.model_name_or_path=<path/to/exp1_distant_train/0/model.pt> \
+#     experiment.config.logging.run_name=exp2_distant_eval_rot1
+#
+# Use orientation labels: rot1=90°yaw, rot2=180°yaw, rot3=270°yaw, rot4=tilt.
+#
+# Key metrics to compare against Exp 1:
+#   percent_correct, avg_rotation_error, avg_num_lm_steps
+
+defaults:
+  - /experiment/real_world/zed_supervised_eval
+
+experiment:
+  config:
+    do_eval: true
+    n_eval_epochs: 1
+    max_eval_steps: 500
+    max_total_steps: 500
+    model_name_or_path: ""
+    logging:
+      run_name: exp2_distant_eval_rot

@@ -1,0 +1,33 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 6 (optional) — Similar Object Discrimination: Distant Agent
+#
+# Distant-agent counterpart to exp6_surface_similar_eval. Evaluates how well
+# the ZED camera + evidence matching distinguishes confusable objects when only
+# a single RGBD viewpoint is available.
+#
+# The ZED has colour (HSV features) that the Surface Agent lacks, so it may
+# discriminate texture-differentiated pairs better (e.g. differently patterned
+# mugs). Document per-agent confusion matrix for the confusable pair.
+#
+# Usage:
+#   python run.py experiment=real_world/dissertation/exp6_distant_similar_eval \
+#     experiment.config.model_name_or_path=<path/to/exp1_distant_train/0/model.pt>
+#
+# Key metrics: percent_correct, percent_confused, per-object confusion matrix.
+
+defaults:
+  - /experiment/real_world/zed_supervised_eval
+
+experiment:
+  config:
+    do_eval: true
+    n_eval_epochs: 1
+    max_eval_steps: 500
+    max_total_steps: 500
+    model_name_or_path: ""
+    logging:
+      run_name: exp6_distant_similar_eval

@@ -1,0 +1,13 @@
+Experiment,Train Agent,Eval Agent,Object,Correct (%)|align right,Confused (%)|align right,No Match (%)|align right,Rotation Error (degrees)|align right,Num Match Steps|align right,Num Episodes|hidden
+exp1_surface_eval (baseline),surface,surface,AGGREGATE,,,,,,
+exp1_distant_eval (baseline),distant,distant,AGGREGATE,,,,,,
+exp5_surface_to_distant_eval,surface,distant,O1_mug,,,,,,
+exp5_surface_to_distant_eval,surface,distant,O2_rubiks_cube,,,,,,
+exp5_surface_to_distant_eval,surface,distant,O3_can,,,,,,
+exp5_surface_to_distant_eval,surface,distant,O4_box,,,,,,
+exp5_surface_to_distant_eval,surface,distant,AGGREGATE,,,,,,
+exp5_distant_to_surface_eval,distant,surface,O1_mug,,,,,,
+exp5_distant_to_surface_eval,distant,surface,O2_rubiks_cube,,,,,,
+exp5_distant_to_surface_eval,distant,surface,O3_can,,,,,,
+exp5_distant_to_surface_eval,distant,surface,O4_box,,,,,,
+exp5_distant_to_surface_eval,distant,surface,AGGREGATE,,,,,,

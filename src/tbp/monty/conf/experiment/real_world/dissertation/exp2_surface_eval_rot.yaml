@@ -1,0 +1,39 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 2 — Pose/Rotation Invariance: Surface Agent
+#
+# Reuses the exp1_surface_train checkpoint (canonical orientation only).
+# Evaluates recognition when each object is placed in one of the 4 non-canonical
+# orientations defined in the dissertation protocol (90°, 180°, 270° yaw, tilt).
+# Physical placement is the only change between runs — the config is identical
+# to exp1_surface_eval except for the run_name.
+#
+# Run this config ONCE PER ORIENTATION (4 runs total):
+#   ROT1 (90° yaw)   : run_name = exp2_surface_eval_rot1
+#   ROT2 (180° yaw)  : run_name = exp2_surface_eval_rot2
+#   ROT3 (270° yaw)  : run_name = exp2_surface_eval_rot3
+#   ROT4 (off-axis)  : run_name = exp2_surface_eval_rot4
+# Override run_name on the command line:
+#   python run.py experiment=real_world/dissertation/exp2_surface_eval_rot \
+#     experiment.config.model_name_or_path=<path/to/exp1_surface_train/0/model.pt> \
+#     experiment.config.logging.run_name=exp2_surface_eval_rot1
+#
+# Key metrics to compare against Exp 1:
+#   percent_correct, avg_rotation_error (should stay low if pose-invariant)
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised
+
+experiment:
+  config:
+    do_train: false
+    do_eval: true
+    n_eval_epochs: 1
+    max_eval_steps: 200
+    max_total_steps: 200
+    model_name_or_path: ""
+    logging:
+      run_name: exp2_surface_eval_rot

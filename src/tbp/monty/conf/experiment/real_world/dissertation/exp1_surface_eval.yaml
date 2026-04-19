@@ -1,0 +1,31 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 1 — Baseline Feasibility: Surface Agent Evaluation
+#
+# Loads the checkpoint saved by exp1_surface_train and evaluates recognition
+# accuracy on the same 5–7 objects in canonical orientation.
+#
+# Usage:
+#   python run.py experiment=real_world/dissertation/exp1_surface_eval \
+#     experiment.config.model_name_or_path=<path/to/exp1_surface_train/0/model.pt>
+#
+# Key output metrics (eval_stats.csv):
+#   percent_correct, percent_confused, percent_no_match,
+#   avg_rotation_error, avg_num_lm_steps, avg_num_monty_matching_steps
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised
+
+experiment:
+  config:
+    do_train: false
+    do_eval: true
+    n_eval_epochs: 1
+    max_eval_steps: 200
+    max_total_steps: 200
+    model_name_or_path: ""
+    logging:
+      run_name: exp1_surface_eval

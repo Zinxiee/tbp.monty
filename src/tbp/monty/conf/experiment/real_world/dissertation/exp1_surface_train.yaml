@@ -1,0 +1,32 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 1 — Baseline Feasibility: Surface Agent Training
+#
+# Trains a supervised model on 5–7 real-world objects using the Lite6 robot
+# arm + Maixsense A010 ToF sensor. One epoch, canonical object orientation.
+# Supervised labels ensure each object gets a distinct graph in LM memory.
+#
+# Usage:
+#   python run.py experiment=real_world/dissertation/exp1_surface_train
+#
+# After running, note the checkpoint path printed at the end, e.g.:
+#   outputs/exp1_surface_train/0/model.pt
+# Pass this to exp1_surface_eval via experiment.config.model_name_or_path.
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised
+
+experiment:
+  config:
+    do_train: true
+    do_eval: false
+    n_train_epochs: 1
+    max_train_steps: 200
+    max_total_steps: 200
+    supervised_lm_ids:
+      - learning_module_0
+    logging:
+      run_name: exp1_surface_train

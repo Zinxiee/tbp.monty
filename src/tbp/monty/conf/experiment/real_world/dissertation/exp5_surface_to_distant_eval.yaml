@@ -1,0 +1,40 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 5 — Cross-Agent Model Transfer: Surface → Distant
+#
+# Loads the Surface Agent checkpoint from exp1_surface_train and runs inference
+# using the Distant Agent (ZED camera + camera_dist sensor module). This tests
+# whether Monty's reference-frame object models are sensor-agnostic — a core
+# architectural claim of the Thousand Brains Project.
+#
+# TBP precedent: zed_supervised_eval.yaml already does this with TBP's own
+# surface-agent pretrained model (surf_agent_1lm_numenta_lab_obj). This config
+# applies the same pattern to your trained objects.
+#
+# Expected behaviour:
+#   - Geometry-rich objects (Rubik's cube) may transfer well; the surface model
+#     captures curvature the ZED camera can also observe.
+#   - Texture-heavy objects may transfer poorly; the surface model has no colour
+#     features, so HSV evidence degrades to zero weight.
+#   - 0% across the board is also a valid (negative) finding — document the
+#     architectural reason (feature mismatch), not a bug.
+#
+# Usage:
+#   python run.py experiment=real_world/dissertation/exp5_surface_to_distant_eval \
+#     experiment.config.model_name_or_path=<path/to/exp1_surface_train/0/model.pt>
+
+defaults:
+  - /experiment/real_world/zed_supervised_eval
+
+experiment:
+  config:
+    do_eval: true
+    n_eval_epochs: 1
+    max_eval_steps: 500
+    max_total_steps: 500
+    model_name_or_path: ""
+    logging:
+      run_name: exp5_surface_to_distant_eval

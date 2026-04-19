@@ -1,0 +1,37 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 6 (optional) — Similar Object Discrimination: Surface Agent
+#
+# Stress-tests recognition on the 2–3 confusable objects from the main object
+# set (e.g. two mugs with different handle shapes, cube vs. rounded cube).
+# Reuses the exp1_surface_train checkpoint — no additional training required.
+# Only the physical objects presented differ from Exp 1 eval.
+#
+# Run against the confusable subset only. If Exp 1 showed high accuracy for all
+# objects, this experiment identifies the discrimination ceiling and the specific
+# feature (curvature profile, handle geometry) that separates or confuses pairs.
+#
+# Usage:
+#   python run.py experiment=real_world/dissertation/exp6_surface_similar_eval \
+#     experiment.config.model_name_or_path=<path/to/exp1_surface_train/0/model.pt>
+#
+# Key metrics:
+#   percent_correct, percent_confused (high confusion = objects share graph)
+#   per-episode primary_target vs. predicted_object in eval_stats.csv
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised
+
+experiment:
+  config:
+    do_train: false
+    do_eval: true
+    n_eval_epochs: 1
+    max_eval_steps: 200
+    max_total_steps: 200
+    model_name_or_path: ""
+    logging:
+      run_name: exp6_surface_similar_eval

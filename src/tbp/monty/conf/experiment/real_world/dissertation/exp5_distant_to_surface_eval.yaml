@@ -1,0 +1,37 @@
+# Copyright 2025 Thousand Brains Project
+# MIT License
+
+# @package _global_
+#
+# Experiment 5 — Cross-Agent Model Transfer: Distant → Surface
+#
+# Loads the Distant Agent checkpoint from exp1_distant_train and runs inference
+# using the Surface Agent (Lite6 robot + ToF sensor). Tests the reverse transfer
+# direction: can a model built from a single RGBD viewpoint be recognised through
+# active surface exploration?
+#
+# The distant-agent model may lack full 3D coverage (only one side of each
+# object was captured), so the surface agent may step onto regions with no
+# stored features. This is an informative failure mode: document how many
+# steps are required and whether the system times out vs. recognises.
+#
+# Usage:
+#   python run.py experiment=real_world/dissertation/exp5_distant_to_surface_eval \
+#     experiment.config.model_name_or_path=<path/to/exp1_distant_train/0/model.pt>
+#
+# Compare against Exp 5 surface→distant results to build the 2×2 transfer matrix:
+#   (train modality) × (eval modality) → percent_correct, avg_rotation_error
+
+defaults:
+  - /experiment/real_world/lite6_maixsense_unsupervised
+
+experiment:
+  config:
+    do_train: false
+    do_eval: true
+    n_eval_epochs: 1
+    max_eval_steps: 200
+    max_total_steps: 200
+    model_name_or_path: ""
+    logging:
+      run_name: exp5_distant_to_surface_eval
