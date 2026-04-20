@@ -91,6 +91,15 @@ _ESCAPE_STEPS = 3
 _ESCAPE_UP_M = 0.02
 _ESCAPE_PITCH_DEG = -10.0
 
+# Tolerance for deduplicating stashed poses. Without this, the pose we just
+# recovered to gets re-stashed on the next step and the deque oscillates
+# between two adjacent poses forever.
+_STASH_DEDUP_TOL_M = 0.005
+
+# Oscillation guard. If this many recoveries happen without the LM
+# receiving data, clear the deque so escape-upward + arc search take over.
+_MAX_RECOVERY_POPS_WITHOUT_PROGRESS = 3
+
 
 class RealWorldSurfacePolicy(SurfacePolicy):
     """SurfacePolicy variant for real-world setups with no view-finder sensor.
@@ -129,6 +138,9 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             maxlen=_POSE_DEQUE_MAXLEN
         )
         self._pose_return_grace_steps: int = 0
+        self._last_recovered_pose: tuple[np.ndarray, qt.quaternion] | None = None
+        self._force_arc_search_once: bool = False
+        self._recovery_pops_since_progress: int = 0
 
     def _touch_sensor_id(self) -> SensorID:
         """Use the real sensor patch instead of the non-existent view-finder.
@@ -160,6 +172,12 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         self._last_observations = observations
         if self._sensor_sees_object():
             self._stash_good_pose(state)
+
+        # Post-recovery: force the parent onto the _touch_object path so the
+        # next action is diverted away from the MoveForward that drifted off.
+        if self._pose_return_grace_steps > 0:
+            self.attempting_to_find_object = True
+
         result = super().__call__(ctx, observations, state, percept, goal)
         if result.motor_only_step and self._sensor_sees_object():
             result = MotorPolicyResult(
@@ -168,7 +186,14 @@ class RealWorldSurfacePolicy(SurfacePolicy):
                 telemetry=result.telemetry,
                 goal_pose=result.goal_pose,
             )
-        result = self._apply_pose_return_grace(result)
+
+        # LM received data this step; clear the oscillation counter.
+        if not result.motor_only_step:
+            self._recovery_pops_since_progress = 0
+
+        if self._pose_return_grace_steps > 0:
+            self._pose_return_grace_steps -= 1
+
         return result
 
     def _sensor_sees_object(self) -> bool:
@@ -180,27 +205,69 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         return self._filtered_forward_depth_from_stashed_obs() is not None
 
     def _stash_good_pose(self, state: MotorSystemState) -> None:
-        """Append the current agent pose to the last-good-pose deque."""
+        """Append the current agent pose to the last-good-pose deque.
+
+        Skips stashing when the current pose is within
+        ``_STASH_DEDUP_TOL_M`` of either the pose we most recently recovered
+        to or the current top of the deque. This prevents the recovered
+        pose from being immediately re-pushed, which would otherwise cause
+        perpetual A↔B oscillation.
+        """
         agent_state = state[self.agent_id]
         position = np.asarray(agent_state.position, dtype=float).copy()
         rotation = agent_state.rotation
+
+        if self._last_recovered_pose is not None:
+            recovered_pos, _ = self._last_recovered_pose
+            if np.linalg.norm(position - recovered_pos) < _STASH_DEDUP_TOL_M:
+                return
+            # Agent has moved meaningfully away; clear the sentinel so future
+            # returns to this area can be stashed again.
+            self._last_recovered_pose = None
+
+        if self._last_good_poses:
+            top_pos, _ = self._last_good_poses[-1]
+            if np.linalg.norm(position - top_pos) < _STASH_DEDUP_TOL_M:
+                return
+
         self._last_good_poses.append((position, rotation))
 
     def _recover_via_last_good_pose(self) -> SetAgentPose | None:
         """Pop the most recent good pose and return a ``SetAgentPose`` to it.
 
+        Includes an oscillation guard: once the agent has popped the deque
+        ``_MAX_RECOVERY_POPS_WITHOUT_PROGRESS`` times without the LM making
+        any progress, the deque is cleared and ``None`` is returned so the
+        caller falls through to the escape-upward + arc-search ladder.
+
         Returns:
             ``SetAgentPose`` command to the last-known-good pose, or ``None``
-            when the deque is empty.
+            when the deque is empty or the oscillation guard has tripped.
         """
         if not self._last_good_poses:
             return None
+
+        if self._recovery_pops_since_progress >= _MAX_RECOVERY_POPS_WITHOUT_PROGRESS:
+            logger.info(
+                "constrained_search: oscillation guard tripped (%d pops "
+                "without LM progress); clearing deque",
+                self._recovery_pops_since_progress,
+            )
+            self._last_good_poses.clear()
+            self._last_recovered_pose = None
+            self._recovery_pops_since_progress = 0
+            return None
+
         position, rotation = self._last_good_poses.pop()
         self._pose_return_grace_steps = 1
+        self._last_recovered_pose = (position.copy(), rotation)
+        self._recovery_pops_since_progress += 1
         logger.info(
-            "constrained_search: returning to last good pose position=%s remaining=%d",
+            "constrained_search: returning to last good pose "
+            "position=%s remaining=%d pops_since_progress=%d",
             np.round(position, 4).tolist(),
             len(self._last_good_poses),
+            self._recovery_pops_since_progress,
         )
         return SetAgentPose(
             agent_id=self.agent_id,
@@ -514,6 +581,16 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         """
         filtered_depth = self._filtered_forward_depth(observations, view_sensor_id)
 
+        # On the step immediately after a pose recovery, divert away from
+        # the MoveForward branch — that is the action that caused the
+        # original drift and would repeat it. Route to arc search instead.
+        if self._pose_return_grace_steps > 0:
+            logger.info(
+                "touch_object: post-recovery grace active, forcing arc search"
+            )
+            self._force_arc_search_once = True
+            return self._constrained_search(ctx, state)
+
         if filtered_depth is not None and filtered_depth < 1.0:
             raw_distance = filtered_depth - self.desired_object_distance
             distance = min(raw_distance, _MAX_FORWARD_STEP_M)
@@ -553,16 +630,26 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         """
         self.attempting_to_find_object = True
 
-        # --- Primary recovery: return to last good pose ---
-        recovery = self._recover_via_last_good_pose()
-        if recovery is not None:
-            # Reset so a subsequent failure starts a fresh escape+arc cycle.
-            self.touch_search_amount = 0.0
-            return recovery
+        # Post-recovery override: skip pose-recovery and escape-upward so
+        # the agent takes a small arc step from the returned-to pose. This
+        # breaks A↔B oscillation by diversifying the post-recovery motion.
+        force_arc = self._force_arc_search_once
+        self._force_arc_search_once = False
+
+        if not force_arc:
+            # --- Primary recovery: return to last good pose ---
+            recovery = self._recover_via_last_good_pose()
+            if recovery is not None:
+                # Reset so a subsequent failure starts a fresh escape+arc cycle.
+                self.touch_search_amount = 0.0
+                return recovery
 
         # --- Escape-upward phase (world-frame) ---
-        if self.touch_search_amount < abs(_ESCAPE_PITCH_DEG) * _ESCAPE_STEPS:
-            step_idx = int(self.touch_search_amount / abs(_ESCAPE_PITCH_DEG))
+        escape_budget = abs(_ESCAPE_PITCH_DEG) * _ESCAPE_STEPS
+        if not force_arc and self.touch_search_amount < escape_budget:
+            step_idx = int(
+                self.touch_search_amount / abs(_ESCAPE_PITCH_DEG)
+            )
             if step_idx < _ESCAPE_STEPS:
                 self.touch_search_amount += abs(_ESCAPE_PITCH_DEG)
                 agent_state = state[self.agent_id]

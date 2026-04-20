@@ -514,21 +514,26 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
             atol=1e-9,
         )
 
-    def test_grace_window_rewrites_orient_actions_to_moveforward(self) -> None:
+    def test_stash_skips_when_at_recovered_pose(self) -> None:
+        """Deque must not refill with the pose we just recovered to.
+
+        Without this dedup, A→B→A oscillation loops forever: the pose
+        popped during recovery is immediately re-stashed on the return
+        step, so the next failure pops the same entry again.
+        """
         from multimodal_monty_meets_world.real_world_surface_policy import (
             RealWorldSurfacePolicy,
-            _FALLBACK_FORWARD_STEP_M,
         )
         from tbp.monty.frameworks.actions.action_samplers import (
             UniformlyDistributedSampler,
         )
-        from tbp.monty.frameworks.actions.actions import (
-            LookUp,
-            MoveForward,
-            OrientHorizontal,
-        )
+        from tbp.monty.frameworks.actions.actions import LookUp
         from tbp.monty.frameworks.agents import AgentID
-        from tbp.monty.frameworks.models.motor_policies import MotorPolicyResult
+
+        class _FakeAgentState:
+            def __init__(self, position, rotation):
+                self.position = position
+                self.rotation = rotation
 
         agent_id = AgentID("agent_id_0")
         policy = RealWorldSurfacePolicy(
@@ -537,28 +542,118 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
             agent_id=agent_id,
             desired_object_distance=0.12,
         )
-        policy._pose_return_grace_steps = 1
-        orient = OrientHorizontal(
+        recovered_pos = np.array([0.2, 0.15, -0.3])
+        policy._last_recovered_pose = (recovered_pos.copy(), qt.one)
+
+        state = {
+            agent_id: _FakeAgentState(
+                position=recovered_pos.copy(),  # exact match
+                rotation=qt.one,
+            )
+        }
+        policy._stash_good_pose(state)
+        self.assertEqual(len(policy._last_good_poses), 0)
+
+        # Meaningful move away: stash is allowed and sentinel clears.
+        state[agent_id].position = np.array([0.25, 0.15, -0.3])
+        policy._stash_good_pose(state)
+        self.assertEqual(len(policy._last_good_poses), 1)
+        self.assertIsNone(policy._last_recovered_pose)
+
+    def test_touch_object_after_recovery_diverts_to_arc_search(self) -> None:
+        """Post-recovery step must not repeat the MoveForward that drifted off."""
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import (
+            LookUp,
+            MoveForward,
+            OrientHorizontal,
+            OrientVertical,
+            SetAgentPose,
+        )
+        from tbp.monty.frameworks.agents import AgentID
+
+        class _FakeAgentState:
+            def __init__(self, position, rotation):
+                self.position = position
+                self.rotation = rotation
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
             agent_id=agent_id,
-            rotation_degrees=10.0,
-            left_distance=0.01,
-            forward_distance=0.001,
+            desired_object_distance=0.12,
         )
-        result = MotorPolicyResult(
-            actions=[orient],
-            motor_only_step=False,
-            telemetry={},
-            goal_pose=None,
+        # `touch_search_amount` is initialized in the parent's pre_episode,
+        # not __init__. Set it here since the test constructs a policy
+        # directly without going through the episode lifecycle.
+        policy.touch_search_amount = 0
+        # Simulate we just did a recovery: grace window open, deque also has
+        # an older pose. Would normally trigger either MoveForward (if depth
+        # valid) or another recovery pop; both must be suppressed.
+        policy._pose_return_grace_steps = 1
+        policy._last_good_poses.append((np.array([0.1, 0.1, -0.2]), qt.one))
+        state = {
+            agent_id: _FakeAgentState(
+                position=np.array([0.2, 0.15, -0.3]),
+                rotation=qt.one,
+            )
+        }
+        ctx = mock.Mock()
+        with mock.patch.object(
+            policy,
+            "_filtered_forward_depth",
+            return_value=0.25,  # depth that would otherwise drive MoveForward
+        ):
+            action = policy._touch_object(
+                ctx, observations={}, view_sensor_id="patch", state=state
+            )
+
+        # Must not be a MoveForward (that is the drift-causing action) and
+        # must not be a SetAgentPose (another recovery pop would oscillate).
+        self.assertNotIsInstance(action, MoveForward)
+        self.assertNotIsInstance(action, SetAgentPose)
+        self.assertIsInstance(action, (OrientHorizontal, OrientVertical))
+        # Deque untouched by the arc-search path.
+        self.assertEqual(len(policy._last_good_poses), 1)
+
+    def test_oscillation_guard_clears_deque_after_repeated_pops(self) -> None:
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            _MAX_RECOVERY_POPS_WITHOUT_PROGRESS,
+            RealWorldSurfacePolicy,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import LookUp
+        from tbp.monty.frameworks.agents import AgentID
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+        )
+        for i in range(_MAX_RECOVERY_POPS_WITHOUT_PROGRESS + 2):
+            policy._last_good_poses.append(
+                (np.array([0.1 * i, 0.1, -0.2]), qt.one)
+            )
+        policy._recovery_pops_since_progress = (
+            _MAX_RECOVERY_POPS_WITHOUT_PROGRESS
         )
 
-        rewritten = policy._apply_pose_return_grace(result)
+        action = policy._recover_via_last_good_pose()
 
-        self.assertEqual(policy._pose_return_grace_steps, 0)
-        self.assertEqual(len(rewritten.actions), 1)
-        self.assertIsInstance(rewritten.actions[0], MoveForward)
-        self.assertAlmostEqual(
-            rewritten.actions[0].distance, _FALLBACK_FORWARD_STEP_M
-        )
+        self.assertIsNone(action)
+        self.assertEqual(len(policy._last_good_poses), 0)
+        self.assertEqual(policy._recovery_pops_since_progress, 0)
+        self.assertIsNone(policy._last_recovered_pose)
 
 
 class MotionValidationConfigTest(unittest.TestCase):
