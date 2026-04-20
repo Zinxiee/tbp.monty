@@ -52,6 +52,16 @@ class MaixsenseA010USB:
         )
         self._last_frame_id: Optional[int] = None
 
+    def __getstate__(self):
+        # Drop the live pyserial handle so this client can be pickled with
+        # the experiment config. The parser is pure-python and picklable.
+        state = self.__dict__.copy()
+        state["_serial"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     @staticmethod
     def list_serial_ports() -> List[SerialPortInfo]:
         return [

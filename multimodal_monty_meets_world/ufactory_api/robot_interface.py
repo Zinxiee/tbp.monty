@@ -27,6 +27,20 @@ class RobotInterface:
         self._running = False
         self._thread = None
 
+    def __getstate__(self):
+        # Drop live hardware handles that don't survive pickling (XArmAPI C
+        # bindings, threading.Lock, threading.Thread). Lets the enclosing
+        # experiment config / environment be serialized to disk.
+        state = self.__dict__.copy()
+        state["arm"] = None
+        state["_lock"] = None
+        state["_thread"] = None
+        state["_running"] = False
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def start_listening(self):
         """Wakes up the subconscious sensory thread."""
         self._running = True

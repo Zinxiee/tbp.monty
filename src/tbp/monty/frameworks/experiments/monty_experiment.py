@@ -12,6 +12,7 @@ from __future__ import annotations
 import copy
 import datetime
 import logging
+import pickle
 import pprint
 from pathlib import Path
 from typing import Any, Literal
@@ -722,22 +723,19 @@ class MontyExperiment:
             pass
         else:
             logger.info(f"saving model to {output_dir}")
-            try:
-                torch.save(model_state_dict, output_dir / "model.pt")
-                torch.save(exp_state_dict, output_dir / "exp_state_dict.pt")
-            except TypeError as exc:
-                logger.warning(
-                    "Skipping model/exp state_dict save because object is not"
-                    " picklable: %s",
-                    exc,
-                )
-            try:
-                torch.save(self.config, output_dir / "config.pt")
-            except TypeError as exc:
-                logger.warning(
-                    "Skipping config save because object is not picklable: %s",
-                    exc,
-                )
+            for artifact_name, artifact in (
+                ("model.pt", model_state_dict),
+                ("exp_state_dict.pt", exp_state_dict),
+                ("config.pt", self.config),
+            ):
+                try:
+                    torch.save(artifact, output_dir / artifact_name)
+                except (TypeError, pickle.PicklingError) as exc:
+                    logger.warning(
+                        "Skipping %s save because object is not picklable: %s",
+                        artifact_name,
+                        exc,
+                    )
 
     def load_state_dict(self, load_dir):
         """Load state_dict of previous experiment."""
