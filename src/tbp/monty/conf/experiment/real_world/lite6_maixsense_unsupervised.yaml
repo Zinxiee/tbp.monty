@@ -33,7 +33,7 @@ experiment:
       python_log_level: DEBUG
     monty_config:
       monty_args:
-        num_exploratory_steps: 10
+        num_exploratory_steps: 35
         min_train_steps: 1
         min_eval_steps: 1
       learning_module_configs:
