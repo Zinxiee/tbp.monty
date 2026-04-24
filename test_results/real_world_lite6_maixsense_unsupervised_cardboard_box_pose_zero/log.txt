@@ -1,0 +1,1020 @@
+logger initialized
+{'do_eval': True, 'do_train': True, 'monty_config': {'monty_class': <class 'tbp.monty.frameworks.models.graph_matching.MontyForGraphMatching'>, 'monty_args': {'num_exploratory_steps': 35, 'min_eval_steps': 1, 'min_train_steps': 1, 'max_total_steps': 2500}, 'motor_system_config': <tbp.monty.frameworks.models.motor_system.MotorSystem object at 0x7440bd9ee3d0>, 'learning_module_configs': {'learning_module_0': {'learning_module_args': {'tolerances': {'patch': {'hsv': array([0.1, 0.2, 0.2]), 'principal_curvatures_log': array([3., 3.])}}, 'feature_weights': {'patch': {'hsv': array([1. , 0.5, 0.5]), 'pose_vectors': [0, 0, 0], 'principal_curvatures_log': array([0., 0.])}}, 'max_match_distance': 0.015, 'x_percent_threshold': 50, 'graph_delta_thresholds': {'patch': {'distance': 0.008, 'pose_vectors': [0.5235987755982988, 6.283185307179586, 6.283185307179586], 'principal_curvatures_log': [3.0, 3.0], 'hsv': [0.1, 1, 1]}}, 'object_evidence_threshold': 100, 'required_symmetry_evidence': 20, 'hypotheses_updater_args': {'max_nneighbors': 10}}, 'learning_module_class': <class 'tbp.monty.frameworks.models.evidence_matching.learning_module.EvidenceGraphLM'>}}, 'sensor_module_configs': {'sensor_module_0': {'sensor_module_class': <class 'tbp.monty.frameworks.models.sensor_modules.CameraSM'>, 'sensor_module_args': {'is_surface_sm': True, 'sensor_module_id': 'patch', 'surface_normal_method': 'HUBER', 'surface_normal_neighbor_patch_frac': 1.5, 'features': ['pose_vectors', 'pose_fully_defined', 'on_object', 'object_coverage', 'min_depth', 'mean_depth', 'hsv', 'principal_curvatures', 'principal_curvatures_log', 'gaussian_curvature', 'mean_curvature', 'gaussian_curvature_sc', 'mean_curvature_sc'], 'save_raw_obs': True}}}, 'sm_to_agent_dict': {'patch': 'agent_id_0'}, 'sm_to_lm_matrix': [[0]], 'lm_to_lm_matrix': None, 'lm_to_lm_vote_matrix': None}, 'environment': {'env_init_func': <class 'tbp.monty.frameworks.environments.real_world_environment.RealWorldLite6A010Environment'>, 'env_init_args': {'robot_interface': <multimodal_monty_meets_world.ufactory_api.robot_interface.RobotInterface object at 0x7440bb474d30>, 'sensor_client': <multimodal_monty_meets_world.maixsense_a010_api.usb_frame_client.A010UsbFrameClient object at 0x7440bb457a00>, 'observation_adapter': <multimodal_monty_meets_world.maixsense_a010_api.monty_adapter.MaixsenseMontyObservationAdapter object at 0x7440bb454160>, 'goal_adapter': None, 'goal_adapter_config': {'world_to_robot_translation_m': [0.0, 0.0, 0.0], 'world_to_robot_rotation_dict': {'w': 0.5, 'x': 0.5, 'y': -0.5, 'z': -0.5}, 'link6_to_sensor_translation_m': [0.06, 0.0, 0.0135], 'link6_to_sensor_rotation_dict': {'w': 0.0, 'x': 0.0, 'y': 1.0, 'z': 0.0}, 'workspace_min_xyz_m': [0.135, -0.23, 0.075], 'workspace_max_xyz_m': [0.4, 0.32, 0.4], 'max_translation_step_m': 0.1, 'max_rotation_step_deg': 35.0, 'orientation_min_euler_deg': [-180.0, -170.0, -180.0], 'orientation_max_euler_deg': [180.0, 170.0, 180.0], 'convergence_timeout_s': 4.0, 'convergence_position_tolerance_mm': 3.0, 'min_command_interval_s': 0.0, 'wait_for_min_command_interval': True, 'wait_until_ready': True, 'wait_until_ready_timeout_s': 2.0, 'wait_until_ready_poll_s': 0.02, 'safety_profile': 'very_relaxed', 'payload_mass_kg': 0.056, 'euler_sequence': 'xyz', 'euler_degrees': True, 'debug_logging': True}, 'agent_id': 'agent_id_0', 'sensor_id': 'patch', 'home_pose_mm_deg': [220, 9, 210, 180, 0.0, 0.0], 'settle_time_s': 0.25, 'settle_use_goal_convergence_gate': True, 'settle_convergence_position_tolerance_mm': 3.0, 'settle_convergence_required_consecutive_samples': 2, 'home_reset_timeout_s': 8.0, 'home_reset_poll_s': 0.02, 'home_reset_position_tolerance_mm': 20.0, 'home_reset_orientation_tolerance_deg': 10.0, 'require_object_swap_confirmation': True, 'object_swap_prompt': 'Swap/position the object, then press Enter to continue: ', 'sensor_translation_m': [0.0, 0.0, 0.0], 'sensor_rotation_wxyz': [1.0, 0.0, 0.0, 0.0], 'depth_unit': 0, 'sensor_frame_timeout_s': 1.5, 'sensor_frame_max_retries': 3, 'sensor_frame_retry_delay_s': 0.05, 'depth_burst_n': 5, 'sensed_orientation_sequence': 'xyz', 'sensed_orientation_degrees': False, 'sensed_orientation_intrinsic': False, 'sensed_orientation_index_order': [0, 1, 2], 'sensed_orientation_signs': [1.0, 1.0, 1.0], 'sensed_orientation_offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'sensed_motion_offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'min_sensor_height_m': 0.05, 'motion_debug_logging': True}, 'transform': None}, 'train_env_interface_class': <class 'tbp.monty.frameworks.environments.real_world_interface.RealWorldEnvironmentInterface'>, 'train_env_interface_args': {'use_goal_pose_dispatch': True}, 'eval_env_interface_class': <class 'tbp.monty.frameworks.environments.real_world_interface.RealWorldEnvironmentInterface'>, 'eval_env_interface_args': {'use_goal_pose_dispatch': True}, 'logging': {'monty_log_level': 'BASIC', 'monty_handlers': [<class 'tbp.monty.frameworks.loggers.monty_handlers.BasicCSVStatsHandler'>], 'wandb_handlers': [], 'python_log_level': 'DEBUG', 'python_log_to_file': True, 'python_log_to_stderr': True, 'output_dir': '/home/zach/tbp/results/monty/projects/monty_runs/real_world_lite6_maixsense_unsupervised', 'run_name': 'real_world_lite6_maixsense_unsupervised', 'resume_wandb_run': False, 'wandb_id': 'm68l6a1c', 'wandb_group': 'debugging'}, 'show_sensor_output': False, 'max_train_steps': 200, 'max_eval_steps': 200, 'max_total_steps': 400, 'n_train_epochs': 1, 'n_eval_epochs': 1, 'model_name_or_path': '', 'min_lms_match': 1, 'seed': 42, 'supervised_lm_ids': []}
+{'do_eval': True, 'do_train': True, 'monty_config': {'monty_class': <class 'tbp.monty.frameworks.models.graph_matching.MontyForGraphMatching'>, 'monty_args': {'num_exploratory_steps': 35, 'min_eval_steps': 1, 'min_train_steps': 1, 'max_total_steps': 2500}, 'motor_system_config': <tbp.monty.frameworks.models.motor_system.MotorSystem object at 0x7440bd9ee3d0>, 'learning_module_configs': {'learning_module_0': {'learning_module_args': {'tolerances': {'patch': {'hsv': array([0.1, 0.2, 0.2]), 'principal_curvatures_log': array([3., 3.])}}, 'feature_weights': {'patch': {'hsv': array([1. , 0.5, 0.5]), 'pose_vectors': [0, 0, 0], 'principal_curvatures_log': array([0., 0.])}}, 'max_match_distance': 0.015, 'x_percent_threshold': 50, 'graph_delta_thresholds': {'patch': {'distance': 0.008, 'pose_vectors': [0.5235987755982988, 6.283185307179586, 6.283185307179586], 'principal_curvatures_log': [3.0, 3.0], 'hsv': [0.1, 1, 1]}}, 'object_evidence_threshold': 100, 'required_symmetry_evidence': 20, 'hypotheses_updater_args': {'max_nneighbors': 10}}, 'learning_module_class': <class 'tbp.monty.frameworks.models.evidence_matching.learning_module.EvidenceGraphLM'>}}, 'sensor_module_configs': {'sensor_module_0': {'sensor_module_class': <class 'tbp.monty.frameworks.models.sensor_modules.CameraSM'>, 'sensor_module_args': {'is_surface_sm': True, 'sensor_module_id': 'patch', 'surface_normal_method': 'HUBER', 'surface_normal_neighbor_patch_frac': 1.5, 'features': ['pose_vectors', 'pose_fully_defined', 'on_object', 'object_coverage', 'min_depth', 'mean_depth', 'hsv', 'principal_curvatures', 'principal_curvatures_log', 'gaussian_curvature', 'mean_curvature', 'gaussian_curvature_sc', 'mean_curvature_sc'], 'save_raw_obs': True}}}, 'sm_to_agent_dict': {'patch': 'agent_id_0'}, 'sm_to_lm_matrix': [[0]], 'lm_to_lm_matrix': None, 'lm_to_lm_vote_matrix': None}, 'environment': {'env_init_func': <class 'tbp.monty.frameworks.environments.real_world_environment.RealWorldLite6A010Environment'>, 'env_init_args': {'robot_interface': <multimodal_monty_meets_world.ufactory_api.robot_interface.RobotInterface object at 0x7440bb474d30>, 'sensor_client': <multimodal_monty_meets_world.maixsense_a010_api.usb_frame_client.A010UsbFrameClient object at 0x7440bb457a00>, 'observation_adapter': <multimodal_monty_meets_world.maixsense_a010_api.monty_adapter.MaixsenseMontyObservationAdapter object at 0x7440bb454160>, 'goal_adapter': None, 'goal_adapter_config': {'world_to_robot_translation_m': [0.0, 0.0, 0.0], 'world_to_robot_rotation_dict': {'w': 0.5, 'x': 0.5, 'y': -0.5, 'z': -0.5}, 'link6_to_sensor_translation_m': [0.06, 0.0, 0.0135], 'link6_to_sensor_rotation_dict': {'w': 0.0, 'x': 0.0, 'y': 1.0, 'z': 0.0}, 'workspace_min_xyz_m': [0.135, -0.23, 0.075], 'workspace_max_xyz_m': [0.4, 0.32, 0.4], 'max_translation_step_m': 0.1, 'max_rotation_step_deg': 35.0, 'orientation_min_euler_deg': [-180.0, -170.0, -180.0], 'orientation_max_euler_deg': [180.0, 170.0, 180.0], 'convergence_timeout_s': 4.0, 'convergence_position_tolerance_mm': 3.0, 'min_command_interval_s': 0.0, 'wait_for_min_command_interval': True, 'wait_until_ready': True, 'wait_until_ready_timeout_s': 2.0, 'wait_until_ready_poll_s': 0.02, 'safety_profile': 'very_relaxed', 'payload_mass_kg': 0.056, 'euler_sequence': 'xyz', 'euler_degrees': True, 'debug_logging': True}, 'agent_id': 'agent_id_0', 'sensor_id': 'patch', 'home_pose_mm_deg': [220, 9, 210, 180, 0.0, 0.0], 'settle_time_s': 0.25, 'settle_use_goal_convergence_gate': True, 'settle_convergence_position_tolerance_mm': 3.0, 'settle_convergence_required_consecutive_samples': 2, 'home_reset_timeout_s': 8.0, 'home_reset_poll_s': 0.02, 'home_reset_position_tolerance_mm': 20.0, 'home_reset_orientation_tolerance_deg': 10.0, 'require_object_swap_confirmation': True, 'object_swap_prompt': 'Swap/position the object, then press Enter to continue: ', 'sensor_translation_m': [0.0, 0.0, 0.0], 'sensor_rotation_wxyz': [1.0, 0.0, 0.0, 0.0], 'depth_unit': 0, 'sensor_frame_timeout_s': 1.5, 'sensor_frame_max_retries': 3, 'sensor_frame_retry_delay_s': 0.05, 'depth_burst_n': 5, 'sensed_orientation_sequence': 'xyz', 'sensed_orientation_degrees': False, 'sensed_orientation_intrinsic': False, 'sensed_orientation_index_order': [0, 1, 2], 'sensed_orientation_signs': [1.0, 1.0, 1.0], 'sensed_orientation_offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'sensed_motion_offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'min_sensor_height_m': 0.05, 'motion_debug_logging': True}, 'transform': None}, 'train_env_interface_class': <class 'tbp.monty.frameworks.environments.real_world_interface.RealWorldEnvironmentInterface'>, 'train_env_interface_args': {'use_goal_pose_dispatch': True}, 'eval_env_interface_class': <class 'tbp.monty.frameworks.environments.real_world_interface.RealWorldEnvironmentInterface'>, 'eval_env_interface_args': {'use_goal_pose_dispatch': True}, 'logging': {'monty_log_level': 'BASIC', 'monty_handlers': [<class 'tbp.monty.frameworks.loggers.monty_handlers.BasicCSVStatsHandler'>], 'wandb_handlers': [], 'python_log_level': 'DEBUG', 'python_log_to_file': True, 'python_log_to_stderr': True, 'output_dir': '/home/zach/tbp/results/monty/projects/monty_runs/real_world_lite6_maixsense_unsupervised', 'run_name': 'real_world_lite6_maixsense_unsupervised', 'resume_wandb_run': False, 'wandb_id': 'm68l6a1c', 'wandb_group': 'debugging'}, 'show_sensor_output': False, 'max_train_steps': 200, 'max_eval_steps': 200, 'max_total_steps': 400, 'n_train_epochs': 1, 'n_eval_epochs': 1, 'model_name_or_path': '', 'min_lms_match': 1, 'seed': 42, 'supervised_lm_ids': []}
+RW_MOTION HOME_RESET_CONVERGED | {'home_position_mm': [220.0, 9.0, 210.0], 'home_orientation_deg': [180.0, 0.0, 0.0], 'position_error_mm': 0.0, 'orientation_error_deg': 0.0, 'sample_timestamp_s': 5074331.296593}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14392, 'burst_n': 5, 'burst_read_ms': 1039.34, 'read_to_camera_ms': 0.35, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [-0.009, 0.1965, -0.28], 'sensor_position_m': [-0.009, 0.1965, -0.28], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+RW_MOTION HOME_RESET_CONVERGED | {'home_position_mm': [220.0, 9.0, 210.0], 'home_orientation_deg': [180.0, 0.0, 0.0], 'position_error_mm': 0.0, 'orientation_error_deg': 0.0, 'sample_timestamp_s': 5074333.697307}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14413, 'burst_n': 5, 'burst_read_ms': 634.19, 'read_to_camera_ms': 0.27, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [-0.009, 0.1965, -0.28], 'sensor_position_m': [-0.009, 0.1965, -0.28], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+running 1 train epochs
+running train epoch 0
+Running single episode
+running train epoch 0 train episode 0
+resetting RNG to seed 1060955053
+Going into matching mode after 0 steps
+Models in memory: []
+RW_MOTION HOME_RESET_CONVERGED | {'home_position_mm': [220.0, 9.0, 210.0], 'home_orientation_deg': [180.0, 0.0, 0.0], 'position_error_mm': 0.0, 'orientation_error_deg': 0.0, 'sample_timestamp_s': 5074335.107876}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14554, 'burst_n': 5, 'burst_read_ms': 664.4, 'read_to_camera_ms': 0.3, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [-0.009, 0.1965, -0.28], 'sensor_position_m': [-0.009, 0.1965, -0.28], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=False has_goal_pose=False actions=[]/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 0, 'input_actions': [], 'selected_actions': [], 'use_goal_pose_dispatch': False, 'has_goal_pose': False, 'pre_position_m': [-0.009, 0.1965, -0.28]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 0, 'post_position_m': [-0.009, 0.1965, -0.28], 'delta_position_m': [0.0, 0.0, 0.0], 'delta_mm': [0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14564, 'burst_n': 5, 'burst_read_ms': 448.56, 'read_to_camera_ms': 0.19, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [-0.009, 0.1965, -0.28], 'sensor_position_m': [-0.009, 0.1965, -0.28], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+Performing a motor-only step
+SM debug: sm_id=patch, step_id=0, frame_id=None, ts_utc=2026-04-24T11:42:54.407+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=0, frame_id=None, ts_utc=2026-04-24T11:42:54.407+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=8.484800, k2=-20.640145, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=0, frame_id=None, ts_utc=2026-04-24T11:42:54.407+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=0, frame_id=None, ts_utc=2026-04-24T11:42:54.407+00:00
+SM step gate: motor_only_step=True, forcing use_state False; reason_code=motor_only_step
+SM dbg: sm_id=patch, step_id=0, frame_id=None, ts_utc=2026-04-24T11:42:54.407+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=False, post_filter_use_state=False, reason_code=motor_only_step
+Object coverage good at initialization: 1.0
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 1, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [-0.009, 0.1965, -0.28]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [-0.009, 0.1965, -0.28], 'raw_delta_m': [0.0, 0.0, 0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, 0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [-0.009, 0.1965, -0.28], 'goal_quaternion_wxyz': [-0.5, 0.5, 0.5, 0.5]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [-0.009, 0.1965, -0.28], 'goal_quaternion_wxyz': [-0.5, 0.5, 0.5, 0.5], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.22, 0.009, 0.21], 'sensed_position_m': [0.22, 0.009, 0.21], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 1, 'post_position_m': [-0.009, 0.1965, -0.28], 'delta_position_m': [0.0, 0.0, 0.0], 'delta_mm': [0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14578, 'burst_n': 5, 'burst_read_ms': 629.83, 'read_to_camera_ms': 0.35, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [-0.009, 0.1965, -0.28], 'sensor_position_m': [-0.009, 0.1965, -0.28], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=1, frame_id=None, ts_utc=2026-04-24T11:42:55.330+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=1, frame_id=None, ts_utc=2026-04-24T11:42:55.330+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-31.514032, k2=-44.719399, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=1, frame_id=None, ts_utc=2026-04-24T11:42:55.330+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=1, frame_id=None, ts_utc=2026-04-24T11:42:55.330+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+Sending input from ['patch'] to learning_module_0
+we have not moved yet.
+query: [{'patch': {'pose_vectors': array([[ 0.2246257 ,  0.97374528, -0.03692465],
+       [ 0.74250733, -0.14649773,  0.65362166],
+       [ 0.63043824, -0.17411601, -0.75645968]]), 'pose_fully_defined': True, 'hsv': array([0., 0., 0.]), 'principal_curvatures_log': array([-3.48167174, -3.82252269])}}, None]
+no objects in memory yet.
+current most likely hypothesis: new_object0 with evidence 0
+Setting terminal state of learning_module_0 to no_match
+terminal state: no_match
+Stepping learning module 0
+Possible matches for learning_module_0: []
+--- Global Matching Step 1 ---
+Going into exploratory mode after 1 steps
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 2, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [-0.009, 0.1965, -0.28]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.141593, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [-0.0, -1.0, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [-0.009, 0.1965, -0.28], 'raw_delta_m': [0.02692, -0.009525, -0.0], 'raw_delta_norm_m': 0.028556, 'delta_m': [0.02692, -0.009525, -0.0], 'delta_norm_m': 0.028556, 'translation_was_clipped': False, 'goal_position_m': [0.017921, 0.186975, -0.28], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.017921, 0.186975, -0.28], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.22, -0.020955, 0.20013], 'sensed_position_m': [0.22, -0.018903, 0.200806], 'gap_mm': 2.16, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.16, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.930404, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.105398, -0.99443, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 2, 'post_position_m': [0.016073, 0.187605, -0.28], 'delta_position_m': [0.025073, -0.008895, -0.0], 'delta_mm': [25.073, -8.895, -0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14604, 'burst_n': 5, 'burst_read_ms': 681.52, 'read_to_camera_ms': 0.34, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.01792, 0.186975, -0.28], 'sensor_position_m': [0.01792, 0.186975, -0.28], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=2, frame_id=None, ts_utc=2026-04-24T11:42:56.991+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=2, frame_id=None, ts_utc=2026-04-24T11:42:56.991+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-2.379157, k2=-52.642653, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=2, frame_id=None, ts_utc=2026-04-24T11:42:56.991+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=2, frame_id=None, ts_utc=2026-04-24T11:42:56.991+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 3, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.01792, 0.186975, -0.28]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.01792, 0.186975, -0.28], 'raw_delta_m': [0.003858, -0.00089, 0.000567], 'raw_delta_norm_m': 0.004, 'delta_m': [0.003858, -0.00089, 0.000567], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.021779, 0.186085, -0.279433], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.021779, 0.186085, -0.279433], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.219433, -0.024813, 0.19924], 'sensed_position_m': [0.219818, -0.022196, 0.199843], 'gap_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 3, 'post_position_m': [0.019162, 0.186689, -0.279818], 'delta_position_m': [0.001241, -0.000286, 0.000182], 'delta_mm': [1.241, -0.286, 0.182]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14618, 'burst_n': 5, 'burst_read_ms': 698.42, 'read_to_camera_ms': 0.34, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.021779, 0.186085, -0.279433], 'sensor_position_m': [0.021779, 0.186085, -0.279433], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=3, frame_id=None, ts_utc=2026-04-24T11:42:57.966+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=3, frame_id=None, ts_utc=2026-04-24T11:42:57.966+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-1.082860, k2=-85.205808, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=3, frame_id=None, ts_utc=2026-04-24T11:42:57.966+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=3, frame_id=None, ts_utc=2026-04-24T11:42:57.966+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 4, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.021779, 0.186085, -0.279433]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.021779, 0.186085, -0.279433], 'raw_delta_m': [0.007002, 0.030353, -0.0], 'raw_delta_norm_m': 0.03115, 'delta_m': [0.007002, 0.030353, -0.0], 'delta_norm_m': 0.03115, 'translation_was_clipped': False, 'goal_position_m': [0.028781, 0.216438, -0.279433], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.028781, 0.216438, -0.279433], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.219433, -0.031815, 0.229593], 'sensed_position_m': [0.219433, -0.031226, 0.227039], 'gap_mm': 2.621, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.621, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 4, 'post_position_m': [0.028192, 0.213884, -0.279433], 'delta_position_m': [0.006413, 0.027799, 0.0], 'delta_mm': [6.413, 27.799, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14642, 'burst_n': 5, 'burst_read_ms': 594.26, 'read_to_camera_ms': 0.2, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.028781, 0.216438, -0.279433], 'sensor_position_m': [0.028781, 0.216438, -0.279433], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=4, frame_id=None, ts_utc=2026-04-24T11:42:59.519+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=4, frame_id=None, ts_utc=2026-04-24T11:42:59.519+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-10.198246, k2=-27.298459, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=4, frame_id=None, ts_utc=2026-04-24T11:42:59.519+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=4, frame_id=None, ts_utc=2026-04-24T11:42:59.519+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 5, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.028781, 0.216438, -0.279433]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [0.028781, 0.216438, -0.279433], 'raw_delta_m': [0.0, 0.0, 0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, 0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.028781, 0.216438, -0.279433], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.028781, 0.216438, -0.279433], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.219433, -0.031815, 0.229592], 'sensed_position_m': [0.219433, -0.031815, 0.229593], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 5, 'post_position_m': [0.028781, 0.216438, -0.279433], 'delta_position_m': [-0.0, 0.0, 0.0], 'delta_mm': [-0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14657, 'burst_n': 5, 'burst_read_ms': 732.72, 'read_to_camera_ms': 0.23, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.028781, 0.216438, -0.279433], 'sensor_position_m': [0.028781, 0.216438, -0.279433], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=5, frame_id=None, ts_utc=2026-04-24T11:43:00.528+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=5, frame_id=None, ts_utc=2026-04-24T11:43:00.528+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=5.512683, k2=-40.495636, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=5, frame_id=None, ts_utc=2026-04-24T11:43:00.528+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=5, frame_id=None, ts_utc=2026-04-24T11:43:00.528+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 6, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.028781, 0.216438, -0.279433]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [0.028781, 0.216438, -0.279433], 'raw_delta_m': [-0.0, 0.0, 0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [-0.0, 0.0, 0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.028781, 0.216438, -0.279433], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.028781, 0.216438, -0.279433], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.219433, -0.031815, 0.229593], 'sensed_position_m': [0.219433, -0.031815, 0.229592], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 6, 'post_position_m': [0.028781, 0.216438, -0.279433], 'delta_position_m': [0.0, -0.0, 0.0], 'delta_mm': [0.0, -0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14673, 'burst_n': 5, 'burst_read_ms': 730.34, 'read_to_camera_ms': 0.36, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.028781, 0.216438, -0.279433], 'sensor_position_m': [0.028781, 0.216438, -0.279433], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=6, frame_id=None, ts_utc=2026-04-24T11:43:01.534+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=6, frame_id=None, ts_utc=2026-04-24T11:43:01.534+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-13.256544, k2=-40.134638, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=6, frame_id=None, ts_utc=2026-04-24T11:43:01.534+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=6, frame_id=None, ts_utc=2026-04-24T11:43:01.534+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 7, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.028781, 0.216438, -0.279433]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.028781, 0.216438, -0.279433], 'raw_delta_m': [0.00365, -0.000842, 0.001402], 'raw_delta_norm_m': 0.004, 'delta_m': [0.00365, -0.000842, 0.001402], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.032431, 0.215596, -0.278031], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.032431, 0.215596, -0.278031], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.218031, -0.035465, 0.22875], 'sensed_position_m': [0.218982, -0.032989, 0.229322], 'gap_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 7, 'post_position_m': [0.029955, 0.216167, -0.278982], 'delta_position_m': [0.001174, -0.000271, 0.000451], 'delta_mm': [1.174, -0.271, 0.451]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14688, 'burst_n': 5, 'burst_read_ms': 721.75, 'read_to_camera_ms': 0.33, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.032431, 0.215596, -0.278031], 'sensor_position_m': [0.032431, 0.215596, -0.278031], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=7, frame_id=None, ts_utc=2026-04-24T11:43:02.532+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=7, frame_id=None, ts_utc=2026-04-24T11:43:02.532+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-2.029247, k2=-24.779782, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=7, frame_id=None, ts_utc=2026-04-24T11:43:02.532+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=7, frame_id=None, ts_utc=2026-04-24T11:43:02.532+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 8, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.032431, 0.215596, -0.278031]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.032431, 0.215596, -0.278031], 'raw_delta_m': [-0.000186, -0.000807, 0.0], 'raw_delta_norm_m': 0.000828, 'delta_m': [-0.000186, -0.000807, 0.0], 'delta_norm_m': 0.000828, 'translation_was_clipped': False, 'goal_position_m': [0.032245, 0.214789, -0.278031], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.032245, 0.214789, -0.278031], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.218031, -0.035279, 0.227944], 'sensed_position_m': [0.218031, -0.035308, 0.228068], 'gap_mm': 0.128, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.128, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 8, 'post_position_m': [0.032274, 0.214914, -0.278031], 'delta_position_m': [-0.000157, -0.000682, 0.0], 'delta_mm': [-0.157, -0.682, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14703, 'burst_n': 5, 'burst_read_ms': 701.64, 'read_to_camera_ms': 0.42, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.032245, 0.214789, -0.278031], 'sensor_position_m': [0.032245, 0.214789, -0.278031], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=8, frame_id=None, ts_utc=2026-04-24T11:43:03.509+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=8, frame_id=None, ts_utc=2026-04-24T11:43:03.509+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-18.309770, k2=-28.555951, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=8, frame_id=None, ts_utc=2026-04-24T11:43:03.509+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=8, frame_id=None, ts_utc=2026-04-24T11:43:03.509+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 9, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.032245, 0.214789, -0.278031]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [0.032245, 0.214789, -0.278031], 'raw_delta_m': [0.0, 0.0, 0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, 0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.032245, 0.214789, -0.278031], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.032245, 0.214789, -0.278031], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.218031, -0.035279, 0.227944], 'sensed_position_m': [0.218031, -0.035279, 0.227944], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 9, 'post_position_m': [0.032245, 0.214789, -0.278031], 'delta_position_m': [-0.0, -0.0, 0.0], 'delta_mm': [-0.0, -0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14718, 'burst_n': 5, 'burst_read_ms': 729.09, 'read_to_camera_ms': 0.32, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.032245, 0.214789, -0.278031], 'sensor_position_m': [0.032245, 0.214789, -0.278031], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=9, frame_id=None, ts_utc=2026-04-24T11:43:04.513+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=9, frame_id=None, ts_utc=2026-04-24T11:43:04.513+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-16.157257, k2=-40.003782, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=9, frame_id=None, ts_utc=2026-04-24T11:43:04.513+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=9, frame_id=None, ts_utc=2026-04-24T11:43:04.513+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 10, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.032245, 0.214789, -0.278031]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [0.032245, 0.214789, -0.278031], 'raw_delta_m': [-0.0, 0.0, 0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [-0.0, 0.0, 0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.032245, 0.214789, -0.278031], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.032245, 0.214789, -0.278031], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.218031, -0.035279, 0.227944], 'sensed_position_m': [0.218031, -0.035279, 0.227944], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 10, 'post_position_m': [0.032245, 0.214789, -0.278031], 'delta_position_m': [0.0, 0.0, 0.0], 'delta_mm': [0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14733, 'burst_n': 5, 'burst_read_ms': 705.74, 'read_to_camera_ms': 0.33, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.032245, 0.214789, -0.278031], 'sensor_position_m': [0.032245, 0.214789, -0.278031], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=10, frame_id=None, ts_utc=2026-04-24T11:43:05.495+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=10, frame_id=None, ts_utc=2026-04-24T11:43:05.495+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-23.184511, k2=-34.321813, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=10, frame_id=None, ts_utc=2026-04-24T11:43:05.495+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=10, frame_id=None, ts_utc=2026-04-24T11:43:05.495+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 11, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.032245, 0.214789, -0.278031]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.032245, 0.214789, -0.278031], 'raw_delta_m': [0.003897, -0.000899, 7.7e-05], 'raw_delta_norm_m': 0.004, 'delta_m': [0.003897, -0.000899, 7.7e-05], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.036142, 0.21389, -0.277953], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.036142, 0.21389, -0.277953], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217953, -0.039176, 0.227045], 'sensed_position_m': [0.218006, -0.036533, 0.227654], 'gap_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 11, 'post_position_m': [0.033498, 0.2145, -0.278006], 'delta_position_m': [0.001253, -0.000289, 2.5e-05], 'delta_mm': [1.253, -0.289, 0.025]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14748, 'burst_n': 5, 'burst_read_ms': 727.59, 'read_to_camera_ms': 0.33, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.036142, 0.21389, -0.277953], 'sensor_position_m': [0.036142, 0.21389, -0.277953], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=11, frame_id=None, ts_utc=2026-04-24T11:43:06.506+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=11, frame_id=None, ts_utc=2026-04-24T11:43:06.506+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-23.586093, k2=-35.048912, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=11, frame_id=None, ts_utc=2026-04-24T11:43:06.506+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=11, frame_id=None, ts_utc=2026-04-24T11:43:06.506+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 12, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.036142, 0.21389, -0.277953]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.036142, 0.21389, -0.277953], 'raw_delta_m': [0.000244, 0.001057, -0.0], 'raw_delta_norm_m': 0.001085, 'delta_m': [0.000244, 0.001057, -0.0], 'delta_norm_m': 0.001085, 'translation_was_clipped': False, 'goal_position_m': [0.036385, 0.214947, -0.277953], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.036385, 0.214947, -0.277953], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217953, -0.03942, 0.228102], 'sensed_position_m': [0.217953, -0.039355, 0.22782], 'gap_mm': 0.289, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.289, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 12, 'post_position_m': [0.03632, 0.214665, -0.277953], 'delta_position_m': [0.000179, 0.000775, 0.0], 'delta_mm': [0.179, 0.775, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14762, 'burst_n': 5, 'burst_read_ms': 656.68, 'read_to_camera_ms': 0.33, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.036385, 0.214947, -0.277953], 'sensor_position_m': [0.036385, 0.214947, -0.277953], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=12, frame_id=None, ts_utc=2026-04-24T11:43:07.439+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=12, frame_id=None, ts_utc=2026-04-24T11:43:07.439+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=7.698941, k2=-28.579213, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=12, frame_id=None, ts_utc=2026-04-24T11:43:07.439+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=12, frame_id=None, ts_utc=2026-04-24T11:43:07.439+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 13, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.036385, 0.214947, -0.277953]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914877, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113115, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [0.036385, 0.214947, -0.277953], 'raw_delta_m': [0.0, 0.0, 0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, 0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.036385, 0.214947, -0.277953], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.036385, 0.214947, -0.277953], 'goal_quaternion_wxyz': [-0.440233, 0.553349, 0.440233, 0.553349], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217953, -0.03942, 0.228101], 'sensed_position_m': [0.217953, -0.03942, 0.228102], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 13, 'post_position_m': [0.036385, 0.214947, -0.277953], 'delta_position_m': [-0.0, 0.0, 0.0], 'delta_mm': [-0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14777, 'burst_n': 5, 'burst_read_ms': 710.0, 'read_to_camera_ms': 0.32, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.036385, 0.214947, -0.277953], 'sensor_position_m': [0.036385, 0.214947, -0.277953], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=13, frame_id=None, ts_utc=2026-04-24T11:43:08.425+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=13, frame_id=None, ts_utc=2026-04-24T11:43:08.425+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-14.890987, k2=-37.910760, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=13, frame_id=None, ts_utc=2026-04-24T11:43:08.425+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=13, frame_id=None, ts_utc=2026-04-24T11:43:08.425+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 14, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.036385, 0.214947, -0.277953]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.914876, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113116, -0.993582, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [0.036385, 0.214947, -0.277953], 'raw_delta_m': [0.000104, -0.004755, 0.0], 'raw_delta_norm_m': 0.004756, 'delta_m': [0.000104, -0.004755, 0.0], 'delta_norm_m': 0.004756, 'translation_was_clipped': False, 'goal_position_m': [0.036489, 0.210192, -0.277953], 'goal_quaternion_wxyz': [-0.505425, 0.494516, 0.505425, 0.494516]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.036489, 0.210192, -0.277953], 'goal_quaternion_wxyz': [-0.505425, 0.494516, 0.505425, 0.494516], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217953, -0.036195, 0.223689], 'sensed_position_m': [0.217953, -0.037661, 0.225695], 'gap_mm': 2.485, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.485, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.050426, 0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.045568, -0.998961, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 14, 'post_position_m': [0.036432, 0.212251, -0.277953], 'delta_position_m': [4.6e-05, -0.002696, 0.0], 'delta_mm': [0.046, -2.696, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14793, 'burst_n': 5, 'burst_read_ms': 646.45, 'read_to_camera_ms': 0.32, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.036489, 0.210192, -0.277953], 'sensor_position_m': [0.036489, 0.210192, -0.277953], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=14, frame_id=None, ts_utc=2026-04-24T11:43:09.447+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=14, frame_id=None, ts_utc=2026-04-24T11:43:09.447+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-13.007573, k2=-31.622731, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=14, frame_id=None, ts_utc=2026-04-24T11:43:09.447+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=14, frame_id=None, ts_utc=2026-04-24T11:43:09.447+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 15, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.036489, 0.210192, -0.277953]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.036489, 0.210192, -0.277953], 'raw_delta_m': [0.003999, 8.7e-05, -2.1e-05], 'raw_delta_norm_m': 0.004, 'delta_m': [0.003999, 8.7e-05, -2.1e-05], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.040488, 0.210279, -0.277975], 'goal_quaternion_wxyz': [0.505425, -0.494516, -0.505425, -0.494516]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.040488, 0.210279, -0.277975], 'goal_quaternion_wxyz': [0.505425, -0.494516, -0.505425, -0.494516], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217975, -0.040194, 0.223776], 'sensed_position_m': [0.217961, -0.037528, 0.223718], 'gap_mm': 2.666, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.666, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 15, 'post_position_m': [0.037823, 0.210221, -0.277961], 'delta_position_m': [0.001333, 2.9e-05, -7e-06], 'delta_mm': [1.333, 0.029, -0.007]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14807, 'burst_n': 5, 'burst_read_ms': 690.19, 'read_to_camera_ms': 0.35, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.040488, 0.210279, -0.277975], 'sensor_position_m': [0.040488, 0.210279, -0.277975], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=15, frame_id=None, ts_utc=2026-04-24T11:43:10.413+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=15, frame_id=None, ts_utc=2026-04-24T11:43:10.413+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=5.249505, k2=-19.907130, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=15, frame_id=None, ts_utc=2026-04-24T11:43:10.413+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=15, frame_id=None, ts_utc=2026-04-24T11:43:10.413+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 16, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.040488, 0.210279, -0.277975]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.040488, 0.210279, -0.277975], 'raw_delta_m': [-0.000262, 0.011997, 0.0], 'raw_delta_norm_m': 0.012, 'delta_m': [-0.000262, 0.011997, 0.0], 'delta_norm_m': 0.012, 'translation_was_clipped': False, 'goal_position_m': [0.040226, 0.222276, -0.277975], 'goal_quaternion_wxyz': [0.505425, -0.494516, -0.505425, -0.494516]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.040226, 0.222276, -0.277975], 'goal_quaternion_wxyz': [0.505425, -0.494516, -0.505425, -0.494516], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217975, -0.039932, 0.235773], 'sensed_position_m': [0.217975, -0.039985, 0.23334], 'gap_mm': 2.434, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.434, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 16, 'post_position_m': [0.040279, 0.219843, -0.277975], 'delta_position_m': [-0.000209, 0.009564, 0.0], 'delta_mm': [-0.209, 9.564, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14828, 'burst_n': 5, 'burst_read_ms': 720.75, 'read_to_camera_ms': 0.28, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.040226, 0.222276, -0.277975], 'sensor_position_m': [0.040226, 0.222276, -0.277975], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=16, frame_id=None, ts_utc=2026-04-24T11:43:11.752+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=16, frame_id=None, ts_utc=2026-04-24T11:43:11.752+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=26.927879, k2=-14.144575, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=16, frame_id=None, ts_utc=2026-04-24T11:43:11.752+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=16, frame_id=None, ts_utc=2026-04-24T11:43:11.752+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 17, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.040226, 0.222276, -0.277975]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [0.040226, 0.222276, -0.277975], 'raw_delta_m': [0.0, 0.0, -0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, -0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.040226, 0.222276, -0.277975], 'goal_quaternion_wxyz': [0.505425, -0.494516, -0.505425, -0.494516]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.040226, 0.222276, -0.277975], 'goal_quaternion_wxyz': [0.505425, -0.494516, -0.505425, -0.494516], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217975, -0.039932, 0.235773], 'sensed_position_m': [0.217975, -0.039932, 0.235773], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 17, 'post_position_m': [0.040226, 0.222276, -0.277975], 'delta_position_m': [0.0, 0.0, 0.0], 'delta_mm': [0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14843, 'burst_n': 5, 'burst_read_ms': 757.69, 'read_to_camera_ms': 0.2, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.040226, 0.222276, -0.277975], 'sensor_position_m': [0.040226, 0.222276, -0.277975], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=17, frame_id=None, ts_utc=2026-04-24T11:43:12.786+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=17, frame_id=None, ts_utc=2026-04-24T11:43:12.786+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=37.052783, k2=-14.103278, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=17, frame_id=None, ts_utc=2026-04-24T11:43:12.786+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=17, frame_id=None, ts_utc=2026-04-24T11:43:12.786+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 18, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.040226, 0.222276, -0.277975]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [3.119774, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.010909, 0.99994, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [0.040226, 0.222276, -0.277975], 'raw_delta_m': [0.036825, -0.01432, 0.0], 'raw_delta_norm_m': 0.039511, 'delta_m': [0.036825, -0.01432, 0.0], 'delta_norm_m': 0.039511, 'translation_was_clipped': False, 'goal_position_m': [0.077051, 0.207956, -0.277975], 'goal_quaternion_wxyz': [0.436554, -0.556256, -0.436554, -0.556256]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.077051, 0.207956, -0.277975], 'goal_quaternion_wxyz': [0.436554, -0.556256, -0.436554, -0.556256], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217975, -0.08026, 0.221069], 'sensed_position_m': [0.217975, -0.078308, 0.221781], 'gap_mm': 2.077, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.077, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.91428, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.113412, -0.993548, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 18, 'post_position_m': [0.075266, 0.208628, -0.277975], 'delta_position_m': [0.035039, -0.013648, -0.0], 'delta_mm': [35.039, -13.648, -0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14870, 'burst_n': 5, 'burst_read_ms': 647.97, 'read_to_camera_ms': 0.31, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.077051, 0.207956, -0.277975], 'sensor_position_m': [0.077051, 0.207956, -0.277975], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=18, frame_id=None, ts_utc=2026-04-24T11:43:14.554+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=18, frame_id=None, ts_utc=2026-04-24T11:43:14.554+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-5.189299, k2=-20.964551, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=18, frame_id=None, ts_utc=2026-04-24T11:43:14.554+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=18, frame_id=None, ts_utc=2026-04-24T11:43:14.554+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 19, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.077051, 0.207956, -0.277975]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.077051, 0.207956, -0.277975], 'raw_delta_m': [0.003826, -0.000936, 0.000697], 'raw_delta_norm_m': 0.004, 'delta_m': [0.003826, -0.000936, 0.000697], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.080877, 0.20702, -0.277278], 'goal_quaternion_wxyz': [-0.436554, 0.556256, 0.436554, 0.556256]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.080877, 0.20702, -0.277278], 'goal_quaternion_wxyz': [-0.436554, 0.556256, 0.436554, 0.556256], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217278, -0.084086, 0.220133], 'sensed_position_m': [0.217742, -0.081535, 0.220757], 'gap_mm': 2.666, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.666, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 19, 'post_position_m': [0.078327, 0.207644, -0.277742], 'delta_position_m': [0.001276, -0.000312, 0.000232], 'delta_mm': [1.276, -0.312, 0.232]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14885, 'burst_n': 5, 'burst_read_ms': 696.06, 'read_to_camera_ms': 0.3, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.080877, 0.20702, -0.277278], 'sensor_position_m': [0.080877, 0.20702, -0.277278], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=19, frame_id=None, ts_utc=2026-04-24T11:43:15.526+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=19, frame_id=None, ts_utc=2026-04-24T11:43:15.526+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=9.384365, k2=-20.579149, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=19, frame_id=None, ts_utc=2026-04-24T11:43:15.526+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=19, frame_id=None, ts_utc=2026-04-24T11:43:15.526+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 20, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.080877, 0.20702, -0.277278]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.080877, 0.20702, -0.277278], 'raw_delta_m': [0.001857, 0.007588, -0.0], 'raw_delta_norm_m': 0.007812, 'delta_m': [0.001857, 0.007588, -0.0], 'delta_norm_m': 0.007812, 'translation_was_clipped': False, 'goal_position_m': [0.082734, 0.214608, -0.277278], 'goal_quaternion_wxyz': [-0.436554, 0.556256, 0.436554, 0.556256]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.082734, 0.214608, -0.277278], 'goal_quaternion_wxyz': [-0.436554, 0.556256, 0.436554, 0.556256], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217278, -0.085942, 0.227721], 'sensed_position_m': [0.217278, -0.085413, 0.225557], 'gap_mm': 2.227, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.227, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 20, 'post_position_m': [0.082204, 0.212444, -0.277278], 'delta_position_m': [0.001327, 0.005425, 0.0], 'delta_mm': [1.327, 5.425, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14903, 'burst_n': 5, 'burst_read_ms': 705.67, 'read_to_camera_ms': 0.45, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.082734, 0.214608, -0.277278], 'sensor_position_m': [0.082734, 0.214608, -0.277278], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=20, frame_id=None, ts_utc=2026-04-24T11:43:16.729+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=20, frame_id=None, ts_utc=2026-04-24T11:43:16.729+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-3.411217, k2=-23.853816, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=20, frame_id=None, ts_utc=2026-04-24T11:43:16.729+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=20, frame_id=None, ts_utc=2026-04-24T11:43:16.729+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 21, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.082734, 0.214608, -0.277278]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [0.082734, 0.214608, -0.277278], 'raw_delta_m': [0.0, 0.0, 0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, 0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.082734, 0.214608, -0.277278], 'goal_quaternion_wxyz': [-0.436554, 0.556256, 0.436554, 0.556256]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.082734, 0.214608, -0.277278], 'goal_quaternion_wxyz': [-0.436554, 0.556256, 0.436554, 0.556256], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217278, -0.085942, 0.227721], 'sensed_position_m': [0.217278, -0.085942, 0.227721], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 21, 'post_position_m': [0.082734, 0.214608, -0.277278], 'delta_position_m': [0.0, 0.0, 0.0], 'delta_mm': [0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14918, 'burst_n': 5, 'burst_read_ms': 725.06, 'read_to_camera_ms': 0.21, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.082734, 0.214608, -0.277278], 'sensor_position_m': [0.082734, 0.214608, -0.277278], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=21, frame_id=None, ts_utc=2026-04-24T11:43:17.730+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=21, frame_id=None, ts_utc=2026-04-24T11:43:17.730+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-12.085332, k2=-29.538589, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=21, frame_id=None, ts_utc=2026-04-24T11:43:17.730+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=21, frame_id=None, ts_utc=2026-04-24T11:43:17.730+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 22, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.082734, 0.214608, -0.277278]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.901612, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.119703, -0.99281, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [0.082734, 0.214608, -0.277278], 'raw_delta_m': [-4.3e-05, -0.004017, 0.0], 'raw_delta_norm_m': 0.004017, 'delta_m': [-4.3e-05, -0.004017, 0.0], 'delta_norm_m': 0.004017, 'translation_was_clipped': False, 'goal_position_m': [0.082691, 0.21059, -0.277278], 'goal_quaternion_wxyz': [-0.497325, 0.502661, 0.497325, 0.502661]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.082691, 0.21059, -0.277278], 'goal_quaternion_wxyz': [-0.497325, 0.502661, 0.497325, 0.502661], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.217278, -0.082835, 0.22409], 'sensed_position_m': [0.217278, -0.084536, 0.226078], 'gap_mm': 2.617, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.617, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.005363, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.068062, -0.997681, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 22, 'post_position_m': [0.082703, 0.212703, -0.277278], 'delta_position_m': [-3.1e-05, -0.001905, 0.0], 'delta_mm': [-0.031, -1.905, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14933, 'burst_n': 5, 'burst_read_ms': 655.38, 'read_to_camera_ms': 0.26, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.082691, 0.21059, -0.277278], 'sensor_position_m': [0.082691, 0.21059, -0.277278], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=22, frame_id=None, ts_utc=2026-04-24T11:43:18.721+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=22, frame_id=None, ts_utc=2026-04-24T11:43:18.721+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=10.510881, k2=-16.186801, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=22, frame_id=None, ts_utc=2026-04-24T11:43:18.721+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=22, frame_id=None, ts_utc=2026-04-24T11:43:18.721+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 23, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.082691, 0.21059, -0.277278]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.082691, 0.21059, -0.277278], 'raw_delta_m': [0.003987, -4.3e-05, 0.000324], 'raw_delta_norm_m': 0.004, 'delta_m': [0.003987, -4.3e-05, 0.000324], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.086677, 0.210548, -0.276954], 'goal_quaternion_wxyz': [-0.497325, 0.502661, 0.497325, 0.502661]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.086677, 0.210548, -0.276954], 'goal_quaternion_wxyz': [-0.497325, 0.502661, 0.497325, 0.502661], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216954, -0.086821, 0.224047], 'sensed_position_m': [0.217174, -0.084117, 0.224076], 'gap_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 23, 'post_position_m': [0.083973, 0.210577, -0.277174], 'delta_position_m': [0.001282, -1.4e-05, 0.000104], 'delta_mm': [1.282, -0.014, 0.104]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14948, 'burst_n': 5, 'burst_read_ms': 691.65, 'read_to_camera_ms': 0.24, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.086677, 0.210548, -0.276954], 'sensor_position_m': [0.086677, 0.210548, -0.276954], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=23, frame_id=None, ts_utc=2026-04-24T11:43:19.688+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=23, frame_id=None, ts_utc=2026-04-24T11:43:19.688+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=0.990470, k2=-8.694403, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=23, frame_id=None, ts_utc=2026-04-24T11:43:19.688+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=23, frame_id=None, ts_utc=2026-04-24T11:43:19.688+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 24, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.086677, 0.210548, -0.276954]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.086677, 0.210548, -0.276954], 'raw_delta_m': [0.000115, 0.010751, 0.0], 'raw_delta_norm_m': 0.010752, 'delta_m': [0.000115, 0.010751, 0.0], 'delta_norm_m': 0.010752, 'translation_was_clipped': False, 'goal_position_m': [0.086792, 0.221299, -0.276954], 'goal_quaternion_wxyz': [-0.497325, 0.502661, 0.497325, 0.502661]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.086792, 0.221299, -0.276954], 'goal_quaternion_wxyz': [-0.497325, 0.502661, 0.497325, 0.502661], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216954, -0.086936, 0.234798], 'sensed_position_m': [0.216954, -0.086913, 0.232639], 'gap_mm': 2.159, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.159, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 24, 'post_position_m': [0.086769, 0.21914, -0.276954], 'delta_position_m': [9.2e-05, 0.008592, -0.0], 'delta_mm': [0.092, 8.592, -0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14967, 'burst_n': 5, 'burst_read_ms': 648.47, 'read_to_camera_ms': 0.33, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.086792, 0.221299, -0.276954], 'sensor_position_m': [0.086792, 0.221299, -0.276954], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=24, frame_id=None, ts_utc=2026-04-24T11:43:20.934+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=24, frame_id=None, ts_utc=2026-04-24T11:43:20.934+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=13.754252, k2=-16.022440, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=24, frame_id=None, ts_utc=2026-04-24T11:43:20.934+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=24, frame_id=None, ts_utc=2026-04-24T11:43:20.934+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 25, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.086792, 0.221299, -0.276954]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.13092, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [0.086792, 0.221299, -0.276954], 'raw_delta_m': [0.0, 0.0, -0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, -0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.086792, 0.221299, -0.276954], 'goal_quaternion_wxyz': [-0.497325, 0.502661, 0.497325, 0.502661]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.086792, 0.221299, -0.276954], 'goal_quaternion_wxyz': [-0.497325, 0.502661, 0.497325, 0.502661], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216954, -0.086936, 0.234798], 'sensed_position_m': [0.216954, -0.086936, 0.234798], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 25, 'post_position_m': [0.086792, 0.221299, -0.276954], 'delta_position_m': [0.0, 0.0, 0.0], 'delta_mm': [0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 14982, 'burst_n': 5, 'burst_read_ms': 700.94, 'read_to_camera_ms': 0.33, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.086792, 0.221299, -0.276954], 'sensor_position_m': [0.086792, 0.221299, -0.276954], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=25, frame_id=None, ts_utc=2026-04-24T11:43:21.911+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=25, frame_id=None, ts_utc=2026-04-24T11:43:21.911+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=0.412853, k2=-23.057161, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=25, frame_id=None, ts_utc=2026-04-24T11:43:21.911+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=25, frame_id=None, ts_utc=2026-04-24T11:43:21.911+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 26, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.086792, 0.221299, -0.276954]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.130921, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.005336, -0.999986, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [0.086792, 0.221299, -0.276954], 'raw_delta_m': [0.03629, -0.015487, -0.0], 'raw_delta_norm_m': 0.039456, 'delta_m': [0.03629, -0.015487, -0.0], 'delta_norm_m': 0.039456, 'translation_was_clipped': False, 'goal_position_m': [0.123082, 0.205812, -0.276954], 'goal_quaternion_wxyz': [-0.42746, 0.563274, 0.42746, 0.563274]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.123082, 0.205812, -0.276954], 'goal_quaternion_wxyz': [-0.42746, 0.563274, 0.42746, 0.563274], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216954, -0.126715, 0.218814], 'sensed_position_m': [0.216954, -0.124709, 0.219619], 'gap_mm': 2.161, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.161, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.882318, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.129275, -0.991609, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 26, 'post_position_m': [0.121248, 0.206571, -0.276954], 'delta_position_m': [0.034456, -0.014728, -0.0], 'delta_mm': [34.456, -14.728, -0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15008, 'burst_n': 5, 'burst_read_ms': 638.97, 'read_to_camera_ms': 0.55, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.123081, 0.205812, -0.276954], 'sensor_position_m': [0.123081, 0.205812, -0.276954], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=26, frame_id=None, ts_utc=2026-04-24T11:43:23.670+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=26, frame_id=None, ts_utc=2026-04-24T11:43:23.670+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=6.794867, k2=-10.571942, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=26, frame_id=None, ts_utc=2026-04-24T11:43:23.670+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=26, frame_id=None, ts_utc=2026-04-24T11:43:23.670+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 27, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.123081, 0.205812, -0.276954]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.123081, 0.205812, -0.276954], 'raw_delta_m': [0.003848, -0.001075, 0.000186], 'raw_delta_norm_m': 0.004, 'delta_m': [0.003848, -0.001075, 0.000186], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.12693, 0.204736, -0.276768], 'goal_quaternion_wxyz': [-0.42746, 0.563274, 0.42746, 0.563274]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.12693, 0.204736, -0.276768], 'goal_quaternion_wxyz': [-0.42746, 0.563274, 0.42746, 0.563274], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216768, -0.130563, 0.217738], 'sensed_position_m': [0.216894, -0.127952, 0.218468], 'gap_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 27, 'post_position_m': [0.124319, 0.205466, -0.276894], 'delta_position_m': [0.001238, -0.000346, 6e-05], 'delta_mm': [1.238, -0.346, 0.06]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15023, 'burst_n': 5, 'burst_read_ms': 717.95, 'read_to_camera_ms': 0.4, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.12693, 0.204736, -0.276768], 'sensor_position_m': [0.12693, 0.204736, -0.276768], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=27, frame_id=None, ts_utc=2026-04-24T11:43:24.664+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=27, frame_id=None, ts_utc=2026-04-24T11:43:24.664+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=29.262110, k2=-15.198365, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=27, frame_id=None, ts_utc=2026-04-24T11:43:24.664+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=27, frame_id=None, ts_utc=2026-04-24T11:43:24.664+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 28, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.12693, 0.204736, -0.276768]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.12693, 0.204736, -0.276768], 'raw_delta_m': [0.002156, 0.007716, 0.0], 'raw_delta_norm_m': 0.008012, 'delta_m': [0.002156, 0.007716, 0.0], 'delta_norm_m': 0.008012, 'translation_was_clipped': False, 'goal_position_m': [0.129086, 0.212452, -0.276768], 'goal_quaternion_wxyz': [-0.42746, 0.563274, 0.42746, 0.563274]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.129086, 0.212452, -0.276768], 'goal_quaternion_wxyz': [-0.42746, 0.563274, 0.42746, 0.563274], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216768, -0.132719, 0.225454], 'sensed_position_m': [0.216768, -0.13206, 0.223098], 'gap_mm': 2.446, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.446, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 28, 'post_position_m': [0.128427, 0.210096, -0.276768], 'delta_position_m': [0.001498, 0.00536, 0.0], 'delta_mm': [1.498, 5.36, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15041, 'burst_n': 5, 'burst_read_ms': 686.26, 'read_to_camera_ms': 0.33, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.129086, 0.212452, -0.276768], 'sensor_position_m': [0.129086, 0.212452, -0.276768], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=28, frame_id=None, ts_utc=2026-04-24T11:43:25.847+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=28, frame_id=None, ts_utc=2026-04-24T11:43:25.847+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=30.448924, k2=-14.240473, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=28, frame_id=None, ts_utc=2026-04-24T11:43:25.847+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=28, frame_id=None, ts_utc=2026-04-24T11:43:25.847+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 29, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.129086, 0.212452, -0.276768]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [0.129086, 0.212452, -0.276768], 'raw_delta_m': [0.0, 0.0, -0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, -0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.129086, 0.212452, -0.276768], 'goal_quaternion_wxyz': [-0.42746, 0.563274, 0.42746, 0.563274]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.129086, 0.212452, -0.276768], 'goal_quaternion_wxyz': [-0.42746, 0.563274, 0.42746, 0.563274], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216768, -0.132719, 0.225454], 'sensed_position_m': [0.216768, -0.132719, 0.225454], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 29, 'post_position_m': [0.129086, 0.212452, -0.276768], 'delta_position_m': [0.0, 0.0, 0.0], 'delta_mm': [0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15056, 'burst_n': 5, 'burst_read_ms': 721.34, 'read_to_camera_ms': 0.51, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.129086, 0.212452, -0.276768], 'sensor_position_m': [0.129086, 0.212452, -0.276768], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=29, frame_id=None, ts_utc=2026-04-24T11:43:26.844+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=29, frame_id=None, ts_utc=2026-04-24T11:43:26.844+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=11.184269, k2=-10.051562, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=29, frame_id=None, ts_utc=2026-04-24T11:43:26.844+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=29, frame_id=None, ts_utc=2026-04-24T11:43:26.844+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 30, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.129086, 0.212452, -0.276768]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.869122, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.135814, -0.990734, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [0.129086, 0.212452, -0.276768], 'raw_delta_m': [-0.000172, -0.004005, -0.0], 'raw_delta_norm_m': 0.004009, 'delta_m': [-0.000172, -0.004005, -0.0], 'delta_norm_m': 0.004009, 'translation_was_clipped': False, 'goal_position_m': [0.128914, 0.208447, -0.276768], 'goal_quaternion_wxyz': [-0.489148, 0.510622, 0.489148, 0.510622]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.128914, 0.208447, -0.276768], 'goal_quaternion_wxyz': [-0.489148, 0.510622, 0.489148, 0.510622], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216768, -0.129493, 0.221934], 'sensed_position_m': [0.216768, -0.131259, 0.223862], 'gap_mm': 2.614, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.614, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.972969, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.084212, -0.996448, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 30, 'post_position_m': [0.128994, 0.210553, -0.276768], 'delta_position_m': [-9.2e-05, -0.001899, 0.0], 'delta_mm': [-0.092, -1.899, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15071, 'burst_n': 5, 'burst_read_ms': 639.13, 'read_to_camera_ms': 0.21, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.128914, 0.208447, -0.276768], 'sensor_position_m': [0.128914, 0.208447, -0.276768], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=30, frame_id=None, ts_utc=2026-04-24T11:43:27.819+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=30, frame_id=None, ts_utc=2026-04-24T11:43:27.819+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-3.245741, k2=-15.438066, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=30, frame_id=None, ts_utc=2026-04-24T11:43:27.819+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=30, frame_id=None, ts_utc=2026-04-24T11:43:27.819+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 31, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.128914, 0.208447, -0.276768]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.128914, 0.208447, -0.276768], 'raw_delta_m': [0.003958, -0.00017, 0.000555], 'raw_delta_norm_m': 0.004, 'delta_m': [0.003958, -0.00017, 0.000555], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.132871, 0.208277, -0.276213], 'goal_quaternion_wxyz': [-0.489148, 0.510622, 0.489148, 0.510622]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.132871, 0.208277, -0.276213], 'goal_quaternion_wxyz': [-0.489148, 0.510622, 0.489148, 0.510622], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216213, -0.133451, 0.221764], 'sensed_position_m': [0.21659, -0.130766, 0.22188], 'gap_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 31, 'post_position_m': [0.130187, 0.208392, -0.27659], 'delta_position_m': [0.001273, -5.5e-05, 0.000178], 'delta_mm': [1.273, -0.055, 0.178]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15086, 'burst_n': 5, 'burst_read_ms': 695.01, 'read_to_camera_ms': 0.19, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.132871, 0.208277, -0.276213], 'sensor_position_m': [0.132871, 0.208277, -0.276213], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=31, frame_id=None, ts_utc=2026-04-24T11:43:28.789+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=31, frame_id=None, ts_utc=2026-04-24T11:43:28.789+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=3.585073, k2=-14.959830, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=31, frame_id=None, ts_utc=2026-04-24T11:43:28.789+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=31, frame_id=None, ts_utc=2026-04-24T11:43:28.789+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 32, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.132871, 0.208277, -0.276213]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.132871, 0.208277, -0.276213], 'raw_delta_m': [0.000519, 0.012073, 0.0], 'raw_delta_norm_m': 0.012084, 'delta_m': [0.000519, 0.012073, 0.0], 'delta_norm_m': 0.012084, 'translation_was_clipped': False, 'goal_position_m': [0.13339, 0.22035, -0.276213], 'goal_quaternion_wxyz': [-0.489148, 0.510622, 0.489148, 0.510622]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.13339, 0.22035, -0.276213], 'goal_quaternion_wxyz': [-0.489148, 0.510622, 0.489148, 0.510622], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216213, -0.13397, 0.233837], 'sensed_position_m': [0.216213, -0.133864, 0.231389], 'gap_mm': 2.451, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.451, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 32, 'post_position_m': [0.133285, 0.217901, -0.276213], 'delta_position_m': [0.000414, 0.009624, 0.0], 'delta_mm': [0.414, 9.624, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15107, 'burst_n': 5, 'burst_read_ms': 758.3, 'read_to_camera_ms': 0.22, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.13339, 0.22035, -0.276213], 'sensor_position_m': [0.13339, 0.22035, -0.276213], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=32, frame_id=None, ts_utc=2026-04-24T11:43:30.165+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=32, frame_id=None, ts_utc=2026-04-24T11:43:30.165+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=-8.795002, k2=-18.051717, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=32, frame_id=None, ts_utc=2026-04-24T11:43:30.165+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=32, frame_id=None, ts_utc=2026-04-24T11:43:30.165+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientHorizontal']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 33, 'input_actions': ['OrientHorizontal'], 'selected_actions': ['OrientHorizontal'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.13339, 0.22035, -0.276213]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientHorizontal', 'current_position_m': [0.13339, 0.22035, -0.276213], 'raw_delta_m': [0.0, 0.0, -0.0], 'raw_delta_norm_m': 0.0, 'delta_m': [0.0, 0.0, -0.0], 'delta_norm_m': 0.0, 'translation_was_clipped': False, 'goal_position_m': [0.13339, 0.22035, -0.276213], 'goal_quaternion_wxyz': [-0.489148, 0.510622, 0.489148, 0.510622]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.13339, 0.22035, -0.276213], 'goal_quaternion_wxyz': [-0.489148, 0.510622, 0.489148, 0.510622], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216213, -0.13397, 0.233837], 'sensed_position_m': [0.216213, -0.13397, 0.233837], 'gap_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 0.0, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 33, 'post_position_m': [0.13339, 0.22035, -0.276213], 'delta_position_m': [0.0, 0.0, 0.0], 'delta_mm': [0.0, 0.0, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15122, 'burst_n': 5, 'burst_read_ms': 715.81, 'read_to_camera_ms': 0.33, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.13339, 0.22035, -0.276213], 'sensor_position_m': [0.13339, 0.22035, -0.276213], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=33, frame_id=None, ts_utc=2026-04-24T11:43:31.156+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=33, frame_id=None, ts_utc=2026-04-24T11:43:31.156+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=9.743762, k2=-10.647914, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=33, frame_id=None, ts_utc=2026-04-24T11:43:31.156+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=33, frame_id=None, ts_utc=2026-04-24T11:43:31.156+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['OrientVertical']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 34, 'input_actions': ['OrientVertical'], 'selected_actions': ['OrientVertical'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.13339, 0.22035, -0.276213]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-3.098641, -0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.021474, -0.999769, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'OrientVertical', 'current_position_m': [0.13339, 0.22035, -0.276213], 'raw_delta_m': [0.035807, -0.016667, -0.0], 'raw_delta_norm_m': 0.039496, 'delta_m': [0.035807, -0.016667, -0.0], 'delta_norm_m': 0.039496, 'translation_was_clipped': False, 'goal_position_m': [0.169197, 0.203682, -0.276213], 'goal_quaternion_wxyz': [-0.418313, 0.5701, 0.418313, 0.5701]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.169197, 0.203682, -0.276213], 'goal_quaternion_wxyz': [-0.418313, 0.5701, 0.418313, 0.5701], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216213, -0.173247, 0.21656], 'sensed_position_m': [0.216213, -0.171347, 0.217396], 'gap_mm': 2.076, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.076, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.84951, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.145523, -0.989355, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 34, 'post_position_m': [0.167459, 0.204468, -0.276213], 'delta_position_m': [0.034069, -0.015881, -0.0], 'delta_mm': [34.069, -15.881, -0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15149, 'burst_n': 5, 'burst_read_ms': 648.08, 'read_to_camera_ms': 0.32, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.169197, 0.203682, -0.276213], 'sensor_position_m': [0.169197, 0.203682, -0.276213], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=34, frame_id=None, ts_utc=2026-04-24T11:43:32.925+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=34, frame_id=None, ts_utc=2026-04-24T11:43:32.925+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=24.804766, k2=-3.470245, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=34, frame_id=None, ts_utc=2026-04-24T11:43:32.925+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=34, frame_id=None, ts_utc=2026-04-24T11:43:32.925+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveTangentially']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 35, 'input_actions': ['MoveTangentially'], 'selected_actions': ['MoveTangentially'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.169197, 0.203682, -0.276213]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveTangentially', 'current_position_m': [0.169197, 0.203682, -0.276213], 'raw_delta_m': [0.003807, -0.001197, -0.000272], 'raw_delta_norm_m': 0.004, 'delta_m': [0.003807, -0.001197, -0.000272], 'delta_norm_m': 0.004, 'translation_was_clipped': False, 'goal_position_m': [0.173004, 0.202485, -0.276486], 'goal_quaternion_wxyz': [-0.418313, 0.5701, 0.418313, 0.5701]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.173004, 0.202485, -0.276486], 'goal_quaternion_wxyz': [-0.418313, 0.5701, 0.418313, 0.5701], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216486, -0.177054, 0.215363], 'sensed_position_m': [0.216301, -0.174472, 0.216175], 'gap_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.713, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 35, 'post_position_m': [0.170421, 0.203297, -0.276301], 'delta_position_m': [0.001225, -0.000385, -8.8e-05], 'delta_mm': [1.225, -0.385, -0.088]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15164, 'burst_n': 5, 'burst_read_ms': 720.51, 'read_to_camera_ms': 0.43, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.173003, 0.202485, -0.276486], 'sensor_position_m': [0.173003, 0.202485, -0.276486], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=35, frame_id=None, ts_utc=2026-04-24T11:43:33.921+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=35, frame_id=None, ts_utc=2026-04-24T11:43:33.921+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=17.382717, k2=-26.110487, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=35, frame_id=None, ts_utc=2026-04-24T11:43:33.921+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=35, frame_id=None, ts_utc=2026-04-24T11:43:33.921+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+REAL_WORLD_INTERFACE STEP | use_goal_pose_dispatch=True has_policy_result=True has_goal_pose=True actions=['MoveForward']/n
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION STEP_BEGIN | {'step_index': 36, 'input_actions': ['MoveForward'], 'selected_actions': ['MoveForward'], 'use_goal_pose_dispatch': True, 'has_goal_pose': True, 'pre_position_m': [0.173003, 0.202485, -0.276486]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION RELATIVE_ACTION_GOAL | {'action_type': 'MoveForward', 'current_position_m': [0.173003, 0.202485, -0.276486], 'raw_delta_m': [0.002089, 0.00664, -0.0], 'raw_delta_norm_m': 0.006961, 'delta_m': [0.002089, 0.00664, -0.0], 'delta_norm_m': 0.006961, 'translation_was_clipped': False, 'goal_position_m': [0.175092, 0.209125, -0.276486], 'goal_quaternion_wxyz': [-0.418313, 0.5701, 0.418313, 0.5701]}
+RW_MOTION DISPATCH_GOAL_POSE | {'goal_location_m': [0.175092, 0.209125, -0.276486], 'goal_quaternion_wxyz': [-0.418313, 0.5701, 0.418313, 0.5701], 'recomputed_from_action': True}
+RW_MOTION DISPATCH_GOAL_POSE_RESULT | {'accepted': True, 'rejection': 'ok'}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216486, -0.179143, 0.222003], 'sensed_position_m': [0.216486, -0.178411, 0.219675], 'gap_mm': 2.44, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2, 'outcome': 'reached'}
+RW_MOTION SETTLE_CONVERGENCE_REACHED | {'error_mm': 2.44, 'tolerance_mm': 3.0, 'consecutive_samples': 2, 'required_consecutive_samples': 2}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, 0.0, 0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION STEP_DELTA | {'step_index': 36, 'post_position_m': [0.17436, 0.206798, -0.276486], 'delta_position_m': [0.001357, 0.004313, 0.0], 'delta_mm': [1.357, 4.313, 0.0]}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION FRAME_TIMING | {'frame_id': 15181, 'burst_n': 5, 'burst_read_ms': 654.6, 'read_to_camera_ms': 0.34, 'zero_sample_pixels': 0, 'total_pixels': 10000, 'mean_sample_count': 5.0}
+RW_MOTION SENSED_POSE_PARSE | {'raw_orientation': [-2.836842, -0.0, -0.0], 'sequence': 'xyz', 'intrinsic': False, 'degrees': False, 'index_order': [0, 1, 2], 'signs': [1.0, 1.0, 1.0], 'offset_wxyz': [1.0, 0.0, 0.0, 0.0], 'parsed_robot_quat_wxyz': [0.151786, -0.988413, 0.0, 0.0]}
+RW_MOTION PROPRIO_SENSOR_POSE | {'agent_position_m': [0.175092, 0.209125, -0.276486], 'sensor_position_m': [0.175092, 0.209125, -0.276486], 'sensor_relative_to_agent_m': [0.0, 0.0, 0.0], 'configured_sensor_translation_m': [0.0, 0.0, 0.0]}
+SM debug: sm_id=patch, step_id=36, frame_id=None, ts_utc=2026-04-24T11:43:35.032+00:00
+SM gating: center_id=105, semantic_id=1.0, on_object=True, is_surface_sm=True, object_coverage=1.0000, should_extract=True, reason_code=center_on_object
+SM debug: sm_id=patch, step_id=36, frame_id=None, ts_utc=2026-04-24T11:43:35.032+00:00
+SM morphology: method=HUBER, center_id=105, valid_pixels=196/196, valid_sn=True, valid_pc=True, k1=6.485226, k2=-31.378812, reason_code=morphology_ok
+SM debug: sm_id=patch, step_id=36, frame_id=None, ts_utc=2026-04-24T11:43:35.032+00:00
+SM use_state gate: on_object=True, valid_signals=True, use_state=True, reason_code=accepted
+SM dbg: sm_id=patch, step_id=36, frame_id=None, ts_utc=2026-04-24T11:43:35.032+00:00
+SM step summary: pre_noise_use_state=True, post_noise_use_state=True, pre_filter_use_state=True, post_filter_use_state=True, reason_code=passed
+Semantic ID not available for stepwise-targets
+{0: {'LM_0': {'TFNP': 'unknown_object_not_matched_(TN)',
+              'detected_location': [None, None, None],
+              'detected_path': None,
+              'detected_rotation': [None, None, None],
+              'detected_scale': None,
+              'episode_avg_prediction_error': nan,
+              'episode_seed': 1060955053,
+              'goal_state_achieved': 0.0,
+              'goal_states_attempted': 0,
+              'highest_evidence': 0,
+              'individual_ts_performance': 'no_match',
+              'individual_ts_reached_at_step': 0,
+              'individual_ts_rotation_error': None,
+              'location_rel_body': array([ 0.0923223 ,  0.08437395, -0.2764856 ]),
+              'mean_graphs_per_object': nan,
+              'mean_objects_per_graph': nan,
+              'monty_matching_steps': 1,
+              'monty_steps': 37,
+              'most_likely_location': [0, 0, 0],
+              'most_likely_object': 'new_object0',
+              'most_likely_rotation': array([0., 0., 0.]),
+              'num_possible_matches': 0,
+              'num_steps': 36,
+              'possible_match_sources': '',
+              'primary_performance': 'no_match',
+              'primary_target_object': 'real_world_target',
+              'primary_target_position': None,
+              'primary_target_rotation_euler': None,
+              'primary_target_rotation_quat': None,
+              'primary_target_scale': None,
+              'result': 'new_object0',
+              'rotation_error': None,
+              'stepwise_performance': 'no_match',
+              'stepwise_target_object': 'no_label',
+              'symmetry_evidence': 0,
+              'time': 10.902942895889282},
+     'target': {'primary_target_object': 'real_world_target',
+                'primary_target_position': None,
+                'primary_target_rotation_euler': None,
+                'primary_target_rotation_quat': None,
+                'primary_target_scale': None}}}
+Output file train_stats.csv already exists. This file will be moved to train_stats_old.csv
+Output file /home/zach/tbp/results/monty/projects/monty_runs/real_world_lite6_maixsense_unsupervised/train_stats_old.csv also already exists. This file will be removed before renaming.
+
+---Updating memory of learning_module_0---
+Observed () locations, 36 global on object
+patch has 1 on object observations
+patch observations for feature pose_vectors have shape (36, 9)
+patch observations for feature pose_fully_defined have shape (36, 1)
+patch observations for feature on_object have shape (36, 1)
+patch observations for feature object_coverage have shape (36, 1)
+patch observations for feature min_depth have shape (36, 1)
+patch observations for feature mean_depth have shape (36, 1)
+patch observations for feature hsv have shape (36, 3)
+patch observations for feature principal_curvatures have shape (36, 2)
+patch observations for feature principal_curvatures_log have shape (36, 2)
+patch observations for feature gaussian_curvature have shape (36, 1)
+patch observations for feature mean_curvature have shape (36, 1)
+patch observations for feature gaussian_curvature_sc have shape (36, 1)
+patch observations for feature mean_curvature_sc have shape (36, 1)
+new_object0 not in memory ([])
+Adding a new graph to memory.
+init object model with id new_object0
+building graph from 36 observations
+built graph <tbp.monty.frameworks.utils.object_model_utils.NumpyGraph object at 0x7440bb16acd0>
+Added new graph with id new_object0 to memory.
+Model for new_object0:
+   Contains 23 points in graph.
+   Feature grid shape: torch.Size([50, 50, 50, 25])
+   Stored features and their indexes:
+           pose_vectors - 0:9,
+           pose_fully_defined - 9:10,
+           on_object - 10:11,
+           object_coverage - 11:12,
+           min_depth - 12:13,
+           mean_depth - 13:14,
+           hsv - 14:17,
+           principal_curvatures - 17:19,
+           principal_curvatures_log - 19:21,
+           gaussian_curvature - 21:22,
+           mean_curvature - 22:23,
+           gaussian_curvature_sc - 23:24,
+           mean_curvature_sc - 24:25,
+
+saving model to /home/zach/tbp/results/monty/projects/monty_runs/real_world_lite6_maixsense_unsupervised/0
+running 1 eval epochs
+running eval epoch 0
+Running single episode
+running eval epoch 0 eval episode 0
+resetting RNG to seed 1170100843
+Going into matching mode after 0 steps
+Models in memory: ['new_object0']
+RW_MOTION HOME_RESET_CONVERGED | {'home_position_mm': [220.0, 9.0, 210.0], 'home_orientation_deg': [180.0, 0.0, 0.0], 'position_error_mm': 19.985, 'orientation_error_deg': 1.851, 'sample_timestamp_s': 5074387.904534}
+RW_MOTION SETTLE_POSE_TARGET_VS_SENSED | {'target_position_m': [0.216486, -0.179143, 0.222003], 'sensed_position_m': [0.22, 0.009, 0.21], 'gap_mm': 188.558, 'tolerance_mm': 3.0, 'consecutive_samples': 0, 'required_consecutive_samples': 2, 'outcome': 'timeout'}
+RW_MOTION SETTLE_CONVERGENCE_TIMEOUT | {'timeout_s': 4.0, 'tolerance_mm': 3.0, 'last_error_mm': 188.558, 'consecutive_samples': 0, 'required_consecutive_samples': 2}
+Real-world safety stop: SETTLE_CONVERGENCE_TIMEOUT | robot did not converge to commanded step pose: last_error_mm=188.55793415875652, tolerance_mm=3.0, required_consecutive_samples=2, achieved_consecutive_samples=0
+Removing and closing python log handler: <FileHandler /home/zach/tbp/results/monty/projects/monty_runs/real_world_lite6_maixsense_unsupervised/log.txt (NOTSET)>
