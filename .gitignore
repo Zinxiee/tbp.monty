@@ -163,3 +163,5 @@ logs/
 # Claude
 .claude/
 .claude/settings.json
+
+experiment_results/
