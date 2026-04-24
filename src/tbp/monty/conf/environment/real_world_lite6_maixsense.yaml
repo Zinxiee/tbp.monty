@@ -51,11 +51,14 @@ env_init_args:
     # leak into the world-bounds filter. A010 saturates at ~2.5 m; objects of
     # interest sit at 0.1–0.5 m, so 0.6 m gives headroom without clipping the scene.
     max_valid_depth_m: 0.6
-    # Filter the table out of the semantic mask.
-    # Robot is mounted on the table (table ≈ 0 mm in robot-base Z = Monty world Y).
-    # A 10 mm margin excludes table pixels in all sensor orientations because the
-    # filter operates in the fixed world frame.
-    world_y_min_m: 0.01
+    # Filter the table out of the semantic mask. A010 systematically reports
+    # 12-25 mm short on the (laminated, glossy) table surface, so biased
+    # pixels project to Monty world-Y up to ~+25 mm above true table plane
+    # (Y=0). 40 mm margin absorbs that bias floor; mug/Rubik-cube-sized
+    # objects (5-7 cm tall) still clear it (top at Y > 0.05 m, side faces
+    # at Y > 0.04 m). Filter operates in fixed world frame, so it covers
+    # every sensor orientation.
+    world_y_min_m: 0.01 # if still errors, change to 0.04
     world_x_max_m: 0.3
     world_x_min_m: -0.3
     world_z_max_m: -0.1
@@ -113,6 +116,7 @@ env_init_args:
   sensor_id: patch
   # Home pose in robot-base frame: [x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg]
   home_pose_mm_deg: [220, 9, 210, 180, 0.0, 0.0]
+  # home_pose_mm_deg: [251, -93, 139, -123, 5.4, 5.1]
   # home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
   # home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
   settle_time_s: 0.25
