@@ -67,7 +67,9 @@ logger = logging.getLogger(__name__)
 _MAX_ORIENT_DEG = 15.0
 
 # Suppress orient corrections smaller than this. Small noise-driven angles
-# produce compensating translations that accumulate into drift across cycles. (Disabled because I don't think this fixes anything)
+# produce compensating translations that accumulate into drift across cycles.
+# The convergence loop in __call__ handles residual tilt explicitly, so a
+# small deadband would just re-introduce noise-driven orient churn.
 _ORIENT_DEADBAND_DEG = 8.0
 
 # Forward-step limits.  Even valid filtered depth can overshoot on real
@@ -99,6 +101,19 @@ _STASH_DEDUP_TOL_M = 0.005
 # Oscillation guard. If this many recoveries happen without the LM
 # receiving data, clear the deque so escape-upward + arc search take over.
 _MAX_RECOVERY_POPS_WITHOUT_PROGRESS = 3
+
+# Align-loop: extra OH→OV cycles issued as motor-only when the post-orient
+# tilt between the surface normal and sensor forward still exceeds this
+# threshold. A single OV (clamped to _MAX_ORIENT_DEG) can't close a large
+# normal gap in one step on curved surfaces, so the LM-bound frame must be
+# gated on actual convergence rather than assumed convergence.
+_ALIGN_TILT_THRESHOLD_DEG = 15.0
+
+# Cap to prevent infinite align loops when the orient controller isn't
+# converging (e.g. degenerate geometry, edge of object). Beyond this, send
+# the best-effort frame and move on — surface agent recovery will take over
+# if the alignment is genuinely hopeless.
+_MAX_ALIGN_RETRIES = 4
 
 
 class RealWorldSurfacePolicy(SurfacePolicy):
@@ -141,6 +156,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         self._last_recovered_pose: tuple[np.ndarray, qt.quaternion] | None = None
         self._force_arc_search_once: bool = False
         self._recovery_pops_since_progress: int = 0
+        self._align_retry_count: int = 0
 
     def _touch_sensor_id(self) -> SensorID:
         """Use the real sensor patch instead of the non-existent view-finder.
@@ -187,6 +203,8 @@ class RealWorldSurfacePolicy(SurfacePolicy):
                 goal_pose=result.goal_pose,
             )
 
+        result = self._apply_align_loop(result, percept)
+
         # LM received data this step; clear the oscillation counter.
         if not result.motor_only_step:
             self._recovery_pops_since_progress = 0
@@ -195,6 +213,103 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             self._pose_return_grace_steps -= 1
 
         return result
+
+    def _apply_align_loop(
+        self, result: MotorPolicyResult, percept: Message | None
+    ) -> MotorPolicyResult:
+        """Force extra OH→OV cycles until the sensor is aligned with the normal.
+
+        When the next action is OrientVertical but the pre-OV percept shows
+        the surface normal is still far off the sensor's forward axis, a
+        single clamped OV won't converge. Rewrite the step to motor-only and
+        rewind the parent's cycle pointer so the next call emits another
+        OrientHorizontal (which re-measures the normal) followed by another
+        OrientVertical. Retries are capped by ``_MAX_ALIGN_RETRIES`` to
+        prevent deadlock on degenerate geometry.
+
+        Returns:
+            Possibly rewritten motor policy result.
+        """
+        next_action = result.actions[0] if result.actions else None
+        is_ov = (
+            next_action is not None and next_action.name == OrientVertical.action_name()
+        )
+        if not is_ov or percept is None or not getattr(percept, "use_state", False):
+            return result
+
+        tilt_deg = self._tilt_between_normal_and_forward(percept)
+        if tilt_deg is None or tilt_deg <= _ALIGN_TILT_THRESHOLD_DEG:
+            self._align_retry_count = 0
+            return result
+
+        if self._align_retry_count >= _MAX_ALIGN_RETRIES:
+            logger.warning(
+                "align_loop: exhausted after %d retries (tilt=%.2f°); "
+                "letting tilted frame through.",
+                self._align_retry_count,
+                tilt_deg,
+            )
+            self._align_retry_count = 0
+            return result
+
+        self._align_retry_count += 1
+        logger.info(
+            "align_loop: tilt=%.2f° > %.2f°, retry %d/%d "
+            "(motor-only OV, rewinding cycle to OrientHorizontal)",
+            tilt_deg,
+            _ALIGN_TILT_THRESHOLD_DEG,
+            self._align_retry_count,
+            _MAX_ALIGN_RETRIES,
+        )
+        self._rewind_parent_cycle_to_orient_horizontal()
+        return MotorPolicyResult(
+            actions=result.actions,
+            motor_only_step=True,
+            telemetry=result.telemetry,
+            goal_pose=result.goal_pose,
+        )
+
+    def _tilt_between_normal_and_forward(self, percept: Message) -> float | None:
+        """Angle (deg) between percept's surface normal and sensor forward axis.
+
+        Mirrors the SM tilt-gate convention: world-frame dot between
+        ``pose_vectors[0]`` (surface normal) and ``world_camera[:3, 2]``
+        (sensor forward), ``abs()`` to ignore normal sign ambiguity.
+
+        Returns:
+            Tilt angle in degrees, or ``None`` when required fields are missing.
+        """
+        if self._last_observations is None:
+            return None
+        try:
+            sensor_obs = self._last_observations[self.agent_id][self._patch_sensor_id]
+        except (KeyError, TypeError):
+            return None
+        world_camera = sensor_obs.get("world_camera")
+        if world_camera is None:
+            return None
+        try:
+            normal = np.asarray(
+                percept.morphological_features["pose_vectors"][0], dtype=float
+            )
+        except (KeyError, TypeError, AttributeError):
+            return None
+        sensor_forward = np.asarray(world_camera, dtype=float)[:3, 2]
+        cos_angle = abs(float(np.dot(sensor_forward, normal)))
+        return float(np.degrees(np.arccos(np.clip(cos_angle, -1.0, 1.0))))
+
+    def _rewind_parent_cycle_to_orient_horizontal(self) -> None:
+        """Pin the parent's cycle state so the next call emits OrientHorizontal.
+
+        ``SurfacePolicy.get_next_action`` keys off ``isinstance`` of
+        ``last_surface_policy_action``. Setting it to a ``MoveForward``
+        instance makes the next call emit ``OrientHorizontal``, then the call
+        after that emits ``OrientVertical`` — an extra orient pair that
+        re-measures the normal and retries alignment.
+        """
+        self.last_surface_policy_action = MoveForward(
+            agent_id=self.agent_id, distance=0.0
+        )
 
     def _sensor_sees_object(self) -> bool:
         """True when filtered (semantic) depth is available from last obs.
@@ -284,6 +399,9 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         orient corrections on the next step; fall back to a small
         ``MoveForward`` so the agent stabilizes before re-engaging normal
         policy.
+
+        Returns:
+            Possibly rewritten motor policy result.
         """
         if self._pose_return_grace_steps <= 0:
             return result
@@ -518,13 +636,12 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             else:
                 raw_from_components = -np.sign(x) * 90.0
                 branch = "z_zero_sign_x"
+        elif z != 0:
+            raw_from_components = -np.degrees(np.arctan(y / z))
+            branch = "atan_y_over_z"
         else:
-            if z != 0:
-                raw_from_components = -np.degrees(np.arctan(y / z))
-                branch = "atan_y_over_z"
-            else:
-                raw_from_components = -np.sign(y) * 90.0
-                branch = "z_zero_sign_y"
+            raw_from_components = -np.sign(y) * 90.0
+            branch = "z_zero_sign_y"
 
         return {
             "rotated_normal": np.round(rotated_surface_normal, 6).tolist(),
@@ -585,9 +702,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         # the MoveForward branch — that is the action that caused the
         # original drift and would repeat it. Route to arc search instead.
         if self._pose_return_grace_steps > 0:
-            logger.info(
-                "touch_object: post-recovery grace active, forcing arc search"
-            )
+            logger.info("touch_object: post-recovery grace active, forcing arc search")
             self._force_arc_search_once = True
             return self._constrained_search(ctx, state)
 
@@ -647,9 +762,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         # --- Escape-upward phase (world-frame) ---
         escape_budget = abs(_ESCAPE_PITCH_DEG) * _ESCAPE_STEPS
         if not force_arc and self.touch_search_amount < escape_budget:
-            step_idx = int(
-                self.touch_search_amount / abs(_ESCAPE_PITCH_DEG)
-            )
+            step_idx = int(self.touch_search_amount / abs(_ESCAPE_PITCH_DEG))
             if step_idx < _ESCAPE_STEPS:
                 self.touch_search_amount += abs(_ESCAPE_PITCH_DEG)
                 agent_state = state[self.agent_id]

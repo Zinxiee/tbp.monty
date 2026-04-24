@@ -256,6 +256,80 @@ def surface_normal_total_least_squares(
     return n_dir, valid_sn
 
 
+def surface_normal_huber_tls(
+    point_cloud_base,
+    center_id,
+    view_dir,
+    neighbor_patch_frac=3.2,
+    max_iters=3,
+    huber_k=1.345,
+    mad_floor_m=5e-4,
+):
+    """Robust surface-normal estimator using Huber-weighted IRLS over TLS.
+
+    Iteratively reweights points by their signed residual to the fitted plane so
+    that a handful of noisy/outlier depth pixels cannot drag the normal. Falls
+    back to the TLS return pattern when the patch is degenerate.
+
+    Args:
+        point_cloud_base: Point cloud in world coordinates (full patch, with
+            semantic column in [:, 3]).
+        center_id: Index of the patch center.
+        view_dir: Viewing direction for sign alignment.
+        neighbor_patch_frac: Neighborhood size as a fraction of patch width.
+        max_iters: Number of Huber reweighting iterations.
+        huber_k: Huber scaling constant (1.345 gives 95% efficiency on Gaussian
+            noise).
+        mad_floor_m: Minimum MAD (metres) to avoid divide-by-zero on perfectly
+            planar patches.
+
+    Returns:
+        normal: Estimated surface normal.
+        valid_sn: True unless the patch is degenerate.
+    """
+    point_cloud = point_cloud_base.copy()
+    if point_cloud[center_id, 3] <= 0:
+        logger.debug("Warning : Patch center does not lie on an object!")
+        return np.array([0.0, 0.0, 1.0]), False
+
+    neighbors = center_neighbors(point_cloud, center_id, neighbor_patch_frac)
+    if neighbors.shape[0] < 4:
+        logger.debug("Warning : Not enough neighbors for robust normal fit!")
+        return np.array([0.0, 0.0, 1.0]), False
+
+    weights = np.ones(neighbors.shape[0])
+    normal = np.array([0.0, 0.0, 1.0])
+    for _ in range(max_iters + 1):  # initial TLS + max_iters reweighted refits
+        w_sum = weights.sum()
+        if w_sum <= 0:
+            logger.debug("Warning : All-zero weights in robust normal fit!")
+            return np.array([0.0, 0.0, 1.0]), False
+        centroid = (weights[:, None] * neighbors).sum(axis=0) / w_sum
+        centered = neighbors - centroid
+        m_mat = (weights[:, None] * centered).T @ centered / w_sum
+        try:
+            eig_val, eig_vec = np.linalg.eigh(m_mat)
+        except np.linalg.LinAlgError:
+            logger.debug(
+                "Warning : Non-diagonalizable matrix for robust normal estimation!"
+            )
+            return np.array([0.0, 0.0, 1.0]), False
+        normal = eig_vec[:, np.argmin(eig_val)]
+
+        residuals = centered @ normal
+        sigma = max(
+            1.4826 * np.median(np.abs(residuals - np.median(residuals))), mad_floor_m
+        )
+        abs_r = np.abs(residuals)
+        weights = np.where(
+            abs_r <= huber_k * sigma, 1.0, huber_k * sigma / np.maximum(abs_r, 1e-12)
+        )
+
+    if np.dot(view_dir, normal) < 0:
+        normal = -normal
+    return normal, True
+
+
 # Old implementation for principal curvature extraction; refer to the
 # Review the get_principal_curvatures() function for the new implementation.
 def curvature_at_point(point_cloud, center_id, normal):

@@ -34,6 +34,7 @@ from tbp.monty.frameworks.utils.sensor_processing import (
     log_sign,
     principal_curvatures,
     scale_clip,
+    surface_normal_huber_tls,
     surface_normal_naive,
     surface_normal_ordinary_least_squares,
     surface_normal_total_least_squares,
@@ -110,6 +111,8 @@ class SurfaceNormalMethod(Enum):
     """Total Least-Squares"""
     OLS = "OLS"
     """Ordinary Least-Squares"""
+    HUBER = "HUBER"
+    """Huber-weighted iteratively-reweighted TLS (robust to outliers)."""
     NAIVE = "naive"
     """Naive"""
 
@@ -155,6 +158,7 @@ class ObservationProcessor:
         surface_normal_neighbor_patch_frac: float = 3.2,
         weight_curvature=True,
         is_surface_sm=False,
+        max_tilt_angle_deg: float | None = None,
     ) -> None:
         """Initializes the ObservationProcessor.
 
@@ -171,6 +175,10 @@ class ObservationProcessor:
             is_surface_sm: Surface SMs do not require that the central pixel is
                 "on object" in order to process the observation (i.e., extract
                 features). Defaults to False.
+            max_tilt_angle_deg: If set, suppress `use_state` when the sensor's
+                forward axis is more than this many degrees off the measured
+                surface normal. Keeps oblique captures out of the LM while still
+                letting the motor policy use them to correct orientation.
         """
         for feature in features:
             assert feature in self.POSSIBLE_FEATURES, (
@@ -187,6 +195,9 @@ class ObservationProcessor:
             surface_normal_neighbor_patch_frac
         )
         self._weight_curvature = weight_curvature
+        self._max_tilt_angle_deg = (
+            float(max_tilt_angle_deg) if max_tilt_angle_deg is not None else None
+        )
 
     def process(
         self,
@@ -336,6 +347,24 @@ class ObservationProcessor:
                 use_state_reason_code = "invalid_morphology"
             else:
                 use_state_reason_code = "suppressed_unknown"
+        elif self._max_tilt_angle_deg is not None:
+            # pose_vectors row 0 is the surface normal in WORLD frame (see line 431).
+            # world_camera[:3, 2] is the sensor's forward axis in WORLD frame, matching
+            # the view_dir convention used by TLS/HUBER. abs(dot) ignores normal-sign
+            # flips; acos gives the tilt in [0°, 90°].
+            surface_normal_world = morphological_features["pose_vectors"][0]
+            sensor_forward_world = world_camera[:3, 2]
+            cos_angle = abs(float(np.dot(sensor_forward_world, surface_normal_world)))
+            tilt_deg = float(np.degrees(np.arccos(np.clip(cos_angle, -1.0, 1.0))))
+            if tilt_deg > self._max_tilt_angle_deg:
+                percept.use_state = False
+                use_state_reason_code = "excess_tilt"
+                logger.debug(
+                    "%s\nSM tilt gate: tilt_deg=%.2f max=%.2f -> use_state=False",
+                    debug_prefix,
+                    tilt_deg,
+                    self._max_tilt_angle_deg,
+                )
         logger.debug(
             "%s\nSM use_state gate: on_object=%s, valid_signals=%s, "
             "use_state=%s, reason_code=%s",
@@ -518,6 +547,13 @@ class ObservationProcessor:
                 center_id,
                 neighbor_patch_frac=self._surface_normal_neighbor_patch_frac,
             )
+        elif self._surface_normal_method == SurfaceNormalMethod.HUBER:
+            surface_normal, valid_sn = surface_normal_huber_tls(
+                obs_3d,
+                center_id,
+                world_camera[:3, 2],
+                neighbor_patch_frac=self._surface_normal_neighbor_patch_frac,
+            )
         elif self._surface_normal_method == SurfaceNormalMethod.NAIVE:
             surface_normal, valid_sn = surface_normal_naive(
                 obs_3d, patch_radius_frac=2.5
@@ -525,7 +561,8 @@ class ObservationProcessor:
         else:
             raise ValueError(
                 f"surface_normal_method must be in [{SurfaceNormalMethod.TLS} (default)"
-                f", {SurfaceNormalMethod.OLS}, {SurfaceNormalMethod.NAIVE}]."
+                f", {SurfaceNormalMethod.OLS}, {SurfaceNormalMethod.HUBER}, "
+                f"{SurfaceNormalMethod.NAIVE}]."
             )
 
         return surface_normal, valid_sn
@@ -705,6 +742,7 @@ class CameraSM(SensorModule):
         delta_thresholds: dict[str, Any] | None = None,
         surface_normal_method: SurfaceNormalMethod | str = SurfaceNormalMethod.TLS,
         surface_normal_neighbor_patch_frac: float = 3.2,
+        max_tilt_angle_deg: float | None = None,
     ) -> None:
         """Initialize Sensor Module.
 
@@ -741,6 +779,7 @@ class CameraSM(SensorModule):
             is_surface_sm=is_surface_sm,
             surface_normal_method=surface_normal_method,
             surface_normal_neighbor_patch_frac=surface_normal_neighbor_patch_frac,
+            max_tilt_angle_deg=max_tilt_angle_deg,
         )
         # TODO: With DefaultMessageNoise not getting RNG on init anymore,
         #       then we can initialize CameraSM with MessageNoise, instead

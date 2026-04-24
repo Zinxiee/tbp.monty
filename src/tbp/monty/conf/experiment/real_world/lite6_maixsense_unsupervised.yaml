@@ -50,7 +50,9 @@ experiment:
               patch:
                 hsv: ${np.array:[1, 0.5, 0.5]}
                 pose_vectors: ${np.ones:3}
-                principal_curvatures_log: ${np.array:[0.1, 0.1]}
+                # K1/K2 still range ±200 on this hardware even with the 3.0
+                # tolerance; zero weight prevents polluting evidence.
+                principal_curvatures_log: ${np.array:[0.0, 0.0]}
             max_match_distance: 0.015
             graph_delta_thresholds:
               patch:
@@ -65,11 +67,20 @@ experiment:
                 - 1
             hypotheses_updater_args:
               max_nneighbors: 10
+      sensor_module_configs:
+        sensor_module_0:
+          sensor_module_args:
+            # Huber-IRLS over TLS: robust to the handful of outlier depth
+            # pixels present on each A010 frame (OLS at 0.12 m was producing
+            # several-degree normal errors per observation, scattering nodes).
+            surface_normal_method: HUBER
       motor_system_config:
         policy_selector:
           policy:
             # Use RealWorldSurfacePolicy so that _touch_object works without a
             # view-finder sensor
             _target_: multimodal_monty_meets_world.real_world_surface_policy.RealWorldSurfacePolicy
-            # Maixsense A010 needs 10-20 cm working distance; 12 cm is a good target.
-            desired_object_distance: 0.12
+            # Maixsense A010 reliable range starts at ~15 cm; empirical noise at
+            # 10 cm is ~40% higher than at 15 cm (ToF_data/ analysis). 12 cm was
+            # below reliable min and amplified OLS plane-fit errors.
+            desired_object_distance: 0.15

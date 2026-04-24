@@ -387,6 +387,89 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
         self.assertAlmostEqual(action.down_distance, 0.0, places=5)
         self.assertAlmostEqual(action.forward_distance, 0.003954, places=5)
 
+    def test_align_loop_retries_then_exhausts(self) -> None:
+        from types import SimpleNamespace
+
+        from multimodal_monty_meets_world.real_world_surface_policy import (
+            RealWorldSurfacePolicy,
+            _MAX_ALIGN_RETRIES,
+        )
+        from tbp.monty.frameworks.actions.action_samplers import (
+            UniformlyDistributedSampler,
+        )
+        from tbp.monty.frameworks.actions.actions import LookUp, OrientVertical
+        from tbp.monty.frameworks.agents import AgentID
+        from tbp.monty.frameworks.models.motor_policies import MotorPolicyResult
+        from tbp.monty.frameworks.sensors import SensorID
+
+        agent_id = AgentID("agent_id_0")
+        policy = RealWorldSurfacePolicy(
+            alpha=0.1,
+            action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
+            agent_id=agent_id,
+            desired_object_distance=0.12,
+        )
+        policy._last_observations = {
+            agent_id: {SensorID("patch"): {"world_camera": np.eye(4)}}
+        }
+        percept = SimpleNamespace(
+            use_state=True,
+            morphological_features={
+                "pose_vectors": np.array(
+                    [
+                        [np.sqrt(0.5), 0.0, np.sqrt(0.5)],
+                        [0.0, 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ],
+                    dtype=float,
+                )
+            },
+        )
+        result = MotorPolicyResult(
+            actions=[
+                OrientVertical(
+                    agent_id=agent_id,
+                    rotation_degrees=0.0,
+                    down_distance=0.0,
+                    forward_distance=0.0,
+                )
+            ],
+            motor_only_step=False,
+        )
+
+        for retry_idx in range(_MAX_ALIGN_RETRIES):
+            with self.assertLogs(
+                "multimodal_monty_meets_world.real_world_surface_policy",
+                level="INFO",
+            ) as captured:
+                result = policy._apply_align_loop(result, percept)
+
+            self.assertTrue(result.motor_only_step)
+            self.assertEqual(policy._align_retry_count, retry_idx + 1)
+            self.assertTrue(any("align_loop: tilt=" in msg for msg in captured.output))
+            self.assertEqual(policy.last_surface_policy_action.name, "move_forward")
+
+        exhausted_input = MotorPolicyResult(
+            actions=[
+                OrientVertical(
+                    agent_id=agent_id,
+                    rotation_degrees=0.0,
+                    down_distance=0.0,
+                    forward_distance=0.0,
+                )
+            ],
+            motor_only_step=False,
+        )
+        with self.assertLogs(
+            "multimodal_monty_meets_world.real_world_surface_policy",
+            level="WARNING",
+        ) as captured:
+            result = policy._apply_align_loop(exhausted_input, percept)
+
+        self.assertFalse(result.motor_only_step)
+        self.assertEqual(policy._align_retry_count, 0)
+        self.assertTrue(any("exhausted after" in msg for msg in captured.output))
+
     def test_last_good_pose_stashed_when_sensor_sees_object(self) -> None:
         from multimodal_monty_meets_world.real_world_surface_policy import (
             RealWorldSurfacePolicy,
@@ -498,9 +581,7 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
         self.assertEqual(len(policy._last_good_poses), 0)
 
         start_pos = np.array([0.2, 0.15, -0.3])
-        state = {
-            agent_id: _FakeAgentState(position=start_pos.copy(), rotation=qt.one)
-        }
+        state = {agent_id: _FakeAgentState(position=start_pos.copy(), rotation=qt.one)}
         ctx = mock.Mock()
         action = policy._constrained_search(ctx, state)
 
@@ -641,12 +722,8 @@ class RealWorldSurfacePolicyTest(unittest.TestCase):
             desired_object_distance=0.12,
         )
         for i in range(_MAX_RECOVERY_POPS_WITHOUT_PROGRESS + 2):
-            policy._last_good_poses.append(
-                (np.array([0.1 * i, 0.1, -0.2]), qt.one)
-            )
-        policy._recovery_pops_since_progress = (
-            _MAX_RECOVERY_POPS_WITHOUT_PROGRESS
-        )
+            policy._last_good_poses.append((np.array([0.1 * i, 0.1, -0.2]), qt.one))
+        policy._recovery_pops_since_progress = _MAX_RECOVERY_POPS_WITHOUT_PROGRESS
 
         action = policy._recover_via_last_good_pose()
 
