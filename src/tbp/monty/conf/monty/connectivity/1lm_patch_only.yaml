@@ -1,4 +1,5 @@
 # @package experiment.config.monty_config
+# Only the patch sensor - no view_finder
 
 sm_to_agent_dict:
   patch: agent_id_0
