@@ -30,18 +30,18 @@ env_init_args:
     # When patch_* params are set, they take precedence and define the ROI.
     crop_center_to_square: true
     # ROI crop applied to the raw 100×100 sensor frame before unprojection.
-    # 12×12 patch, horizontally centered (left=44, col-center=50) and
-    # vertically centered at the same row as the prior 20×20 footprint
-    # (bottom=19 → top=69 → row-center=75). Shrunk from 20×20 to reduce
-    # OLS-plane-fit bias on curved objects (a 20×20 patch at 120 mm spans
-    # ~28 mm, covering ~30° of arc on a 50 mm-radius bowl; a 12×12 patch
-    # spans ~17 mm, ~20° of arc — significantly less plane-fit distortion).
+    # 14×14 patch, horizontally centered (left=43, col-center=50) and
+    # vertically centered at row 75 (bottom=18 → top=68 → row-center=75).
+    # At 0.15 m standoff, 14 px spans (14/71.41)·0.15 ≈ 29 mm in world —
+    # still <¼ of the 120 mm minimum washbag dimension, so well within the
+    # "patch ≤ half the object" rule. Extra samples (196 vs 144) give a
+    # ~1.17× SNR boost for the plane fit.
     # Principal point (cx, cy) is shifted by (left, top) internally so
     # unprojection geometry stays correct.
-    patch_height: 12
-    patch_width: 12
-    patch_offset_bottom_px: 19
-    patch_offset_left_px: 44
+    patch_height: 14
+    patch_width: 14
+    patch_offset_bottom_px: 18
+    patch_offset_left_px: 43
     # 3×3 median filter on the raw depth image before unprojection. Reduces
     # per-pixel ToF noise (~4.5mm std at 116mm depth) while preserving edges,
     # so OLS surface-normal and curvature fits aren't dominated by noise.
@@ -58,7 +58,7 @@ env_init_args:
     # objects (5-7 cm tall) still clear it (top at Y > 0.05 m, side faces
     # at Y > 0.04 m). Filter operates in fixed world frame, so it covers
     # every sensor orientation.
-    world_y_min_m: 0.01 # if still errors, change to 0.04
+    world_y_min_m: 0.04
     world_x_max_m: 0.3
     world_x_min_m: -0.3
     world_z_max_m: -0.1
@@ -95,7 +95,9 @@ env_init_args:
       y: 1.0
       z: 0.0
     workspace_min_xyz_m: [0.135, -0.23, 0.075]
-    workspace_max_xyz_m: [0.40, 0.23, 0.4]
+    # Y cap raised to 0.32 to allow 0.15 m standoff over 0.12-tall objects
+    # (sensor target Y reaches 0.27 m in that case).
+    workspace_max_xyz_m: [0.40, 0.32, 0.4]
     max_translation_step_m: 0.10
     max_rotation_step_deg: 35.0
     orientation_min_euler_deg: [-180.0, -170.0, -180.0]
@@ -107,7 +109,7 @@ env_init_args:
     wait_until_ready: true
     wait_until_ready_timeout_s: 2.0
     wait_until_ready_poll_s: 0.02
-    safety_profile: very_relaxed
+    # safety_profile: very_relaxed
     payload_mass_kg: 0.056
     euler_sequence: xyz
     euler_degrees: true
@@ -115,7 +117,7 @@ env_init_args:
   agent_id: agent_id_0
   sensor_id: patch
   # Home pose in robot-base frame: [x_mm, y_mm, z_mm, roll_deg, pitch_deg, yaw_deg]
-  home_pose_mm_deg: [220, 9, 210, 180, 0.0, 0.0]
+  home_pose_mm_deg: [220, 9, 300, 180, 0.0, 0.0]
   # home_pose_mm_deg: [251, -93, 139, -123, 5.4, 5.1]
   # home_pose_mm_deg: [213.9, 7.8, 307.2, 179.6, 0.0, 1.6]
   # home_pose_mm_deg: [336.3, 10.7, 287.7, 180.0, 0.0, 0.0]
