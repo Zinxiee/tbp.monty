@@ -39,7 +39,7 @@ Fix 5 orientations using a **centre mark on the table** and a **reference photo 
 | ORI1 | 90° yaw rotation |
 | ORI2 | 180° yaw rotation |
 | ORI3 | 270° yaw rotation |
-| ORI4 | ~30° off-axis tilt (forward or sideways) |
+| ORI4 | ~30° off-axis tilt (forward or sideways) - Changed to unusual/different orientation |
 
 Take a photograph of each (object × orientation) before the first run and commit to `benchmarks/dissertation/orientations/`.
 

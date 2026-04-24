@@ -15,7 +15,7 @@ experiment:
   _target_: tbp.monty.frameworks.experiments.object_recognition_experiments.MontyObjectRecognitionExperiment
   config:
     show_sensor_output: true
-    capture_initial_scene: true
+    capture_initial_scene: false
     initial_capture_scene_prefix: zed_capture
     max_train_steps: 1000
     max_eval_steps: 500
