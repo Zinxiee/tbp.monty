@@ -19,6 +19,7 @@ from tbp.monty.frameworks.actions.actions import LookUp
 from tbp.monty.frameworks.agents import AgentID
 from tbp.monty.frameworks.models.abstract_monty_classes import Observations
 from tbp.monty.frameworks.models.motor_policies import BasePolicy
+from tbp.monty.frameworks.models.motor_policy_selectors import SinglePolicySelector
 from tbp.monty.frameworks.models.motor_system import MotorSystem
 from tbp.monty.frameworks.models.motor_system_state import (
     AgentState,
@@ -26,6 +27,7 @@ from tbp.monty.frameworks.models.motor_system_state import (
     SensorState,
 )
 from tbp.monty.frameworks.sensors import SensorID
+from tests.unit.frameworks.models.fakes.cmp import FakeMessage
 
 
 class MotorSystemGoalPosePlumbingTest(unittest.TestCase):
@@ -36,7 +38,7 @@ class MotorSystemGoalPosePlumbingTest(unittest.TestCase):
             action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
             agent_id=self.agent_id,
         )
-        self.motor_system = MotorSystem(policy=policy)
+        self.motor_system = MotorSystem(policy_selector=SinglePolicySelector(policy))
 
     def test_last_policy_result_is_populated_without_changing_return_actions(self) -> None:
         proprioceptive_state = ProprioceptiveState(
@@ -58,6 +60,8 @@ class MotorSystemGoalPosePlumbingTest(unittest.TestCase):
             ctx=RuntimeContext(rng=np.random.RandomState(0)),
             observations=Observations(),
             proprioceptive_state=proprioceptive_state,
+            percept=FakeMessage(),
+            goals=[],
         )
 
         self.assertEqual(len(actions), 1)

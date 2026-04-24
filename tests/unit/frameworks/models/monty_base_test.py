@@ -73,6 +73,7 @@ class MontyBasePrivateTest(unittest.TestCase):
         expected_result = sentinel.motor_policy_result
         self.monty_base.motor_system.return_value = [sentinel.action]
         self.monty_base.motor_system.last_policy_result = expected_result
+        self.monty_base.sensor_module_outputs = [sentinel.sm_output_0]
 
         self.monty_base._step_motor_system(
             ctx=sentinel.ctx,

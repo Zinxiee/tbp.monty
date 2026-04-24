@@ -30,16 +30,18 @@ env_init_args:
     # When patch_* params are set, they take precedence and define the ROI.
     crop_center_to_square: true
     # ROI crop applied to the raw 100×100 sensor frame before unprojection.
-    # 20×20 patch, 15 px up from the bottom, 40 px from either side
-    # (horizontally centered, vertically biased toward the bottom of the FOV).
+    # 12×12 patch, horizontally centered (left=44, col-center=50) and
+    # vertically centered at the same row as the prior 20×20 footprint
+    # (bottom=19 → top=69 → row-center=75). Shrunk from 20×20 to reduce
+    # OLS-plane-fit bias on curved objects (a 20×20 patch at 120 mm spans
+    # ~28 mm, covering ~30° of arc on a 50 mm-radius bowl; a 12×12 patch
+    # spans ~17 mm, ~20° of arc — significantly less plane-fit distortion).
     # Principal point (cx, cy) is shifted by (left, top) internally so
     # unprojection geometry stays correct.
-    # 20×20 covers ~28×24mm world extent at ~120mm depth — quadruples sample
-    # count vs 10×10 to suppress per-pixel ToF noise in the OLS plane fit.
-    patch_height: 20
-    patch_width: 20
-    patch_offset_bottom_px: 15
-    patch_offset_left_px: 40
+    patch_height: 12
+    patch_width: 12
+    patch_offset_bottom_px: 19
+    patch_offset_left_px: 44
     # 3×3 median filter on the raw depth image before unprojection. Reduces
     # per-pixel ToF noise (~4.5mm std at 116mm depth) while preserving edges,
     # so OLS surface-normal and curvature fits aren't dominated by noise.

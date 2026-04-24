@@ -36,6 +36,35 @@ experiment:
         num_exploratory_steps: 10
         min_train_steps: 1
         min_eval_steps: 1
+      learning_module_configs:
+        learning_module_0:
+          learning_module_args:
+            # Thresholds re-tuned for Maixsense A010 noise floor (~1 mm depth
+            # stddev; curvature estimate jitters several m^-1 on 20x20 patch;
+            # intrinsics-driven lateral error ~5-6 mm at 120 mm standoff).
+            tolerances:
+              patch:
+                hsv: ${np.array:[0.1, 0.2, 0.2]}
+                principal_curvatures_log: ${np.array:[3.0, 3.0]}
+            feature_weights:
+              patch:
+                hsv: ${np.array:[1, 0.5, 0.5]}
+                pose_vectors: ${np.ones:3}
+                principal_curvatures_log: ${np.array:[0.1, 0.1]}
+            max_match_distance: 0.015
+            graph_delta_thresholds:
+              patch:
+                distance: 0.008
+                pose_vectors: ${np.list_eval:[np.pi / 6, np.pi * 2, np.pi * 2]}
+                principal_curvatures_log:
+                - 3.0
+                - 3.0
+                hsv:
+                - 0.1
+                - 1
+                - 1
+            hypotheses_updater_args:
+              max_nneighbors: 10
       motor_system_config:
         policy_selector:
           policy:

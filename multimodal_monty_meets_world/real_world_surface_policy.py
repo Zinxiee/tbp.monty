@@ -198,8 +198,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         position, rotation = self._last_good_poses.pop()
         self._pose_return_grace_steps = 1
         logger.info(
-            "constrained_search: returning to last good pose "
-            "position=%s remaining=%d",
+            "constrained_search: returning to last good pose position=%s remaining=%d",
             np.round(position, 4).tolist(),
             len(self._last_good_poses),
         )
@@ -209,9 +208,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             rotation_quat=rotation,
         )
 
-    def _apply_pose_return_grace(
-        self, result: MotorPolicyResult
-    ) -> MotorPolicyResult:
+    def _apply_pose_return_grace(self, result: MotorPolicyResult) -> MotorPolicyResult:
         """Rewrite orient actions to a safe MoveForward during grace window.
 
         Immediately after a last-good-pose recovery the sensor pose may not
@@ -233,9 +230,9 @@ class RealWorldSurfacePolicy(SurfacePolicy):
             else action
             for action in result.actions
         ]
-        if all(
-            a is b for a, b in zip(rewritten, result.actions)
-        ) and len(rewritten) == len(result.actions):
+        if all(a is b for a, b in zip(rewritten, result.actions)) and len(
+            rewritten
+        ) == len(result.actions):
             return result
         logger.info(
             "pose_return_grace: rewrote %d orient action(s) to MoveForward",
@@ -518,22 +515,14 @@ class RealWorldSurfacePolicy(SurfacePolicy):
         filtered_depth = self._filtered_forward_depth(observations, view_sensor_id)
 
         if filtered_depth is not None and filtered_depth < 1.0:
-            sensor_state_z = state[self.agent_id].sensors[view_sensor_id].position[2]
-            raw_distance = (
-                filtered_depth - self.desired_object_distance - sensor_state_z
-            )
-            no_sensor_z_distance = filtered_depth - self.desired_object_distance
-            distance = filtered_depth - self.desired_object_distance - sensor_state_z
-            distance = min(distance, _MAX_FORWARD_STEP_M)
+            raw_distance = filtered_depth - self.desired_object_distance
+            distance = min(raw_distance, _MAX_FORWARD_STEP_M)
             logger.info(
                 "touch_object_distance: filtered_depth=%.6fm desired=%.6fm "
-                "sensor_state_z=%.6fm raw=%.6fm raw_no_sensor_z=%.6fm "
-                "capped=%.6fm cap=%.6fm",
+                "raw=%.6fm capped=%.6fm cap=%.6fm",
                 float(filtered_depth),
                 float(self.desired_object_distance),
-                float(sensor_state_z),
                 float(raw_distance),
-                float(no_sensor_z_distance),
                 float(distance),
                 float(_MAX_FORWARD_STEP_M),
             )
@@ -573,9 +562,7 @@ class RealWorldSurfacePolicy(SurfacePolicy):
 
         # --- Escape-upward phase (world-frame) ---
         if self.touch_search_amount < abs(_ESCAPE_PITCH_DEG) * _ESCAPE_STEPS:
-            step_idx = int(
-                self.touch_search_amount / abs(_ESCAPE_PITCH_DEG)
-            )
+            step_idx = int(self.touch_search_amount / abs(_ESCAPE_PITCH_DEG))
             if step_idx < _ESCAPE_STEPS:
                 self.touch_search_amount += abs(_ESCAPE_PITCH_DEG)
                 agent_state = state[self.agent_id]

@@ -231,7 +231,7 @@ class GoalPoseEmissionTest(unittest.TestCase):
         self.policy = InformedPolicy(
             action_sampler=UniformlyDistributedSampler(actions=[LookUp]),
             agent_id=self.agent_id,
-            use_goal_state_driven_actions=True,
+            use_goal_driven_actions=True,
         )
 
         self.state = MotorSystemState(
@@ -263,11 +263,10 @@ class GoalPoseEmissionTest(unittest.TestCase):
         )
 
     def test_goal_driven_jump_populates_goal_pose(self) -> None:
-        self.policy.set_driving_goal_state(self.goal_state)
-
         result = self.policy._goal_driven_actions(
             observations=Observations(),
             state=self.state,
+            goal=self.goal_state,
         )
 
         self.assertIsNotNone(result)
