@@ -605,12 +605,25 @@ class MontyExperiment:
             self.eval_episodes += 1
             self.total_eval_steps += steps
 
+        # Save per-episode when the manual scene picker is active; its "quit"
+        # command raises KeyboardInterrupt from env_interface.post_episode below,
+        # which would otherwise skip the epoch-level save.
+        if isinstance(
+            self.env_interface, SaccadeOnImageEnvironmentInterface
+        ) and getattr(self.env_interface, "enable_manual_scene_picker", False):
+            self.save_state_dict(output_dir=self.output_dir / f"{self.train_epochs}")
+
         # move down here, otherwise env_interface.primary_target is already changed
         self.env_interface.post_episode()
 
     def run_epoch(self):
         """Run epoch -> Run one episode for each object."""
-        self.pre_epoch()
+        try:
+            self.pre_epoch()
+        except KeyboardInterrupt:
+            logger.info("Stopped by user before epoch started.")
+            return
+
         if isinstance(self.env_interface, SaccadeOnImageFromStreamEnvironmentInterface):
             try:
                 while True:
@@ -623,8 +636,11 @@ class MontyExperiment:
                 "episodes_per_epoch",
                 len(self.env_interface.scenes),
             )
-            for _ in range(num_episodes):
-                self.run_episode()
+            try:
+                for _ in range(num_episodes):
+                    self.run_episode()
+            except KeyboardInterrupt:
+                logger.info("Stopped by user during scene selection.")
         elif isinstance(self.env_interface, EnvironmentInterfacePerObject):
             for object_name in self.env_interface.object_names:
                 logger.info(f"Running a simulation to model object: {object_name}")
