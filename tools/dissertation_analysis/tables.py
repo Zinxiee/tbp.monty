@@ -51,8 +51,7 @@ def summarise_episodes(df: pd.DataFrame) -> dict[str, float | int]:
     confused = perf.isin(["confused", "confused_mlh"]).mean() * 100
     no_match = perf.isin(["no_match", "no_match_pose"]).mean() * 100
 
-    rot_err_rad = pd.to_numeric(df.get("rotation_error"), errors="coerce")
-    rot_err_deg = (rot_err_rad * 180.0 / np.pi).dropna()
+    rot_err_deg = pd.to_numeric(df.get("rotation_error"), errors="coerce").dropna()
     mean_rot_err = float(rot_err_deg.mean()) if not rot_err_deg.empty else np.nan
 
     return {

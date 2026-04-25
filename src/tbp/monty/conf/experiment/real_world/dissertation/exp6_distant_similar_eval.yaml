@@ -24,7 +24,7 @@ defaults:
 
 config:
   do_eval: true
-  n_eval_epochs: 3
+  n_train_epochs: 3
   train_env_interface_args:
     episodes_per_epoch: 2 # 2 episodes per epoch. Both objects to be introduced per epoch.
   max_eval_steps: 500

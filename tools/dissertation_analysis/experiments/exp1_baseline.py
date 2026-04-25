@@ -8,12 +8,9 @@
 
 from __future__ import annotations
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 from tbp.monty.frameworks.utils.plot_utils_dev import plot_graph
-
 from tools.dissertation_analysis import discovery, figures, loaders, tables
 from tools.dissertation_analysis.experiments import ExperimentReport
 
@@ -117,7 +114,6 @@ def run(results_dir, output_dir) -> ExperimentReport:
     rot_deg = pd.to_numeric(
         distant_df.loc[correct_mask, "rotation_error"], errors="coerce"
     )
-    rot_deg = rot_deg * 180.0 / np.pi
     rot_df = pd.DataFrame(
         {
             "agent": ["distant"] * len(rot_deg),

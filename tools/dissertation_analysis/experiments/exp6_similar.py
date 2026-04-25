@@ -13,8 +13,6 @@ import pandas as pd
 from tools.dissertation_analysis import discovery, figures, loaders, tables
 from tools.dissertation_analysis.experiments import ExperimentReport
 
-PAIR = ["tbp_mug", "tea_tin"]
-
 
 def _load_distant_df(results_dir: Path) -> pd.DataFrame | None:
     run = discovery.find_run(results_dir, "exp6_distant_similar_eval")
@@ -29,10 +27,20 @@ def _load_distant_df(results_dir: Path) -> pd.DataFrame | None:
 
 
 def _pair_confusion(df: pd.DataFrame) -> pd.DataFrame:
+    """Build the confusion matrix over the pair of objects actually present.
+
+    Object labels in the trained model are capture indices (e.g. capture_001),
+    not semantic tags, so the matrix axes are derived from the data rather
+    than hard-coded.
+
+    Returns:
+        Square confusion matrix indexed by target and predicted graph id.
+    """
     target = df["primary_target_object"].astype(str)
     predicted = df["most_likely_object"].astype(str)
+    pair = sorted(set(target) | (set(predicted) & set(target)))
     matrix = pd.crosstab(target, predicted)
-    return matrix.reindex(index=PAIR, columns=PAIR, fill_value=0)
+    return matrix.reindex(index=pair, columns=pair, fill_value=0)
 
 
 def run(results_dir: Path, output_dir: Path) -> ExperimentReport:

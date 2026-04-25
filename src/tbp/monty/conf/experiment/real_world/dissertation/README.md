@@ -351,9 +351,7 @@ while retaining models of previously seen objects?
 
 ### Protocol
 
-10-episode presentation sequence (no labels supplied):
-
-3 epochs, each epoch contains 6 episodes. In the first epoch a new object is introduced each episode. The same object are then introduced across epochs 2 and 3.
+3 epochs, each epoch contains 6 episodes. In the first epoch a new object is introduced each episode. The same object are then introduced across epochs 2 and 3 (no labels supplied):
 
 ```bash
 python run.py experiment=real_world/dissertation/exp4_distant_continual
@@ -423,7 +421,7 @@ objects?
 
 **Prereqs:** Exp 1b checkpoint.
 
-**Objects:** O1 `tbp_mug` and O2 `tea_tin` (the chosen similar pair).
+**Objects:** O1 `tbp_mug` and O3 `tea_tin` (the chosen similar pair).
 
 **Orientations:** ORI0.
 
@@ -434,9 +432,7 @@ python run.py experiment=real_world/dissertation/exp6_distant_similar_eval \
   experiment.config.model_name_or_path=experiment_results/exp1_distant_train/pretrained/0/model.pt
 ```
 
-3 epochs, each with 2 episodes. Both objects are introduced once per epoch.
-
-Run ≥3 episodes for each of `tbp_mug` and `tea_tin`.
+3 epochs, each with 2 episodes. Both `tbp_mug` and `tea_tin` are introduced once per epoch.
 
 ### Outputs
 

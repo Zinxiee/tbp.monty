@@ -14,19 +14,6 @@ import pandas as pd
 from tools.dissertation_analysis import discovery, figures, loaders, tables
 from tools.dissertation_analysis.experiments import ExperimentReport
 
-EXP4_SEQUENCE = [
-    (1, "O1", "learn"),
-    (2, "O2", "learn"),
-    (3, "O3", "learn"),
-    (4, "O4", "learn"),
-    (5, "O5", "learn"),
-    (6, "O1", "recall"),
-    (7, "O3", "recall"),
-    (8, "O5", "recall"),
-    (9, "O2", "recall"),
-    (10, "O4", "recall"),
-]
-
 
 def _load_df(results_dir: Path) -> pd.DataFrame | None:
     run = discovery.find_run(results_dir, "exp4_distant_continual")
@@ -40,38 +27,95 @@ def _load_df(results_dir: Path) -> pd.DataFrame | None:
     return tables.filter_lm_rows(df)
 
 
+def _parse_result_label(value: object) -> str:
+    """Extract the assigned graph id from the `result` column.
+
+    The column is heterogeneous: a bare graph id (e.g. `new_object0`),
+    an outcome tag (e.g. `unknown_object_not_matched_(TN)`), or a stringified
+    Python list (e.g. `['new_object1']`).
+
+    Returns:
+        The underlying graph id when it can be identified, else the original
+        string.
+    """
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    if text.startswith("[") and text.endswith("]"):
+        inner = text[1:-1].strip()
+        if not inner:
+            return text
+        first = inner.split(",", 1)[0].strip().strip("'\"")
+        return first or text
+    return text
+
+
 def _build_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Walk every episode in `df`, label epoch and hit/miss from the data.
+
+    The first occurrence of each `primary_target_object` is treated as the
+    learn episode for that object; subsequent occurrences are recall episodes.
+    For learn episodes the assigned graph is taken from `result`, since the
+    `most_likely_object` field still points at the best pre-existing match
+    even when a new graph is seeded. Recall episodes count as a hit when
+    `most_likely_object` matches the learn-episode assignment.
+
+    Returns:
+        DataFrame with one row per episode and columns Episode, Epoch, Object,
+        Episode Type, Recall, Predicted, mean_objects/graphs metrics, Time.
+    """
     rows = []
-    for ep_num, obj, kind in EXP4_SEQUENCE:
-        if ep_num - 1 < len(df):
-            row = df.iloc[ep_num - 1]
-            perf = str(row.get("primary_performance", ""))
-            hit = perf in ("correct", "correct_mlh")
-            rows.append(
-                {
-                    "Episode": ep_num,
-                    "Object": obj,
-                    "Episode Type": kind,
-                    "Recall": "hit"
-                    if kind == "recall" and hit
-                    else ("miss" if kind == "recall" else ""),
-                    "Mean Objects Per Graph": row.get("mean_objects_per_graph"),
-                    "Mean Graphs Per Object": row.get("mean_graphs_per_object"),
-                    "Time (s)": row.get("time"),
-                }
-            )
+    first_assignment: dict[str, str] = {}
+    seen_objects: list[str] = []
+    epoch = 1
+    episodes_per_epoch: int | None = None
+    episode_in_epoch = 0
+
+    for ep_num, (_, row) in enumerate(df.iterrows(), start=1):
+        target = str(row.get("primary_target_object", ""))
+        predicted = str(row.get("most_likely_object", ""))
+        assigned = _parse_result_label(row.get("result"))
+
+        if target not in first_assignment:
+            first_assignment[target] = assigned
+            seen_objects.append(target)
+            kind = "learn"
+            recall = ""
         else:
-            rows.append(
-                {
-                    "Episode": ep_num,
-                    "Object": obj,
-                    "Episode Type": kind,
-                    "Recall": "",
-                    "Mean Objects Per Graph": None,
-                    "Mean Graphs Per Object": None,
-                    "Time (s)": None,
-                }
-            )
+            kind = "recall"
+            expected = first_assignment[target]
+            recall = "hit" if predicted == expected else "miss"
+
+        epoch_started = (
+            episodes_per_epoch is None
+            and len(seen_objects) > 1
+            and target == seen_objects[0]
+        )
+        if epoch_started:
+            episodes_per_epoch = ep_num - 1
+        if episodes_per_epoch is not None:
+            episode_in_epoch += 1
+            if episode_in_epoch > episodes_per_epoch:
+                epoch += 1
+                episode_in_epoch = 1
+        else:
+            episode_in_epoch = ep_num
+
+        rows.append(
+            {
+                "Episode": ep_num,
+                "Epoch": epoch,
+                "Object": target,
+                "Episode Type": kind,
+                "Recall": recall,
+                "Predicted": predicted,
+                "Mean Objects Per Graph": row.get("mean_objects_per_graph"),
+                "Mean Graphs Per Object": row.get("mean_graphs_per_object"),
+                "Time (s)": row.get("time"),
+            }
+        )
     return pd.DataFrame(rows)
 
 
