@@ -58,11 +58,12 @@ def main() -> None:
         # "~/tbp/results/monty/projects/surf_agent_2obj_unsupervised"
     )
     n_epochs = 1
-    n_objs = 4
+    n_objs = 7
+    obj_name_template = "capture_00"  # Generated object ID template
     show_trace = False
 
     for obj_idx in range(n_objs):
-        obj_name = f"new_object{obj_idx}"  # Generated object ID
+        obj_name = f"{obj_name_template}{obj_idx + 1}"  # e.g. capture_001, capture_002, ...
         graphs = [load_graph(exp_dir, epoch, obj_name) for epoch in range(n_epochs)]
         fig = plt.figure(figsize=(8, 3))
         for epoch in range(n_epochs):
