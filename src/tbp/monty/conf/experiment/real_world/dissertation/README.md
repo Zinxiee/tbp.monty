@@ -4,6 +4,16 @@ Dissertation objective:
 
 > "To expand upon and stress-test the Thousand Brains Project, designing and constructing a system capable of multimodal sensing and movement to enable **learning and recognition** of real-world objects in a **human-like way**."
 
+This README is the executable guide for the dissertation experiment battery. Every
+experiment is a numbered protocol with the same template (Research question →
+Prereqs → Objects → Orientations → Protocol → Outputs → Metrics → Pass criteria) so
+there is no ambiguity about what to run, what gets produced, and how to read it.
+
+The surface agent results were collected before the dissertation YAML protocol was
+finalised; they are presented as Experiment 1a (training-feasibility, single-episode
+unsupervised) plus a sensor-noise / repeatability **Limitations chapter**. All
+recognition-accuracy claims come from the distant agent.
+
 ---
 
 ## Hardware
@@ -17,21 +27,23 @@ Dissertation objective:
 
 ## Object Set
 
-Choose **5–7 physical objects** roughly mug/Rubik's-cube sized. Suggested categories:
+| ID | Object tag | Distant | Surface | Notes |
+|---|---|---|---|---|
+| O1 | `tbp_mug` | ✓ | — | TBP reference object; similar-pair partner |
+| O2 | `sw_mug` | ✓ | — | Similar-pair partner |
+| O3 | `tea_tin` | ✓ | — | |
+| O4 | `mc_fox` | ✓ | ✓ (×1) | Matte plastic fox |
+| O5 | `hexagons` | ✓ | — | |
+| O6 | `cap` | ✓ | ✓ (×1) | Black cap |
+| O7 | `washbag` | ✓ | ✓ (×3 repeats) | |
+| O8 | `cardboard_box` | — | ✓ (×3 repeats) | Surface-only sensor-noise probe |
 
-| ID | Object | Category |
-|---|---|---|
-| O1 | Mug (TBP reference object) | Clearly distinct |
-| O2 | Rubik's cube (or similar) | Clearly distinct |
-| O3 | Cylindrical can | Moderately distinct |
-| O4 | Small rectangular box | Moderately distinct |
-| O5 | Second mug (different handle) | Confusable with O1 |
-| O6 | Cube with rounded corners | Confusable with O2 (optional) |
-| O7 | Object of your choice | (optional) |
+**Similar pair (Exp 6):** `tbp_mug` ↔ `tea_tin` — geometrically similar mugs, distinguished by surface texture / colour.
 
-### Orientation reference
+### Orientation reference (distant agent)
 
-Fix 5 orientations using a **centre mark on the table** and a **reference photo for each**:
+Five orientations are pre-captured on a fixed table mark; reference photos live in
+`benchmarks/dissertation/orientations/`:
 
 | Label | Description |
 |---|---|
@@ -39,142 +51,307 @@ Fix 5 orientations using a **centre mark on the table** and a **reference photo 
 | ORI1 | 90° yaw rotation |
 | ORI2 | 180° yaw rotation |
 | ORI3 | 270° yaw rotation |
-| ORI4 | ~30° off-axis tilt (forward or sideways) - Changed to unusual/different orientation |
+| ORI4 | ~30° off-axis tilt |
 
-Take a photograph of each (object × orientation) before the first run and commit to `benchmarks/dissertation/orientations/`.
+Orientation only applies to distant-agent experiments. The surface agent runs are at a
+single canonical pose per object.
 
 ### Repeat policy
 
-Run **at least 3 episodes per object per orientation** before reporting any aggregate number. A single 100% or 0% episode is not evidence.
+- **Distant:** ≥3 episodes per object per orientation before reporting any aggregate.
+- **Surface:** training-only, 1 episode per object except `washbag` and `cardboard_box`
+  which were repeated 3× each as a sensor-noise probe. No further surface runs will
+  be performed.
 
 ---
 
 ## Experiment Summary
 
-| # | Config | Agent | Train/Eval | Supervised | New model? |
+| # | Step | Agent | Action | Status | Output dir |
 |---|---|---|---|---|---|
-| 1 | `exp1_surface_train` | Surface | Train | Yes | Yes → save checkpoint |
-| 1 | `exp1_surface_eval` | Surface | Eval | — | Load Exp 1 surface ckpt |
-| 1 | `exp1_distant_train` | Distant | Train | Yes | Yes → save checkpoint |
-| 1 | `exp1_distant_eval` | Distant | Eval | — | Load Exp 1 distant ckpt |
-| 1 | `zed_supervised_eval` (stock) | Distant | Eval | — | TBP pretrained (mug only) |
-| 2 | `exp2_surface_eval_rot` | Surface | Eval | — | Load Exp 1 surface ckpt |
-| 2 | `exp2_distant_eval_rot` | Distant | Eval | — | Load Exp 1 distant ckpt |
-| 3 | Analysis only | Both | — | — | Uses Exp 1+2 CSVs |
-| 4 | `exp4_distant_continual` | Distant | Train | No | Fresh (unsupervised) |
-| 4b | `exp4b_surface_continual` *(opt)* | Surface | Train | No | Fresh (unsupervised) |
-| 5 | `exp5_surface_to_distant_eval` | Distant | Eval | — | Load Exp 1 surface ckpt |
-| 5 | `exp5_distant_to_surface_eval` | Surface | Eval | — | Load Exp 1 distant ckpt |
-| 6 | `exp6_surface_similar_eval` *(opt)* | Surface | Eval | — | Load Exp 1 surface ckpt |
-| 6 | `exp6_distant_similar_eval` *(opt)* | Distant | Eval | — | Load Exp 1 distant ckpt |
+| 1a | Surface unsupervised training (×8) | Surface | Train | **Done** | `experiment_results/real_world_lite6_maixsense_unsupervised_*/` |
+| 1b | `exp1_distant_train` | Distant | Supervised train | Pending | `experiment_results/exp1_distant_train/pretrained/` |
+| 1c | `exp1_distant_eval` | Distant | Eval | Pending | `experiment_results/exp1_distant_eval/` |
+| 1d | `zed_supervised_eval` (TBP mug sanity) | Distant | Eval | Optional | `experiment_results/zed_supervised_eval/` |
+| 2 | `exp2_distant_eval_rot` × {ORI1..ORI4} | Distant | Eval | Pending | `…_rot1..4/` |
+| 3 | Modality discussion (analysis-only) | — | — | After Exp 1+2 | `benchmarks/dissertation/analysis/exp3/` |
+| 4 | `exp4_distant_continual` | Distant | Train (no labels) | Pending | `experiment_results/exp4_distant_continual/` |
+| 5 | Cross-agent transfer **discussion-only** | — | — | Not executed | `benchmarks/dissertation/analysis/exp5/` |
+| 6 | `exp6_distant_similar_eval` | Distant | Eval | Pending | `experiment_results/exp6_distant_similar_eval/` |
+| L | Surface sensor-noise / repeatability study | Surface | Analysis-only | **Done** | `benchmarks/dissertation/analysis/surface_unsupervised/` |
 
 ---
 
-## Experiment 1 — Baseline Feasibility
+## Experiment 1a — Surface Agent Training Feasibility
 
-**Research question:** Can Monty learn and recognise real-world objects at all?
+**Research question:** Can the surface agent build a non-trivial object model from a
+single sensorimotor exploration episode under real ToF sensor noise?
 
-**Protocol:**
+**Prereqs:** Lite 6 + Maixsense A010 wired and homed; parent config
+`real_world/lite6_maixsense_unsupervised` operational (no further sensor calibration
+required — see [feedback note on Lite 6 hand-eye extrinsics](#config-inheritance)).
 
-1. Place O1–O7 one at a time in ORI0.
-2. **Surface Agent training:**
-   ```bash
-   python run.py experiment=real_world/dissertation/exp1_surface_train
-   ```
-   - Confirm object placement when prompted. One episode per object.
-   - Note checkpoint path: `outputs/exp1_surface_train/0/model.pt`
+**Objects:** `washbag`, `cardboard_box`, `mc_fox`, `cap` (4 of the 8 dissertation
+objects).
 
-3. **Surface Agent eval:**
-   ```bash
-   python run.py experiment=real_world/dissertation/exp1_surface_eval \
-     experiment.config.model_name_or_path=outputs/exp1_surface_train/0/model.pt
-   ```
-   - Place each object in ORI0 when prompted. ≥3 episodes per object.
+**Orientations:** ORI0 only.
 
-4. **Distant Agent training:**
+### Protocol (already executed — reproduction reference)
+
+Each run trained for one episode with `run_name` overridden per object/repeat.
+
+```bash
+# General form — re-run only if you intend to extend the surface dataset.
+python run.py experiment=real_world/lite6_maixsense_unsupervised \
+  experiment.config.logging.run_name=real_world_lite6_maixsense_unsupervised_<TAG>
+```
+
+`<TAG>` values used:
+
+| Object | Tags |
+|---|---|
+| washbag | `washbag1`, `washbag2`, `washbag3` |
+| cardboard_box | `CBOX1`, `CBOX2`, `CBOX3` |
+| mc_fox | `MCFOX` |
+| cap | `CAP` |
+
+### Outputs
+
+For each `<TAG>`:
+
+- `experiment_results/real_world_lite6_maixsense_unsupervised_<TAG>/0/model.pt` — learned graph checkpoint.
+- `experiment_results/real_world_lite6_maixsense_unsupervised_<TAG>/train_stats.csv` — single row per run, ~36 monty steps, `result=unknown_object_not_matched_(TN)` (expected — unsupervised).
+- `experiment_results/real_world_lite6_maixsense_unsupervised_<TAG>/log.txt` — full motion + frame timing log.
+
+### Metrics reported
+
+Qualitative: presence of a non-trivial graph. Quantitative metrics (point count,
+bbox extent, mean inter-point distance, episode time) are produced by the
+[Limitations chapter](#limitations--surface-agent-sensor-noise) analysis.
+
+### Pass criteria / expected behaviour
+
+- `model.pt` loads successfully via `torch.load` and contains a graph with > 0 nodes.
+- `train_stats.csv` has exactly one row with `result == unknown_object_not_matched_(TN)`.
+- No surface eval is performed and no `eval_stats.csv` is produced.
+
+---
+
+## Experiment 1b — Distant Agent Training
+
+**Research question:** Can Monty learn the 7 dissertation objects from a single ZED
+RGBD scene per object? (This is a supervised learning experiment that creates independent pretrained object models that don't accidentally merge like they might in a continuous learning experiment)
+
+**Prereqs:** ZED 2i connected; pre-captured ORI0 RGBD scenes available to the
+manual scene picker.
+
+**Objects:** O1–O7 (`tbp_mug`, `sw_mug`, `tea_tin`, `mc_fox`, `hexagons`, `cap`, `washbag`).
+
+**Orientations:** ORI0 only.
+
+### Protocol
+
+1. Place each object at the canonical mark in turn (or use the pre-captured ORI0 scene).
+2. Run:
    ```bash
    python run.py experiment=real_world/dissertation/exp1_distant_train
    ```
-   - Scene picker: type `capture` to record a ZED RGBD frame, then select it.
-   - Note checkpoint: `outputs/exp1_distant_train/0/model.pt`
+3. At each scene-picker prompt, type `capture` to record a fresh frame, or select the
+   pre-captured ORI0 frame for the current object.
+4. Note the resulting checkpoint path.
 
-5. **Distant Agent eval:**
-   ```bash
-   python run.py experiment=real_world/dissertation/exp1_distant_eval \
-     experiment.config.model_name_or_path=outputs/exp1_distant_train/0/model.pt
-   ```
+### Outputs
 
-6. **TBP pretrained sanity check (mug O1 only):**
-   ```bash
-   python run.py experiment=real_world/zed_supervised_eval
-   ```
-   This uses the TBP `surf_agent_1lm_numenta_lab_obj` model. Records whether the
-   TBP mug model generalises to your physical mug as a sim-to-real baseline.
+- `experiment_results/exp1_distant_train/pretrained/0/model.pt` — supervised distant model.
+- `experiment_results/exp1_distant_train/train_stats.csv` — one row per object.
 
-**Metrics:** `percent_correct`, `avg_rotation_error`, `avg_num_lm_steps` per agent.
+### Metrics reported
 
-**Analysis quick-check:**
-```bash
-python -c "
-from tbp.monty.frameworks.utils.logging_utils import print_overall_stats
-print_overall_stats('outputs/exp1_surface_eval/eval_stats.csv')
-print_overall_stats('outputs/exp1_distant_eval/eval_stats.csv')
-"
-```
+Training does not report accuracy. Confirmation only: 7 graphs exist in `model.pt`.
+
+### Pass criteria
+
+- Checkpoint path saved; pass it to all downstream distant experiments via
+  `experiment.config.model_name_or_path`.
 
 ---
 
-## Experiment 2 — Pose / Rotation Invariance
+## Experiment 1c — Distant Agent Eval (ORI0 baseline)
 
-**Research question:** Does recognition accuracy hold when objects are placed at orientations not seen during training?
+**Research question:** Can Monty recognise the 7 objects at canonical orientation?
 
-**Protocol:**
+**Prereqs:** Exp 1b checkpoint.
 
-Run **exp2_surface_eval_rot** and **exp2_distant_eval_rot** once per non-canonical orientation (ORI1–ORI4), overriding `run_name`:
+**Objects:** O1–O7.
+
+**Orientations:** ORI0.
+
+### Protocol
+
+```bash
+python run.py experiment=real_world/dissertation/exp1_distant_eval \
+  experiment.config.model_name_or_path=experiment_results/exp1_distant_train/pretrained/0/model.pt
+```
+
+Run ≥3 episodes per object using fresh captures or the pre-captured ORI0 scenes.
+
+### Outputs
+
+- `experiment_results/exp1_distant_eval/eval_stats.csv` — one row per episode.
+
+### Metrics reported
+
+`percent_correct`, `percent_confused`, `percent_no_match`, `avg_rotation_error`,
+`avg_num_lm_steps`, `avg_num_monty_matching_steps`.
+
+### Pass criteria
+
+- ≥3 episodes per object recorded.
+- Aggregate `percent_correct` reported per object and overall.
+
+---
+
+## Experiment 1d — TBP Pretrained Sanity (mug only, optional)
+
+**Research question:** Does TBP's stock `surf_agent_1lm_numenta_lab_obj` model
+generalise to your physical mug as a sim-to-real baseline?
+
+**Prereqs:** TBP pretrained model already on disk (loaded by the stock
+`zed_supervised_eval` config).
+
+**Objects:** O1 `tbp_mug` only.
+
+**Orientations:** ORI0.
+
+### Protocol
+
+```bash
+python run.py experiment=real_world/zed_supervised_eval
+```
+
+### Outputs
+
+- `experiment_results/zed_supervised_eval/eval_stats.csv`.
+
+### Metrics reported
+
+`percent_correct` against the TBP sim-trained mug model.
+
+### Pass criteria
+
+- Reported as-is; any non-zero recognition is a positive sim-to-real transfer signal.
+
+---
+
+## Experiment 2 — Distant Rotation Invariance
+
+**Research question:** Does recognition accuracy hold when objects are presented in
+orientations not seen during training?
+
+**Prereqs:** Exp 1b checkpoint; ORI1–ORI4 RGBD scenes already captured per object on
+the fixed table mark.
+
+**Objects:** O1–O7.
+
+**Orientations:** ORI1, ORI2, ORI3, ORI4.
+
+### Protocol
+
+Run the eval config once per orientation, overriding `run_name`.
 
 ```bash
 # ORI1 — 90° yaw
-python run.py experiment=real_world/dissertation/exp2_surface_eval_rot \
-  experiment.config.model_name_or_path=outputs/exp1_surface_train/0/model.pt \
-  experiment.config.logging.run_name=exp2_surface_eval_rot1
-
 python run.py experiment=real_world/dissertation/exp2_distant_eval_rot \
-  experiment.config.model_name_or_path=outputs/exp1_distant_train/0/model.pt \
+  experiment.config.model_name_or_path=experiment_results/exp1_distant_train/pretrained/0/model.pt \
   experiment.config.logging.run_name=exp2_distant_eval_rot1
 
-# Repeat for rot2, rot3, rot4 — change run_name each time
+# ORI2 — 180° yaw
+python run.py experiment=real_world/dissertation/exp2_distant_eval_rot \
+  experiment.config.model_name_or_path=experiment_results/exp1_distant_train/pretrained/0/model.pt \
+  experiment.config.logging.run_name=exp2_distant_eval_rot2
+
+# ORI3 — 270° yaw
+python run.py experiment=real_world/dissertation/exp2_distant_eval_rot \
+  experiment.config.model_name_or_path=experiment_results/exp1_distant_train/pretrained/0/model.pt \
+  experiment.config.logging.run_name=exp2_distant_eval_rot3
+
+# ORI4 — off-axis tilt
+python run.py experiment=real_world/dissertation/exp2_distant_eval_rot \
+  experiment.config.model_name_or_path=experiment_results/exp1_distant_train/pretrained/0/model.pt \
+  experiment.config.logging.run_name=exp2_distant_eval_rot4
 ```
 
-**Metrics:** Compare `percent_correct` and `avg_rotation_error` across ORI0–ORI4.
+### Outputs
 
-**Expected finding:** If the system is pose-invariant, accuracy should stay high and `avg_rotation_error` should remain low even at unseen orientations.
+- `experiment_results/exp2_distant_eval_rot{1,2,3,4}/eval_stats.csv`.
 
----
+### Metrics reported
 
-## Experiment 3 — Multimodal Comparison & Complementarity
+Compare `percent_correct` and `avg_rotation_error` across ORI0 (Exp 1c) → ORI4.
 
-**Research question:** Which modality (ToF vs. RGBD) works better for which type of object, and why?
+### Pass criteria
 
-**Protocol:** Analysis-only pass over Exp 1 and Exp 2 CSVs. No new hardware run.
-
-1. Aggregate `percent_correct` and `avg_num_lm_steps` per object per agent from Exp 1.
-2. Classify each object:
-   - **ToF-favourable**: matte surface, thick geometry (good curvature signal).
-   - **ZED-favourable**: rich colour/texture, smooth or reflective surface.
-   - **Ambiguous**: mixed properties.
-3. Record wall-clock episode duration (Surface Agent includes robot motion + settle).
-
-**Output for report:** Side-by-side agent comparison table + per-object breakdown.
+- All 4 orientations completed with ≥3 episodes per object.
+- Pose-invariant if accuracy stays high and `avg_rotation_error` stays low at unseen
+  orientations.
 
 ---
 
-## Experiment 4 — Continual (Human-like) Unsupervised Learning
+## Experiment 3 — Modality Discussion (analysis-only)
 
-**Research question:** Can Monty learn new objects incrementally without labels, while retaining models of previously seen objects?
+**Research question:** Which modality (ToF vs. RGBD) works better for which type of
+object, and why?
 
-**Protocol:**
+**Prereqs:** Exp 1c CSV; Limitations-chapter graph stats (see below).
 
-Use 5 objects: O1–O5. Presentation sequence (10 episodes, no labels):
+**Objects:** O1–O7 (distant), plus surface qualitative notes for O4, O6, O7.
+
+**Orientations:** ORI0.
+
+### Protocol
+
+No new hardware run. Run the analysis pipeline:
+
+```bash
+python -m tools.dissertation_analysis --experiments exp3
+```
+
+Aggregate `percent_correct` and `avg_num_lm_steps` per object from Exp 1c, classify
+each object as ToF-favourable / ZED-favourable / Ambiguous, and pair the distant
+numbers with surface graph-quality notes for the 3 shared objects.
+
+### Outputs
+
+- `benchmarks/dissertation/analysis/exp3/modality_comparison.md` — distant per-object
+  table + qualitative surface paragraph.
+- `benchmarks/dissertation/analysis/exp3/complementarity.png` — per-object scatter.
+
+### Metrics reported
+
+Distant per-object `percent_correct`, `avg_num_lm_steps`, episode duration; surface
+graph-quality summary referenced from the Limitations chapter.
+
+### Pass criteria
+
+- Side-by-side per-object commentary produced for the 3 shared objects (`mc_fox`,
+  `cap`, `washbag`).
+
+---
+
+## Experiment 4 — Distant Continual Learning
+
+**Research question:** Can Monty learn new objects incrementally without labels,
+while retaining models of previously seen objects?
+
+**Prereqs:** None — fresh unsupervised run, no prior checkpoint.
+
+**Objects:** O1–O5 (`tbp_mug`, `sw_mug`, `tea_tin`, `mc_fox`, `hexagons`).
+
+**Orientations:** ORI0.
+
+### Protocol
+
+10-episode presentation sequence (no labels supplied):
 
 ```
 Episode: 1    2    3    4    5    6    7    8    9    10
@@ -186,151 +363,220 @@ Type:    learn learn learn learn learn recall recall recall recall recall
 python run.py experiment=real_world/dissertation/exp4_distant_continual
 ```
 
-Scene picker: select/capture one ZED scene per episode in the sequence above.
+At each scene-picker prompt, select/capture the ZED scene that matches the episode
+in the sequence above.
 
-**Analysis:**
+### Outputs
+
+- `experiment_results/exp4_distant_continual/train_stats.csv`.
+- `experiment_results/exp4_distant_continual/0/model.pt`.
+
+### Metrics reported
+
 ```bash
 python -c "
 from tbp.monty.frameworks.utils.logging_utils import print_unsupervised_stats
-print_unsupervised_stats('outputs/exp4_distant_continual/train_stats.csv')
+print_unsupervised_stats('experiment_results/exp4_distant_continual/train_stats.csv')
 "
 ```
 
-**Key metrics:**
-- `mean_objects_per_graph` — ideally → 1 (each graph = one object)
-- `mean_graphs_per_object` — ideally → 1 (each object = one graph)
-- Episode-by-episode hit/miss for return visits (episodes 6–10)
+- `mean_objects_per_graph` (target → 1).
+- `mean_graphs_per_object` (target → 1).
+- Episode-by-episode hit/miss for return visits (episodes 6–10).
+
+### Pass criteria
+
+- All 10 episodes captured; both metrics within 0.5 of the ideal 1.0.
+- Return-visit episodes (6–10) classified correctly above chance.
 
 ---
 
-## Experiment 4b (optional) — Surface Agent Continual Learning
+## Experiment 5 — Cross-Agent Transfer (discussion only)
 
-**Research question:** Does human-like continual learning hold under active sensorimotor exploration?
+**Research question:** Are Monty's object models sensor-agnostic — can a model built
+with one sensor be recognised through the other?
 
-**Protocol:** 3 objects, 5 episodes, Surface Agent.
+**Status:** Not executed. No surface eval data exists, and no further surface runs
+will be performed.
 
-```
-Episode: 1    2    3    4    5
-Object:  O1   O2   O3   O1   O3
-Type:    learn learn learn recall recall
-```
-
-```bash
-python run.py experiment=real_world/dissertation/exp4b_surface_continual
-```
-
-**Hardware budget:** ~1 hour. Run only if session time permits.
-
-**Comparison:** Match Exp 4 metrics for the same 3 objects to determine whether active exploration improves or matches passive-capture continual learning.
-
----
-
-## Experiment 5 — Cross-Agent Model Transfer
-
-**Research question:** Are Monty's object models sensor-agnostic — can a model built with one sensor be recognised through the other?
-
-**Protocol:**
-
-**Direction 1: Surface-trained model → Distant Agent inference**
-```bash
-python run.py experiment=real_world/dissertation/exp5_surface_to_distant_eval \
-  experiment.config.model_name_or_path=outputs/exp1_surface_train/0/model.pt
-```
-
-**Direction 2: Distant-trained model → Surface Agent inference**
-```bash
-python run.py experiment=real_world/dissertation/exp5_distant_to_surface_eval \
-  experiment.config.model_name_or_path=outputs/exp1_distant_train/0/model.pt
-```
-
-Build the 2×2 transfer matrix for the report:
+**Discussion:** The architectural plumbing for cross-agent transfer is in place — the
+8 surface `model.pt` checkpoints (Exp 1a) load with the same Monty configuration used
+by the distant agent, and the distant `model.pt` is in the same format. What is
+missing is the eval-time data to populate the off-diagonal cells of the transfer
+matrix:
 
 | | Eval: Surface Agent | Eval: Distant Agent |
 |---|---|---|
-| **Train: Surface Agent** | Exp 1 (baseline) | Exp 5 (S→D) |
-| **Train: Distant Agent** | Exp 5 (D→S) | Exp 1 (baseline) |
+| **Train: Surface Agent** | not executed | not executed |
+| **Train: Distant Agent** | not executed | Exp 1c (baseline) |
 
-**Note:** Zero accuracy on Exp 5 is a valid negative finding. Document the
-architectural reason (e.g. missing HSV features in surface model) and frame as
-a known limitation with engineering implications for future work.
+Surface agent recognition was not reliable enough under sensor noise (see Limitations
+chapter) to support quantitative cross-agent claims. The dissertation discussion notes
+that `EvidenceGraphLM` does not encode HSV features in the surface model (the surface
+sensor module exposes `hsv` as a feature, but the surface-trained graphs in this
+dataset were captured under unsupervised settings without the colour-rich features
+that the distant model relies on for discrimination). This is documented as a known
+limitation with engineering implications for future work.
 
 ---
 
-## Experiment 6 (optional) — Similar Object Discrimination
+## Experiment 6 — Distant Similar Object Discrimination
 
-**Research question:** Can the system distinguish geometrically similar objects?
+**Research question:** Can the distant agent distinguish geometrically similar
+objects?
 
-**Protocol:** Run Exp 1 eval configs with only the confusable object subset (e.g. O1 + O5, O2 + O6). Use Exp 1 checkpoints — no retraining.
+**Prereqs:** Exp 1b checkpoint.
+
+**Objects:** O1 `tbp_mug` and O2 `tea_tin` (the chosen similar pair).
+
+**Orientations:** ORI0.
+
+### Protocol
 
 ```bash
-# Surface Agent
-python run.py experiment=real_world/dissertation/exp6_surface_similar_eval \
-  experiment.config.model_name_or_path=outputs/exp1_surface_train/0/model.pt
-
-# Distant Agent
 python run.py experiment=real_world/dissertation/exp6_distant_similar_eval \
-  experiment.config.model_name_or_path=outputs/exp1_distant_train/0/model.pt
+  experiment.config.model_name_or_path=experiment_results/exp1_distant_train/pretrained/0/model.pt
 ```
 
-**Metrics:** `percent_correct` and `percent_confused` on the confusable pair. Which modality disambiguates better?
+Run ≥3 episodes for each of `tbp_mug` and `tea_tin`.
+
+### Outputs
+
+- `experiment_results/exp6_distant_similar_eval/eval_stats.csv`.
+
+### Metrics reported
+
+`percent_correct`, `percent_confused`, and the 2×2 confusion matrix (`tbp_mug` ↔
+`tea_tin`).
+
+### Pass criteria
+
+- Confusion matrix populated for both objects.
+- Modality interpretation: HSV features should help the distant agent discriminate
+  surface-texture/colour differences between the two mugs.
+
+---
+
+## Limitations — Surface Agent Sensor Noise
+
+**Research question:** How repeatable is the surface-agent learned graph under fixed
+object pose and a noisy ToF sensor?
+
+**Prereqs:** Exp 1a outputs (8 unsupervised training run dirs).
+
+**Objects:** `washbag` (3 runs), `cardboard_box` (3 runs); `mc_fox` and `cap`
+contribute single-run reference graphs.
+
+**Orientations:** ORI0.
+
+### Protocol
+
+Analysis-only — no hardware run.
+
+```bash
+python -m tools.dissertation_analysis --experiments surface_unsupervised
+```
+
+For `washbag` and `cardboard_box`, the analysis compares the 3 repeat runs across:
+
+- learned graph point count
+- graph bounding-box extent (xyz, mm)
+- mean inter-point distance
+- episode wall-clock time
+
+### Outputs
+
+- `benchmarks/dissertation/analysis/surface_unsupervised/learned_graphs/<run_tag>.png`
+  — one 3D `plot_graph()` figure per run.
+- `benchmarks/dissertation/analysis/surface_unsupervised/summary.md` — per-run table.
+- `benchmarks/dissertation/analysis/surface_unsupervised/repeatability.md` —
+  washbag×3 and CBOX×3 comparison with `(max − min)` delta column.
+- `benchmarks/dissertation/analysis/surface_unsupervised/repeatability.png` — bar
+  chart of point count and bbox volume across the three repeats per object.
+
+### Metrics reported
+
+Per-run graph point count, bbox extent, mean inter-point distance, episode time;
+plus the variance summary across repeats.
+
+### Pass criteria
+
+- All 8 runs render a learned-graph figure.
+- Repeatability table populated for `washbag` and `cardboard_box`; the `(max − min)`
+  column is reported and discussed as the dominant sensor-noise signal.
+
+For the architectural background to this section, see
+[`docs/operational-guides/dissertation-surface-agent-chapter.md`](../../../../../../docs/operational-guides/dissertation-surface-agent-chapter.md).
 
 ---
 
 ## Config inheritance
 
-All dissertation configs inherit from the existing real-world configs:
+| Config | Parent |
+|---|---|
+| `exp1_distant_train`, `exp4_distant_continual` | `/experiment/real_world/zed_continual_manual_train` |
+| `exp1_distant_eval`, `exp2_distant_eval_rot`, `exp6_distant_similar_eval` | `/experiment/real_world/zed_supervised_eval` |
+| Surface unsupervised runs (Exp 1a) | `/experiment/real_world/lite6_maixsense_unsupervised` (parent used directly) |
 
-```
-exp1/2/5/6_surface_*  →  /experiment/real_world/lite6_maixsense_unsupervised
-exp1/2/5/6_distant_*  →  /experiment/real_world/zed_supervised_eval (eval)
-                      →  /experiment/real_world/zed_continual_manual_train (train)
-exp4b_surface_*       →  lite6_maixsense_unsupervised + noresetevidence_1lm override
-exp4_distant_*        →  zed_continual_manual_train (already uses noresetevidence_1lm)
-```
-
-These parent configs encode tuned hardware defaults (12 cm working distance, depth
-burst averaging, goal dispatch, semantic bounds filtering). Do not duplicate them.
+These parents encode tuned hardware defaults (12 cm working distance, depth-burst
+averaging, goal dispatch, semantic bounds filtering, validated Lite 6 hand-eye
+extrinsics). Do not duplicate them.
 
 To inspect the fully-resolved config for any experiment:
+
 ```bash
-python run.py experiment=real_world/dissertation/exp1_surface_train --cfg job
+python run.py experiment=real_world/dissertation/exp1_distant_train --cfg job
 ```
+
 Commit the output to `benchmarks/dissertation/resolved_configs/` for reproducibility.
 
 ---
 
 ## Output structure
 
-Each run writes to `outputs/<run_name>/`:
+Distant runs:
+
 ```
-outputs/exp1_surface_train/
+experiment_results/exp1_distant_train/
   0/
-    model.pt            ← checkpoint for downstream experiments
+    model.pt
     exp_state_dict.pt
     config.pt
-  train_stats.csv       ← one row per episode
-  eval_stats.csv        ← one row per episode (if do_eval: true)
+  train_stats.csv
+  eval_stats.csv     # if do_eval: true
 ```
 
-Aggregate per-experiment CSVs into `benchmarks/dissertation/` for report analysis.
+Surface unsupervised runs (Exp 1a):
+
+```
+experiment_results/real_world_lite6_maixsense_unsupervised_<TAG>/
+  0/
+    model.pt
+    exp_state_dict.pt
+    config.pt
+  train_stats.csv    # 1 row, unknown_object_not_matched_(TN)
+  log.txt            # full motion + frame timing log
+```
+
+Per-experiment analysis outputs aggregate under
+`benchmarks/dissertation/analysis/<experiment>/`.
 
 ---
 
 ## Recommended run order
 
-```
-1. exp1_surface_train        (prerequisite for all surface eval experiments)
-2. exp1_distant_train        (prerequisite for all distant eval experiments)
-3. exp1_surface_eval         (Exp 1 baseline)
-4. exp1_distant_eval         (Exp 1 baseline)
-   zed_supervised_eval       (TBP sanity check, mug only)
-5. exp2_surface_eval_rot×4   (Exp 2 — one run per orientation)
-6. exp2_distant_eval_rot×4   (Exp 2 — one run per orientation)
-7. exp4_distant_continual    (Exp 4 — independent, no prior checkpoint needed)
-8. exp5_surface_to_distant_eval
-9. exp5_distant_to_surface_eval
-[optional]
-10. exp4b_surface_continual
-11. exp6_surface_similar_eval
-12. exp6_distant_similar_eval
-```
+1. `exp1_distant_train`
+2. `exp1_distant_eval`
+3. `zed_supervised_eval` (optional sanity check, mug only)
+4. `exp2_distant_eval_rot1..4` (one run per orientation)
+5. `exp4_distant_continual`
+6. `exp6_distant_similar_eval`
+7. Run the analysis pipeline:
+   ```bash
+   python -m tools.dissertation_analysis --experiments all
+   ```
+   Generates Exp 3 modality discussion, Exp 5 narrative stub, and the surface
+   limitations chapter outputs.
+
+The surface unsupervised training (Exp 1a) is already complete and requires no
+further hardware execution.
