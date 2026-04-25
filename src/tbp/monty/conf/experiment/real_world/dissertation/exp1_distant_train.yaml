@@ -5,9 +5,10 @@
 #
 # Experiment 1 — Baseline Feasibility: Distant Agent Training
 #
-# Trains a supervised model on 5–7 real-world objects using the ZED 2i stereo
+# Supervised pretraining for 5–7 real-world objects using the ZED 2i stereo
 # camera. The manual scene picker prompts you to select/capture one ZED scene
-# per object at canonical orientation.
+# per object at canonical orientation. This uses label-driven graph updates so
+# each object gets its own graph instead of being merged into a prior match.
 #
 # Usage:
 #   python run.py experiment=real_world/dissertation/exp1_distant_train
@@ -18,11 +19,13 @@
 # then confirm when the object is in position.
 #
 # After running, note the checkpoint path, e.g.:
-#   outputs/exp1_distant_train/0/model.pt
+#   outputs/exp1_distant_train/pretrained/0/model.pt
 # Pass this to exp1_distant_eval via experiment.config.model_name_or_path.
 
 defaults:
   - /experiment/real_world/zed_continual_manual_train
+
+_target_: tbp.monty.frameworks.experiments.pretraining_experiments.MontySupervisedObjectPretrainingExperiment
 
 config:
   do_train: true
@@ -30,7 +33,6 @@ config:
   n_train_epochs: 1
   max_train_steps: 1000
   max_total_steps: 1000
-  supervised_lm_ids:
-    - learning_module_0
+  supervised_lm_ids: all
   logging:
     run_name: exp1_distant_train

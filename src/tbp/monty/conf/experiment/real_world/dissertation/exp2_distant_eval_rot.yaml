@@ -12,7 +12,7 @@
 #
 # Run this config ONCE PER ORIENTATION (4 runs total), overriding run_name:
 #   python run.py experiment=real_world/dissertation/exp2_distant_eval_rot \
-#     experiment.config.model_name_or_path=<path/to/exp1_distant_train/0/model.pt> \
+#     experiment.config.model_name_or_path=<path/to/exp1_distant_train/pretrained/0/model.pt> \
 #     experiment.config.logging.run_name=exp2_distant_eval_rot1
 #
 # Use orientation labels: rot1=90°yaw, rot2=180°yaw, rot3=270°yaw, rot4=tilt.
@@ -23,12 +23,11 @@
 defaults:
   - /experiment/real_world/zed_supervised_eval
 
-experiment:
-  config:
-    do_eval: true
-    n_eval_epochs: 1
-    max_eval_steps: 500
-    max_total_steps: 500
-    model_name_or_path: ""
-    logging:
-      run_name: exp2_distant_eval_rot
+config:
+  do_eval: true
+  n_eval_epochs: 1
+  max_eval_steps: 500
+  max_total_steps: 500
+  model_name_or_path: "results/monty/projects/monty_runs/exp1_distant_train/pretrained/0/model.pt"
+  logging:
+    run_name: exp2_distant_eval_rot

@@ -3,7 +3,7 @@
 defaults:
   - /monty: graph_exp1000_e3_t100_tot2500
   - /monty/motor_system_config: informed_10
-  - /monty/learning_module: evidence_1lm_nn5
+  - /monty/learning_module: noresetevidence_1lm_dod032
   - /monty/sensor_module: camera_dist
   - /monty/connectivity: 1lm_1sm
   - /environment: two_d_data_incoming
@@ -28,5 +28,8 @@ experiment:
     supervised_lm_ids: []
     do_eval: false
     python_log_level: DEBUG
+    do_train: true
+    train_env_interface_args:
+      episodes_per_epoch: 35
     logging:
       run_name: zed_continual_manual_train

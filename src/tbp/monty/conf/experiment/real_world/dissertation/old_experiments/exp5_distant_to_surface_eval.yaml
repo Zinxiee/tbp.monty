@@ -17,7 +17,7 @@
 #
 # Usage:
 #   python run.py experiment=real_world/dissertation/exp5_distant_to_surface_eval \
-#     experiment.config.model_name_or_path=<path/to/exp1_distant_train/0/model.pt>
+#     experiment.config.model_name_or_path=<path/to/exp1_distant_train/pretrained/0/model.pt>
 #
 # Compare against Exp 5 surface→distant results to build the 2×2 transfer matrix:
 #   (train modality) × (eval modality) → percent_correct, avg_rotation_error
