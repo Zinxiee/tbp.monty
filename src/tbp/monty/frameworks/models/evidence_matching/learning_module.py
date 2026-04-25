@@ -116,6 +116,13 @@ class EvidenceGraphLM(GraphLM):
             unique when checking for the terminal condition (in radians).
         required_symmetry_evidence: number of steps with unchanged possible poses
             to classify an object as symmetric and go into terminal condition.
+        min_possible_match_evidence: Minimum evidence required for a graph to be
+            considered a possible match when only one graph is in memory. The
+            single-graph case uses this threshold (default 0) instead of the
+            x_percent_threshold logic, since std_ge == 0 with one graph. Setting
+            this to a small positive value (e.g. 1) prevents a non-matching object
+            from staying in possible_matches indefinitely on near-zero evidence,
+            enabling no_match to fire and a new graph to be seeded.
 
     Model Attributes:
         graph_delta_thresholds: Thresholds used to compare nodes in the graphs being
@@ -167,6 +174,7 @@ class EvidenceGraphLM(GraphLM):
         path_similarity_threshold=0.1,
         pose_similarity_threshold=0.35,
         required_symmetry_evidence=5,
+        min_possible_match_evidence=0,
         graph_delta_thresholds=None,
         max_graph_size=0.3,  # 30cm
         max_nodes_per_graph=2000,
@@ -208,6 +216,7 @@ class EvidenceGraphLM(GraphLM):
         self.path_similarity_threshold = path_similarity_threshold
         self.pose_similarity_threshold = pose_similarity_threshold
         self.required_symmetry_evidence = required_symmetry_evidence
+        self.min_possible_match_evidence = min_possible_match_evidence
         # --- Model Params ---
         self.max_graph_size = max_graph_size
         # --- Debugging Params ---
@@ -1218,11 +1227,17 @@ class EvidenceGraphLM(GraphLM):
             # Making it a bit more explicit what happens if we only have one graph
             # in memory. In this case we basically recognize the object if the evidence
             # is > object_evidence_threshold and we have resolved a pose.
-            # NOTE: This may not be the best way to handle this and can cause problems
-            # when learning from scratch.
-            # TODO: Figure out a better way to deal with incomplete and few objects in
-            # memory
-            pm = [graph_ids[i] for i, ge in enumerate(graph_evidences) if ge >= 0]
+            # min_possible_match_evidence (default 0) guards the lower bound: once
+            # max evidence falls below this threshold the graph is removed from
+            # possible_matches and no_match fires, allowing a new graph to be seeded.
+            # Raising this above 0 (e.g. 1) is important for continual learning where
+            # a non-matching object must clearly distinguish itself from the single
+            # stored graph.
+            pm = [
+                graph_ids[i]
+                for i, ge in enumerate(graph_evidences)
+                if ge >= self.min_possible_match_evidence
+            ]
         else:  # objects are about equally likely
             pm = graph_ids
         return pm
