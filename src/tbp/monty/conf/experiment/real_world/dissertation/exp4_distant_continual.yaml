@@ -32,9 +32,12 @@ defaults:
   - /experiment/real_world/zed_continual_manual_train
 
 config:
+  show_sensor_output: true
   do_train: true
   do_eval: false
-  n_train_epochs: 1
+  n_train_epochs: 3
+  train_env_interface_args:
+    episodes_per_epoch: 6 # 6 objects, 1 introduced per episode
   max_train_steps: 1000
   max_total_steps: 1000
   supervised_lm_ids: []

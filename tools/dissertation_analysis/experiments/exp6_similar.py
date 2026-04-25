@@ -13,7 +13,7 @@ import pandas as pd
 from tools.dissertation_analysis import discovery, figures, loaders, tables
 from tools.dissertation_analysis.experiments import ExperimentReport
 
-PAIR = ["tbp_mug", "sw_mug"]
+PAIR = ["tbp_mug", "tea_tin"]
 
 
 def _load_distant_df(results_dir: Path) -> pd.DataFrame | None:

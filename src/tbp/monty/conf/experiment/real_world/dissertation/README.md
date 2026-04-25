@@ -70,14 +70,14 @@ single canonical pose per object.
 | # | Step | Agent | Action | Status | Output dir |
 |---|---|---|---|---|---|
 | 1a | Surface unsupervised training (×8) | Surface | Train | **Done** | `experiment_results/real_world_lite6_maixsense_unsupervised_*/` |
-| 1b | `exp1_distant_train` | Distant | Supervised train | Pending | `experiment_results/exp1_distant_train/pretrained/` |
-| 1c | `exp1_distant_eval` | Distant | Eval | Pending | `experiment_results/exp1_distant_eval/` |
+| 1b | `exp1_distant_train` | Distant | Supervised train | **Done** | `experiment_results/exp1_distant_train/pretrained/` |
+| 1c | `exp1_distant_eval` | Distant | Eval | **Done** | `experiment_results/exp1_distant_eval/` |
 | 1d | `zed_supervised_eval` (TBP mug sanity) | Distant | Eval | Optional | `experiment_results/zed_supervised_eval/` |
 | 2 | `exp2_distant_eval_rot` × {ORI1..ORI4} | Distant | Eval | Pending | `…_rot1..4/` |
 | 3 | Modality discussion (analysis-only) | — | — | After Exp 1+2 | `benchmarks/dissertation/analysis/exp3/` |
 | 4 | `exp4_distant_continual` | Distant | Train (no labels) | Pending | `experiment_results/exp4_distant_continual/` |
 | 5 | Cross-agent transfer **discussion-only** | — | — | Not executed | `benchmarks/dissertation/analysis/exp5/` |
-| 6 | `exp6_distant_similar_eval` | Distant | Eval | Pending | `experiment_results/exp6_distant_similar_eval/` |
+| 6 | `exp6_distant_similar_eval` | Distant | Eval | **Done** | `experiment_results/exp6_distant_similar_eval/` |
 | L | Surface sensor-noise / repeatability study | Surface | Analysis-only | **Done** | `benchmarks/dissertation/analysis/surface_unsupervised/` |
 
 ---
@@ -137,7 +137,7 @@ bbox extent, mean inter-point distance, episode time) are produced by the
 
 ---
 
-## Experiment 1b — Distant Agent Training
+## Experiment 1b — Distant Agent Training (COMPLETE)
 
 **Research question:** Can Monty learn the 7 dissertation objects from a single ZED
 RGBD scene per object? (This is a supervised learning experiment that creates independent pretrained object models that don't accidentally merge like they might in a continuous learning experiment)
@@ -176,7 +176,7 @@ Training does not report accuracy. Confirmation only: 7 graphs exist in `model.p
 
 ---
 
-## Experiment 1c — Distant Agent Eval (ORI0 baseline)
+## Experiment 1c — Distant Agent Eval (ORI0 baseline) (COMPLETE)
 
 **Research question:** Can Monty recognise the 7 objects at canonical orientation?
 
@@ -345,7 +345,7 @@ while retaining models of previously seen objects?
 
 **Prereqs:** None — fresh unsupervised run, no prior checkpoint.
 
-**Objects:** O1–O5 (`tbp_mug`, `sw_mug`, `tea_tin`, `mc_fox`, `hexagons`).
+**Objects:** O1-O2, O3-O6 (`tbp_mug`, `sw_mug`, `mc_fox`, `hexagons`, `cap`).
 
 **Orientations:** ORI0.
 
@@ -353,11 +353,7 @@ while retaining models of previously seen objects?
 
 10-episode presentation sequence (no labels supplied):
 
-```
-Episode: 1    2    3    4    5    6    7    8    9    10
-Object:  O1   O2   O3   O4   O5   O1   O3   O5   O2   O4
-Type:    learn learn learn learn learn recall recall recall recall recall
-```
+3 epochs, each epoch contains 6 episodes. In the first epoch a new object is introduced each episode. The same object are then introduced across epochs 2 and 3.
 
 ```bash
 python run.py experiment=real_world/dissertation/exp4_distant_continual
@@ -437,6 +433,8 @@ objects?
 python run.py experiment=real_world/dissertation/exp6_distant_similar_eval \
   experiment.config.model_name_or_path=experiment_results/exp1_distant_train/pretrained/0/model.pt
 ```
+
+3 epochs, each with 2 episodes. Both objects are introduced once per epoch.
 
 Run ≥3 episodes for each of `tbp_mug` and `tea_tin`.
 
