@@ -1,9 +1,0 @@
-Experiment,Agent,Object_Presented,Predicted_Object,Correct (%)|align right,Confused (%)|align right,Num Match Steps|align right,Rotation Error (degrees)|align right,Num Episodes|hidden
-exp6_surface_similar_eval,surface,O1_mug,O1_mug,,,,
-exp6_surface_similar_eval,surface,O1_mug,O5_mug_similar,,,,
-exp6_surface_similar_eval,surface,O5_mug_similar,O1_mug,,,,
-exp6_surface_similar_eval,surface,O5_mug_similar,O5_mug_similar,,,,
-exp6_distant_similar_eval,distant,O1_mug,O1_mug,,,,
-exp6_distant_similar_eval,distant,O1_mug,O5_mug_similar,,,,
-exp6_distant_similar_eval,distant,O5_mug_similar,O1_mug,,,,
-exp6_distant_similar_eval,distant,O5_mug_similar,O5_mug_similar,,,,
