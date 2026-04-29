@@ -15,6 +15,17 @@ from tools.dissertation_analysis import discovery, figures, loaders, tables
 from tools.dissertation_analysis.experiments import ExperimentReport
 
 
+OBJECT_IDS = [
+    "tbp_mug",
+    "sw_mug",
+    "tea_tin",
+    "hexagons",
+    "mc_fox",
+    "cap",
+    "washbag",
+]
+
+
 def _resolve_eval_run(results_dir):
     run = discovery.find_run(results_dir, "exp1_distant_eval")
     if run is not None:
@@ -41,7 +52,16 @@ def _per_object_summary(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _save_learned_graphs(results_dir, out_dir) -> list[str]:
+def _save_learned_graphs(
+    results_dir,
+    out_dir,
+    *,
+    rotation: float = -70,
+    pitch: float | None = None,
+    yaw: float = 0,
+    roll: float = 0,
+    axis_labels: tuple[str, str, str] = ("y", "x", "z"),
+) -> list[str]:
     model_run = discovery.find_run(results_dir, "exp1_distant_eval")
     if model_run is None:
         model_run = discovery.find_run(results_dir, "exp1_distant_train")
@@ -62,13 +82,39 @@ def _save_learned_graphs(results_dir, out_dir) -> list[str]:
     graph_memory = lm_state.get("graph_memory", {})
     figure_paths: list[str] = []
     for object_name in sorted(graph_memory):
+        object_id = object_name
+        if object_name.startswith("capture_"):
+            capture_idx = object_name.rsplit("_", maxsplit=1)[-1]
+            if capture_idx.isdigit():
+                zero_based_idx = int(capture_idx) - 1
+                if 0 <= zero_based_idx < len(OBJECT_IDS):
+                    object_id = OBJECT_IDS[zero_based_idx]
+
         entry = graph_memory[object_name]
         graph = entry.get("patch") if isinstance(entry, dict) else entry
         if graph is None:
             continue
-        fig = plot_graph(graph)
+        fig = plot_graph(
+            graph,
+            rotation=rotation,
+            show_nodes=True,
+            show_edges=False,
+            show_axticks=False,
+        )
         if fig.axes:
-            fig.axes[0].set_title(object_name)
+            ax = fig.axes[0]
+            elev = rotation if pitch is None else pitch
+            try:
+                ax.view_init(elev=elev, azim=180 + yaw, roll=roll)
+            except TypeError:
+                ax.view_init(elev=elev, azim=180 + yaw)
+            ax.set_xlabel(axis_labels[0])
+            ax.set_ylabel(axis_labels[1])
+            ax.set_zlabel(axis_labels[2])
+            # Keep title outside 3D axes to avoid overlap with projected labels.
+            ax.set_title("")
+            fig.suptitle(object_id, y=0.98)
+            fig.subplots_adjust(top=0.9)
         figure_path = out_dir / "learned_graphs" / f"{object_name}.png"
         figures.save_figure(fig, figure_path)
         figure_paths.append(f"learned_graphs/{object_name}.png")
@@ -84,7 +130,7 @@ def run(results_dir, output_dir) -> ExperimentReport:
         return ExperimentReport(
             name="exp1",
             relative_dir="exp1",
-            title="Distant Agent — Exp 1 Baseline",
+            title="Distant Agent: Exp 1 Baseline",
             missing=True,
             missing_reason="no exp1_distant_eval run found.",
         )
@@ -96,15 +142,18 @@ def run(results_dir, output_dir) -> ExperimentReport:
 
     figures_rel: list[str] = []
     if not per_object.empty:
+        per_object_for_plot = per_object.copy()
+        per_object_for_plot["Object"] = OBJECT_IDS[: len(per_object_for_plot)]
         figures.grouped_bar(
-            per_object.assign(Agent="distant"),
+            per_object_for_plot.assign(Agent="distant"),
             x="Object",
             y="Correct (%)",
             hue="Agent",
             out_path=out / "accuracy_per_object.png",
             ylabel="Correct (%)",
-            title="Exp 1 — Recognition accuracy by object",
+            title="Recognition accuracy by object",
             ylim=(0, 100),
+            color="green",
         )
         figures_rel.append("accuracy_per_object.png")
 
@@ -116,7 +165,7 @@ def run(results_dir, output_dir) -> ExperimentReport:
     )
     rot_df = pd.DataFrame(
         {
-            "agent": ["distant"] * len(rot_deg),
+            "Agent": ["distant"] * len(rot_deg),
             "rot_err_deg": rot_deg.to_numpy(),
         }
     ).dropna()
@@ -124,14 +173,23 @@ def run(results_dir, output_dir) -> ExperimentReport:
         figures.histogram_per_agent(
             rot_df,
             column="rot_err_deg",
-            hue="agent",
+            hue="Agent",
             out_path=out / "rotation_error_hist.png",
             xlabel="Rotation error (degrees)",
-            title="Exp 1 — Rotation error on correct episodes",
+            title="Rotation error on correct episodes",
         )
         figures_rel.append("rotation_error_hist.png")
 
-    figures_rel.extend(_save_learned_graphs(results_dir, out))
+    figures_rel.extend(
+        _save_learned_graphs(
+            results_dir,
+            out,
+            pitch=-70,
+            yaw=-10,
+            roll=12,
+            axis_labels=("y", "x", "z"),
+        )
+    )
 
     summary_md = [
         "# Experiment 1 — Baseline Feasibility",
@@ -152,7 +210,7 @@ def run(results_dir, output_dir) -> ExperimentReport:
     return ExperimentReport(
         name="exp1",
         relative_dir="exp1",
-        title="Distant Agent — Exp 1 Baseline",
+        title="Distant Agent: Exp 1 Baseline",
         sections=summary_md,
         figures=figures_rel,
     )

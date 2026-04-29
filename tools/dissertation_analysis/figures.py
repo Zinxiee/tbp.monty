@@ -38,14 +38,16 @@ def grouped_bar(
     ylabel: str,
     title: str,
     ylim: tuple[float, float] | None = None,
+    color: str | list[str] | dict[str, str] | None = None,
 ) -> None:
     """Grouped bar chart: one cluster per x value, bars coloured by hue."""
     pivot = data.pivot_table(index=x, columns=hue, values=y, aggfunc="mean")
     fig, ax = plt.subplots(figsize=(max(6, 0.9 * len(pivot)), 4))
+    bar_colors = color if color is not None else [AGENT_COLOURS.get(c) for c in pivot.columns]
     pivot.plot(
         kind="bar",
         ax=ax,
-        color=[AGENT_COLOURS.get(c) for c in pivot.columns],
+        color=bar_colors,
         edgecolor="black",
         width=0.8,
     )
@@ -208,19 +210,38 @@ def heatmap(
 
 def recall_strip(
     episodes: list[int],
+    epochs: list[int],
     objects: list[str],
     correct: list[bool],
     *,
     out_path: Path,
     title: str,
+    statuses: list[str] | None = None,
 ) -> None:
-    fig, ax = plt.subplots(figsize=(max(5, 0.6 * len(episodes)), 2.5))
-    colours = ["tab:green" if c else "tab:red" for c in correct]
-    ax.bar(range(len(episodes)), [1] * len(episodes), color=colours, edgecolor="black")
-    ax.set_xticks(range(len(episodes)))
-    ax.set_xticklabels([f"E{e}\n{o}" for e, o in zip(episodes, objects)], fontsize=9)
+    fig, ax = plt.subplots(figsize=(max(8, 0.5 * len(episodes)), 3.2))
+    if statuses is None:
+        colours = ["tab:green" if c else "tab:red" for c in correct]
+    else:
+        colour_map = {
+            "learn": "tab:blue",
+            "hit": "tab:green",
+            "miss": "tab:red",
+        }
+        colours = [colour_map.get(str(s).lower(), "tab:gray") for s in statuses]
+
+    x_pos = list(range(len(episodes)))
+    ax.bar(x_pos, [1] * len(episodes), color=colours, edgecolor="black", width=0.5)
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(
+        [f"Epoch{epoch}.Ep{e}: {o}" for epoch, e, o in zip(epochs, episodes, objects)],
+        rotation=50,
+        ha="right",
+        fontsize=11,
+    )
     ax.set_yticks([])
+    # ax.set_xlabel("Episode")
     ax.set_title(title)
+    fig.tight_layout()
     _save(fig, out_path)
 
 

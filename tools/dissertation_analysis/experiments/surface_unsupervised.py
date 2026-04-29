@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -64,6 +66,20 @@ def _graph_stats(graph) -> dict[str, float | int]:
     }
 
 
+def _trace_positions(graph) -> np.ndarray:
+    pos = _to_numpy(graph.pos)
+    x = _to_numpy(graph.x)
+
+    if hasattr(graph, "feature_mapping") and "node_ids" in graph.feature_mapping:
+        start_idx, end_idx = graph.feature_mapping["node_ids"]
+        node_ids = x[:, start_idx:end_idx].reshape(-1)
+        ordered_idx = np.argsort(node_ids)
+    else:
+        ordered_idx = np.arange(pos.shape[0])
+
+    return pos[ordered_idx]
+
+
 def _run_tag(path: Path) -> str:
     return path.name.replace("real_world_lite6_maixsense_unsupervised_", "")
 
@@ -76,10 +92,75 @@ def _parse_tag(tag: str) -> tuple[str, int]:
     return tag, 1
 
 
-def _save_graph_figure(graph, out_path: Path, title: str) -> None:
-    fig = plot_graph(graph)
+def _display_object_name(base: str) -> str:
+    name_map = {
+        "CBOX": "cardboard_box",
+        "MCFOX": "mc_fox",
+        "CAP": "cap",
+    }
+    return name_map.get(base, base)
+
+
+def _display_plot_title(base: str, repeat: int) -> str:
+    display_name = _display_object_name(base)
+    if display_name in {"cap", "mc_fox"}:
+        return display_name
+    return f"{display_name}{repeat}"
+
+
+def _save_graph_figure(
+    graph,
+    out_path: Path,
+    title: str,
+    *,
+    rotation: float = -70,
+    pitch: float | None = -70,
+    yaw: float = -10,
+    roll: float = 12,
+    axis_labels: tuple[str, str, str] = ("y", "x", "z"),
+    show_trace: bool = False,
+) -> None:
+    fig = plot_graph(
+        graph,
+        rotation=rotation,
+        show_nodes=True,
+        show_edges=False,
+        show_axticks=False,
+    )
     if fig.axes:
-        fig.axes[0].set_title(title)
+        ax = fig.axes[0]
+        elev = rotation if pitch is None else pitch
+        try:
+            ax.view_init(elev=elev, azim=180 + yaw, roll=roll)
+        except TypeError:
+            ax.view_init(elev=elev, azim=180 + yaw)
+
+        # Zoom camera out slightly without changing plot aspect/shape.
+        if hasattr(ax, "dist"):
+            ax.dist = 11.5
+
+        ax.set_xlabel(axis_labels[0])
+        ax.set_ylabel(axis_labels[1])
+        ax.set_zlabel(axis_labels[2])
+
+        if show_trace:
+            trace_pos = _trace_positions(graph)
+            # Keep trace coordinates consistent with plot_graph node mapping:
+            # x <- pos[:, 1], y <- pos[:, 0], z <- pos[:, 2].
+            trace_x = trace_pos[:, 1]
+            trace_y = trace_pos[:, 0]
+            trace_z = trace_pos[:, 2]
+
+            ax.plot(trace_x, trace_y, trace_z, color="tab:blue", linewidth=1.5)
+            ax.scatter(trace_x[0], trace_y[0], trace_z[0], c="tab:green", s=50)
+            ax.scatter(trace_x[-1], trace_y[-1], trace_z[-1], c="tab:red", s=50)
+            ax.text(trace_x[0], trace_y[0], trace_z[0], " Start", color="tab:green")
+            ax.text(trace_x[-1], trace_y[-1], trace_z[-1], " End", color="tab:red")
+
+        # Keep title outside 3D axes to avoid overlap with projected labels.
+        ax.set_title("")
+        fig.suptitle(title, y=0.7)
+        fig.subplots_adjust(top=0.9)
     figures.save_figure(fig, out_path)
 
 
@@ -104,6 +185,7 @@ def _repeatability_plot(df: pd.DataFrame, out_path: Path) -> None:
             edgecolor="black",
         )
         ax.set_ylabel("Point count")
+        object_name = "cardboard_box" if object_name == "CBOX" else object_name
         ax.set_title(object_name)
         ax.set_xticks(x)
         ax.set_xticklabels(subset["Run Tag"], rotation=0)
@@ -121,7 +203,12 @@ def _repeatability_plot(df: pd.DataFrame, out_path: Path) -> None:
     figures.save_figure(fig, out_path)
 
 
-def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
+def run(
+    results_dir: Path,
+    output_dir: Path,
+    *,
+    show_trace: bool = False,
+) -> ExperimentReport:
     out = output_dir / "surface_unsupervised"
     out.mkdir(parents=True, exist_ok=True)
 
@@ -184,11 +271,11 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
                     "Time (s)": round(float(df.iloc[0].get("time", np.nan)), 2),
                 }
             )
-
             _save_graph_figure(
                 graph,
                 out / "learned_graphs" / f"{tag}.png",
-                title=f"{base} / {tag}",
+                title=_display_plot_title(base, repeat),
+                show_trace=show_trace,
             )
             figure_paths.append(f"learned_graphs/{tag}.png")
 

@@ -2,10 +2,9 @@
 
 ### Distant confusion counts
 
-| primary_target_object | capture_001 | capture_003 |
-| --- | --- | --- |
-| capture_001 | 3 | 0 |
-| capture_003 | 0 | 3 |
-
+| Predicted →<br>Actual ↓ | `tbp_mug` (capture_001) | `tea_tin` (capture_003) |
+|---|---|---|
+| `tbp_mug` | **3** | 0 |
+| `tea_tin` | 0 | **3** |
 
 ![](confusion_pairs.png)

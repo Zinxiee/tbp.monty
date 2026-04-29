@@ -55,17 +55,26 @@ def get_trace_positions(graph: GraphObjectModel) -> np.ndarray:
     return pos[ordered_idx]
 
 
+def orient_axis_right_up_backward(ax: plt.Axes) -> None:
+    """Set camera so plot opens in right-up-backward world-frame orientation."""
+    # Flip vertical orientation 180 deg so displayed Z direction is reversed.
+    ax.view_init(elev=-90, azim=-90)
+    ax.set_proj_type("ortho")
+
+
 def main() -> None:
     exp_dir = os.path.expanduser(
-        "~/tbp/results/monty/projects/monty_runs/exp1_distant_train"
+        "~/tbp/results/monty/projects/monty_runs/exp4_distant_continual"
+        # "~/tbp/results/monty/projects/monty_runs/exp1_distant_train"
     )
-    n_epochs = 1
-    n_objs = 7
-    obj_name_template = "capture_00"  # Generated object ID template
+    n_epochs = 3
+    n_objs = 5
+    obj_name_template = "new_object"  # Generated object ID template
+    # obj_name_template = "capture_00"  # Real capture ID template
     show_trace = False
 
     for obj_idx in range(n_objs):
-        obj_name = f"{obj_name_template}{obj_idx + 1}"  # e.g. capture_001, capture_002, ...
+        obj_name = f"{obj_name_template}{obj_idx}"  # e.g. capture_001, capture_002, ...
         graphs = [load_graph(exp_dir, epoch, obj_name) for epoch in range(n_epochs)]
         fig = plt.figure(figsize=(8, 3))
         for epoch in range(n_epochs):
@@ -91,11 +100,19 @@ def main() -> None:
                 ax.text(trace_x[0], trace_y[0], trace_z[0], " Start", color="tab:green")
                 ax.text(trace_x[-1], trace_y[-1], trace_z[-1], " End", color="tab:red")
 
-            ax.set_xlabel("x [m] (Monty +X = right)")
-            ax.set_ylabel("y [m] (Monty +Y = up)")
-            ax.set_zlabel("z [m] (Monty +Z = backward)")
+            # ax.set_xlabel("x [m] (Monty +X = right)")
+            # ax.set_ylabel("y [m] (Monty +Y = up)")
+            # ax.set_zlabel("z [m] (Monty +Z = backward)")
+            ax.set_xlabel("x [m]", labelpad=-8)
+            ax.set_ylabel("y [m]", labelpad=-8)
+            ax.set_zlabel("z [m]", labelpad=-8)
+            # remove the numbers from the axes
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_zticks([])
+            orient_axis_right_up_backward(ax)
             ax.set_aspect("equal")
-            ax.set_title(f"epoch {epoch} — Monty world frame (right-up-backward)")
+            ax.set_title(f"epoch {epoch}") #: Monty world frame (right-up-backward)")
         fig.tight_layout()
         plt.show()
 

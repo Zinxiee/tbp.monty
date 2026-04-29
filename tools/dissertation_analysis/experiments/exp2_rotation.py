@@ -104,7 +104,7 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
         combined,
         y="Correct (%)",
         ylabel="Correct (%)",
-        title="Exp 2 — Accuracy vs orientation",
+        title="Accuracy vs orientation",
         out_path=out / "accuracy_vs_orientation.png",
     )
     figures_rel.append("accuracy_vs_orientation.png")
@@ -113,7 +113,7 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
         combined,
         y="Rotation Error (degrees)",
         ylabel="Rotation error (degrees)",
-        title="Exp 2 — Rotation error vs orientation",
+        title="Rotation error vs orientation",
         out_path=out / "rotation_error_vs_orientation.png",
     )
     figures_rel.append("rotation_error_vs_orientation.png")

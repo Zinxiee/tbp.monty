@@ -1,16 +1,16 @@
-Episode,Epoch,Object,Episode Type,Recall,Predicted,Mean Objects Per Graph,Mean Graphs Per Object,Time (s)
-1,1,capture_001,learn,,new_object0,,,0.0027487277984619
-2,1,capture_002,learn,,new_object0,1.0,1.0,0.0048215389251708
-3,1,capture_004,learn,,new_object1,1.0,1.0,6.971239328384399
-4,1,capture_005,learn,,new_object1,1.0,1.0,6.984349489212036
-5,1,capture_006,learn,,new_object1,1.0,1.0,6.759483814239502
-6,2,capture_001,recall,hit,new_object0,1.0,1.0,1.9572529792785645
-7,2,capture_002,recall,hit,new_object1,1.0,1.0,0.640629768371582
-8,2,capture_004,recall,miss,new_object0,1.0,1.0,7.346576929092407
-9,2,capture_005,recall,miss,new_object0,1.0,1.0,7.025838851928711
-10,2,capture_006,recall,miss,new_object0,1.0,1.0,7.246010065078735
-11,3,capture_001,recall,hit,new_object0,1.0,1.0,0.6209201812744141
-12,3,capture_002,recall,hit,new_object1,1.0,1.0,0.6624696254730225
-13,3,capture_004,recall,miss,new_object0,1.0,1.0,7.112179756164551
-14,3,capture_005,recall,hit,new_object1,1.0,1.0,7.066153526306152
-15,3,capture_006,recall,hit,new_object1,1.0,1.0,7.493628025054932
+Episode,Epoch,Object,Episode Type,Recall,Recall Outcome,New Graph?,Predicted,TFNP,Mean Objects Per Graph,Mean Graphs Per Object,Time (s)
+1,1,tbp_mug,learn,,learn,Yes,new_object0,unknown_object_not_matched_(TN),,,0.0027487277984619
+2,1,sw_mug,learn,,learn,Yes,new_object0,unknown_object_not_matched_(TN),1.0,1.0,0.0048215389251708
+3,1,hexagons,learn,,miss,No,new_object1,unknown_object_in_possible_matches_(FP),1.0,1.0,6.971239328384399
+4,1,mc_fox,learn,,miss,No,new_object1,unknown_object_in_possible_matches_(FP),1.0,1.0,6.984349489212036
+5,1,cap,learn,,miss,No,new_object1,unknown_object_in_possible_matches_(FP),1.0,1.0,6.759483814239502
+6,2,tbp_mug,recall,hit,hit,,new_object0,target_in_possible_matches_(TP),1.0,1.0,1.9572529792785645
+7,2,sw_mug,recall,hit,hit,,new_object1,target_in_possible_matches_(TP),1.0,1.0,0.640629768371582
+8,2,hexagons,recall,miss,miss,,new_object0,unknown_object_in_possible_matches_(FP),1.0,1.0,7.346576929092407
+9,2,mc_fox,recall,miss,miss,,new_object0,unknown_object_in_possible_matches_(FP),1.0,1.0,7.025838851928711
+10,2,cap,recall,miss,miss,,new_object0,unknown_object_in_possible_matches_(FP),1.0,1.0,7.246010065078735
+11,3,tbp_mug,recall,hit,hit,,new_object0,target_in_possible_matches_(TP),1.0,1.0,0.6209201812744141
+12,3,sw_mug,recall,hit,hit,,new_object1,target_in_possible_matches_(TP),1.0,1.0,0.6624696254730225
+13,3,hexagons,recall,miss,miss,,new_object0,unknown_object_in_possible_matches_(FP),1.0,1.0,7.112179756164551
+14,3,mc_fox,recall,miss,miss,,new_object1,unknown_object_in_possible_matches_(FP),1.0,1.0,7.066153526306152
+15,3,cap,recall,miss,miss,,new_object1,unknown_object_in_possible_matches_(FP),1.0,1.0,7.493628025054932
