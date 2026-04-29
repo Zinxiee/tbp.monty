@@ -53,8 +53,9 @@ def get_trace_positions(graph: GraphObjectModel) -> np.ndarray:
 
 def main() -> None:
     exp_dir = os.path.expanduser(
-        # "~/tbp/results/monty/projects/monty_runs/real_world_lite6_maixsense_unsupervised"
-        "experiment_results/real_world_lite6_maixsense_unsupervised_MCFOX"
+        "~/tbp/results/monty/projects/monty_runs/real_world_lite6_maixsense_unsupervised"
+        # "~/tbp/results/monty/projects/monty_runs/zed_continual_manual_train"
+        # "experiment_results/real_world_lite6_maixsense_unsupervised_MCFOX"
     )
     n_epochs = 1
     obj_name = "new_object0"  # Generated object ID
