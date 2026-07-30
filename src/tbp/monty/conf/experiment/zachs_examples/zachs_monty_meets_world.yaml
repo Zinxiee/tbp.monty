@@ -1,44 +1,39 @@
-# use pretrained RL model
-# try with multiple LMs and multiple SMs
+# @package _global_
 
 defaults:
-  - /experiment/config/eval@config
-  - /experiment/config/logging/parallel_evidence_lm@config.logging
-  - /experiment/config/monty/patch_and_view@config.monty_config
-  - /experiment/config/monty/learning_modules/clear_learning_module_configs@config.monty_config
-  - /experiment/config/monty/learning_modules/default_evidence_1lm@config.monty_config.learning_module_configs
-  - /experiment/config/monty/args/clear_monty_args@config.monty_config
-  - /experiment/config/monty/args/defaults@config.monty_config.monty_args
-  - /experiment/config/monty/motor_system/clear_motor_system_config@config.monty_config
-  # the following config moves 8 pixels at a time
-  - /experiment/config/monty/motor_system/informed_no_trans_step_s8@config.monty_config.motor_system_config
-  - /experiment/config/environment/world_image@config.env_interface_config
-  - /experiment/config/environment/init_args/clear_env_init_args@config.env_interface_config
-  - /experiment/config/environment/init_args/monty_world_standard_scenes@config.env_interface_config.env_init_args
-  - /experiment/config/environment_interface/clear_eval_env_interface_args@config
-  - /experiment/config/environment_interface/world_image@config.eval_env_interface_args
+  - /monty: graph_exp1000_emin_t3_tot2500
+  # Move 8 pixels at a time
+  - /monty/motor_system_config: informed_20
+  - /monty/learning_module: evidence_1lm_nn10_dod003
+  - /monty/sensor_module: camera_dist
+  - /monty/connectivity: 1lm_1sm
+  - /environment: two_d_data_zachs
+  - /env_interface: eval_worldimages
+  - /env_interface/transform: none
+  - /logging: basic_warning_wandb_evidence_eval_runs
 
-_target_: tbp.monty.frameworks.experiments.object_recognition_experiments.MontyObjectRecognitionExperiment
-config:
-  model_name_or_path: ${path.expanduser:${benchmarks.pretrained_dir}/surf_agent_1lm_numenta_lab_obj/pretrained/}
-  n_eval_epochs: 1
-  show_sensor_output: true
-  env_interface_config:
-    env_init_args:
-      data_path: ${path.expanduser:${oc.env:MONTY_DATA}/worldimages/zachs_scenes/} # add your path to the scene folder here
-      patch_size: 30 # change the sensor patch size
-  logging:
-    run_name: my_monty_meets_world
-    wandb_group: my_monty_meets_world
-    monty_handlers:
-      - ${monty.class:tbp.monty.frameworks.loggers.monty_handlers.BasicCSVStatsHandler}
-    wandb_handlers:
-      - ${monty.class:tbp.monty.frameworks.loggers.wandb_handlers.BasicWandbTableStatsHandler}
-      - ${monty.class:tbp.monty.frameworks.loggers.wandb_handlers.BasicWandbChartStatsHandler}
-  monty_config:
-    monty_args:
-      min_eval_steps: ${benchmarks.min_eval_steps}
-  eval_env_interface_class: ${monty.class:tbp.monty.frameworks.environments.embodied_data.SaccadeOnImageEnvironmentInterface}
-  eval_env_interface_args:
-    scenes: [0, 0, 0] # which scene folder do you take the version from, if all are located in the same folder you can repeat for multiple images: i.e. [0, 0, 0]
-    versions: [0, 1, 2] # Change this for specific versions in the specified scene folder: i.e. [0, 1, 2]
+experiment:
+  _target_: tbp.monty.frameworks.experiments.object_recognition_experiments.MontyObjectRecognitionExperiment
+  config:
+    show_sensor_output: true
+    max_train_steps: 1000
+    max_eval_steps: 500
+    max_total_steps: 6000
+    n_train_epochs: 3
+    n_eval_epochs: 1
+    model_name_or_path: ${constants.pretrained_dir}/surf_agent_1lm_numenta_lab_obj/pretrained/
+    min_lms_match: 1
+    seed: 42
+    supervised_lm_ids: []
+    python_log_level: DEBUG
+    logging:
+      run_name: my_monty_meets_world
+      wandb_group: my_monty_meets_world
+      monty_handlers:
+        - ${monty.class:tbp.monty.frameworks.loggers.monty_handlers.BasicCSVStatsHandler}
+      wandb_handlers:
+        - ${monty.class:tbp.monty.frameworks.loggers.wandb_handlers.BasicWandbTableStatsHandler}
+        - ${monty.class:tbp.monty.frameworks.loggers.wandb_handlers.BasicWandbChartStatsHandler}
+    eval_env_interface_args:
+      scenes: [0, 0, 0] # which scene folder do you take the version from, if all are located in the same folder you can repeat for multiple images: i.e. [0, 0, 0]
+      versions: [0, 1, 2] # Change this for specific versions in the specified scene folder: i.e. [0, 1, 2]

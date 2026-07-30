@@ -1,0 +1,6 @@
+# @package experiment.config.environment
+
+env_init_args:
+  data_path: ${path.expanduser:${oc.env:MONTY_DATA}/worldimages/zachs_scenes/} # add your path to the scene folder here
+  patch_size: 30 # change the sensor patch size
+env_init_func: ${monty.class:tbp.monty.frameworks.environments.two_d_data.SaccadeOnImageEnvironment}
