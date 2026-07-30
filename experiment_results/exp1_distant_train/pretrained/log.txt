@@ -1,0 +1,216 @@
+logger initialized
+{'do_eval': False, 'do_train': True, 'monty_config': {'monty_class': <class 'tbp.monty.frameworks.models.graph_matching.MontyForGraphMatching'>, 'monty_args': {'num_exploratory_steps': 1000, 'min_eval_steps': 3, 'min_train_steps': 100, 'max_total_steps': 2500}, 'motor_system_config': <tbp.monty.frameworks.models.motor_system.MotorSystem object at 0x7ea4b6505ee0>, 'learning_module_configs': {'learning_module_0': {'learning_module_args': {'hypotheses_updater_class': <class 'tbp.monty.frameworks.models.evidence_matching.burst_sampling.BurstSamplingHypothesesUpdater'>, 'hypotheses_updater_args': {'max_nneighbors': 10}, 'feature_weights': {'patch': {'hsv': array([1. , 0.5, 0.5]), 'pose_vectors': array([0., 0., 0.]), 'principal_curvatures_log': array([2., 2.])}}, 'tolerances': {'patch': {'hsv': array([0.1, 0.2, 0.2]), 'principal_curvatures_log': array([0.25, 0.25])}}, 'max_match_distance': 0.01, 'x_percent_threshold': 8, 'object_evidence_threshold': 60, 'min_possible_match_evidence': 1, 'required_symmetry_evidence': 40, 'evidence_threshold_config': 'all', 'max_graph_size': 0.35, 'num_model_voxels_per_dim': 100, 'gsg': <tbp.monty.frameworks.models.goal_generation.EvidenceGoalGenerator object at 0x7ea4b61da400>}, 'learning_module_class': <class 'tbp.monty.frameworks.models.no_reset_evidence_matching.NoResetEvidenceGraphLM'>}}, 'sensor_module_configs': {'sensor_module_0': {'sensor_module_class': <class 'tbp.monty.frameworks.models.sensor_modules.CameraSM'>, 'sensor_module_args': {'sensor_module_id': 'patch', 'features': ['pose_vectors', 'pose_fully_defined', 'on_object', 'object_coverage', 'rgba', 'hsv', 'principal_curvatures', 'principal_curvatures_log', 'gaussian_curvature', 'mean_curvature', 'gaussian_curvature_sc', 'mean_curvature_sc'], 'save_raw_obs': True}}, 'sensor_module_1': {'sensor_module_class': <class 'tbp.monty.frameworks.models.sensor_modules.Probe'>, 'sensor_module_args': {'sensor_module_id': 'view_finder', 'save_raw_obs': True}}}, 'sm_to_agent_dict': {'patch': 'agent_id_0', 'view_finder': 'agent_id_0'}, 'sm_to_lm_matrix': [[0]], 'lm_to_lm_matrix': None, 'lm_to_lm_vote_matrix': None}, 'environment': {'env_init_args': {'data_path': '/root/tbp/data/worldimages/incoming_scenes', 'max_valid_depth_m': 0.55, 'nan_fill_value_m': 10.0, 'start_location_mode': 'nearest_valid', 'patch_size': 20, 'filter_plane': True, 'plane_distance_threshold_m': 0.015, 'plane_min_inlier_fraction': 0.15}, 'env_init_func': <class 'tbp.monty.frameworks.environments.two_d_data.SaccadeOnImageEnvironment'>, 'transform': None}, 'train_env_interface_args': {'scenes': [0], 'versions': [0], 'enable_manual_scene_picker': True, 'allow_dynamic_scene_refresh': True, 'enable_scene_picker_captures': True, 'scene_capture_prefix': 'zed_capture', 'episodes_per_epoch': 35, 'scene_picker_prompt': 'Select next worldimage option by index, or type keep/capture/quit'}, 'train_env_interface_class': <class 'tbp.monty.frameworks.environments.embodied_data.SaccadeOnImageEnvironmentInterface'>, 'logging': {'monty_log_level': 'BASIC', 'monty_handlers': [<class 'tbp.monty.frameworks.loggers.monty_handlers.BasicCSVStatsHandler'>], 'wandb_handlers': [], 'python_log_level': 'INFO', 'python_log_to_file': True, 'python_log_to_stderr': True, 'output_dir': PosixPath('/root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained'), 'run_name': 'exp1_distant_train', 'resume_wandb_run': False, 'wandb_id': 'vz8tuls3', 'wandb_group': 'debugging'}, 'show_sensor_output': False, 'capture_initial_scene': False, 'initial_capture_scene_prefix': 'zed_capture', 'max_train_steps': 1000, 'max_eval_steps': 500, 'max_total_steps': 1000, 'n_train_epochs': 1, 'n_eval_epochs': 1, 'model_name_or_path': '', 'min_lms_match': 1, 'seed': 42, 'supervised_lm_ids': 'all', 'python_log_level': 'DEBUG'}
+changing to obj 0 -> scene 0, version 0
+running train epoch 0
+changing to obj 0 -> scene 0, version 0
+running train epoch 0 train episode 0
+resetting RNG to seed 1060955053
+Going into exploratory mode after 0 steps
+
+---Updating memory of learning_module_0---
+capture_001 not in memory ([])
+Adding a new graph to memory.
+init object model with id capture_001
+building graph from 917 observations
+built graph <tbp.monty.frameworks.utils.object_model_utils.NumpyGraph object at 0x7ea4b52ed490>
+Added new graph with id capture_001 to memory.
+Model for capture_001:
+   Contains 106 points in graph.
+   Feature grid shape: torch.Size([100, 100, 100, 27])
+   Stored features and their indexes:
+           pose_vectors - 0:9,
+           pose_fully_defined - 9:10,
+           on_object - 10:11,
+           object_coverage - 11:12,
+           rgba - 12:16,
+           hsv - 16:19,
+           principal_curvatures - 19:21,
+           principal_curvatures_log - 21:23,
+           gaussian_curvature - 23:24,
+           mean_curvature - 24:25,
+           gaussian_curvature_sc - 25:26,
+           mean_curvature_sc - 26:27,
+
+saving model to /root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained/0
+changing to obj 5 -> scene 1, version 0
+running train epoch 0 train episode 1
+resetting RNG to seed 1260428609
+Going into exploratory mode after 0 steps
+
+---Updating memory of learning_module_0---
+capture_002 not in memory (['capture_001'])
+Adding a new graph to memory.
+init object model with id capture_002
+building graph from 929 observations
+built graph <tbp.monty.frameworks.utils.object_model_utils.NumpyGraph object at 0x7ea4b4b77f10>
+Added new graph with id capture_002 to memory.
+Model for capture_002:
+   Contains 147 points in graph.
+   Feature grid shape: torch.Size([100, 100, 100, 27])
+   Stored features and their indexes:
+           pose_vectors - 0:9,
+           pose_fully_defined - 9:10,
+           on_object - 10:11,
+           object_coverage - 11:12,
+           rgba - 12:16,
+           hsv - 16:19,
+           principal_curvatures - 19:21,
+           principal_curvatures_log - 21:23,
+           gaussian_curvature - 23:24,
+           mean_curvature - 24:25,
+           gaussian_curvature_sc - 25:26,
+           mean_curvature_sc - 26:27,
+
+saving model to /root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained/0
+changing to obj 10 -> scene 2, version 0
+running train epoch 0 train episode 2
+resetting RNG to seed 3997959863
+Going into exploratory mode after 0 steps
+
+---Updating memory of learning_module_0---
+capture_003 not in memory (['capture_001', 'capture_002'])
+Adding a new graph to memory.
+init object model with id capture_003
+building graph from 875 observations
+built graph <tbp.monty.frameworks.utils.object_model_utils.NumpyGraph object at 0x7ea4b4fc2d00>
+Added new graph with id capture_003 to memory.
+Model for capture_003:
+   Contains 129 points in graph.
+   Feature grid shape: torch.Size([100, 100, 100, 27])
+   Stored features and their indexes:
+           pose_vectors - 0:9,
+           pose_fully_defined - 9:10,
+           on_object - 10:11,
+           object_coverage - 11:12,
+           rgba - 12:16,
+           hsv - 16:19,
+           principal_curvatures - 19:21,
+           principal_curvatures_log - 21:23,
+           gaussian_curvature - 23:24,
+           mean_curvature - 24:25,
+           gaussian_curvature_sc - 25:26,
+           mean_curvature_sc - 26:27,
+
+saving model to /root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained/0
+changing to obj 15 -> scene 3, version 0
+running train epoch 0 train episode 3
+resetting RNG to seed 99937259
+Going into exploratory mode after 0 steps
+
+---Updating memory of learning_module_0---
+capture_004 not in memory (['capture_001', 'capture_002', 'capture_003'])
+Adding a new graph to memory.
+init object model with id capture_004
+building graph from 890 observations
+built graph <tbp.monty.frameworks.utils.object_model_utils.NumpyGraph object at 0x7ea4b5bb6580>
+Added new graph with id capture_004 to memory.
+Model for capture_004:
+   Contains 165 points in graph.
+   Feature grid shape: torch.Size([100, 100, 100, 27])
+   Stored features and their indexes:
+           pose_vectors - 0:9,
+           pose_fully_defined - 9:10,
+           on_object - 10:11,
+           object_coverage - 11:12,
+           rgba - 12:16,
+           hsv - 16:19,
+           principal_curvatures - 19:21,
+           principal_curvatures_log - 21:23,
+           gaussian_curvature - 23:24,
+           mean_curvature - 24:25,
+           gaussian_curvature_sc - 25:26,
+           mean_curvature_sc - 26:27,
+
+saving model to /root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained/0
+changing to obj 20 -> scene 4, version 0
+running train epoch 0 train episode 4
+resetting RNG to seed 560786102
+Going into exploratory mode after 0 steps
+
+---Updating memory of learning_module_0---
+capture_005 not in memory (['capture_001', 'capture_002', 'capture_003', 'capture_004'])
+Adding a new graph to memory.
+init object model with id capture_005
+building graph from 890 observations
+built graph <tbp.monty.frameworks.utils.object_model_utils.NumpyGraph object at 0x7ea4b539d4f0>
+Added new graph with id capture_005 to memory.
+Model for capture_005:
+   Contains 109 points in graph.
+   Feature grid shape: torch.Size([100, 100, 100, 27])
+   Stored features and their indexes:
+           pose_vectors - 0:9,
+           pose_fully_defined - 9:10,
+           on_object - 10:11,
+           object_coverage - 11:12,
+           rgba - 12:16,
+           hsv - 16:19,
+           principal_curvatures - 19:21,
+           principal_curvatures_log - 21:23,
+           gaussian_curvature - 23:24,
+           mean_curvature - 24:25,
+           gaussian_curvature_sc - 25:26,
+           mean_curvature_sc - 26:27,
+
+saving model to /root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained/0
+changing to obj 25 -> scene 5, version 0
+running train epoch 0 train episode 5
+resetting RNG to seed 1953320932
+Going into exploratory mode after 0 steps
+
+---Updating memory of learning_module_0---
+capture_006 not in memory (['capture_001', 'capture_002', 'capture_003', 'capture_004', 'capture_005'])
+Adding a new graph to memory.
+init object model with id capture_006
+building graph from 947 observations
+built graph <tbp.monty.frameworks.utils.object_model_utils.NumpyGraph object at 0x7ea4b4bffd00>
+Added new graph with id capture_006 to memory.
+Model for capture_006:
+   Contains 216 points in graph.
+   Feature grid shape: torch.Size([100, 100, 100, 27])
+   Stored features and their indexes:
+           pose_vectors - 0:9,
+           pose_fully_defined - 9:10,
+           on_object - 10:11,
+           object_coverage - 11:12,
+           rgba - 12:16,
+           hsv - 16:19,
+           principal_curvatures - 19:21,
+           principal_curvatures_log - 21:23,
+           gaussian_curvature - 23:24,
+           mean_curvature - 24:25,
+           gaussian_curvature_sc - 25:26,
+           mean_curvature_sc - 26:27,
+
+saving model to /root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained/0
+changing to obj 30 -> scene 6, version 0
+running train epoch 0 train episode 6
+resetting RNG to seed 2492039860
+Going into exploratory mode after 0 steps
+
+---Updating memory of learning_module_0---
+capture_007 not in memory (['capture_001', 'capture_002', 'capture_003', 'capture_004', 'capture_005', 'capture_006'])
+Adding a new graph to memory.
+init object model with id capture_007
+building graph from 986 observations
+built graph <tbp.monty.frameworks.utils.object_model_utils.NumpyGraph object at 0x7ea4b577c190>
+Added new graph with id capture_007 to memory.
+Model for capture_007:
+   Contains 288 points in graph.
+   Feature grid shape: torch.Size([100, 100, 100, 27])
+   Stored features and their indexes:
+           pose_vectors - 0:9,
+           pose_fully_defined - 9:10,
+           on_object - 10:11,
+           object_coverage - 11:12,
+           rgba - 12:16,
+           hsv - 16:19,
+           principal_curvatures - 19:21,
+           principal_curvatures_log - 21:23,
+           gaussian_curvature - 23:24,
+           mean_curvature - 24:25,
+           gaussian_curvature_sc - 25:26,
+           mean_curvature_sc - 26:27,
+
+saving model to /root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained/0
+Stopped by user during scene selection.
+saving model to /root/tbp/results/monty/projects/monty_runs/exp1_distant_train/pretrained
