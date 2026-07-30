@@ -14,7 +14,7 @@ from tools.dissertation_analysis.experiments import ExperimentReport
 REPORT_ORDER = {
     "exp1": 10,
     "exp2": 20,
-    "exp2_objects": 21,
+    "exp2_individual_objects": 21,
     "exp4": 30,
     "exp6": 40,
     "exp3": 50,
