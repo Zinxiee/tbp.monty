@@ -38,6 +38,7 @@ from tools.dissertation_analysis import report  # noqa: E402
 from tools.dissertation_analysis.experiments import (  # noqa: E402
     exp1_baseline,
     exp2_rotation,
+    exp2_rotation_individual_objects,
     exp3_modality,
     exp4_continual,
     exp5_transfer,
@@ -48,6 +49,8 @@ from tools.dissertation_analysis.experiments import (  # noqa: E402
 EXPERIMENT_RUNNERS = {
     "exp1": exp1_baseline.run,
     "exp2": exp2_rotation.run,
+    "exp2_objects": exp2_rotation_individual_objects.run,
+    "exp2_individual_objects": exp2_rotation_individual_objects.run,
     "exp3": exp3_modality.run,
     "exp4": exp4_continual.run,
     "exp5": exp5_transfer.run,
@@ -78,7 +81,8 @@ def main() -> None:
         type=str,
         default="all",
         help=(
-            "Comma-separated subset of {exp1,exp2,exp3,exp4,exp5,exp6,"
+            "Comma-separated subset of {exp1,exp2,exp2_objects,"
+            "exp2_individual_objects,exp3,exp4,exp5,exp6,"
             "surface_unsupervised} or 'all'."
         ),
     )

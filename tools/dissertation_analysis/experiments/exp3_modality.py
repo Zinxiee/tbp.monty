@@ -89,11 +89,11 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:  # noqa: ARG00
         sections.append(f"![]({figures_rel[-1]})")
 
     tables.write_md(out / "modality_comparison.md", sections)
-    tables.write_md(out / "summary.md", sections)
     return ExperimentReport(
         name="exp3",
         relative_dir="exp3",
         title="Modality Discussion (Exp 3)",
         sections=sections,
         figures=figures_rel,
+        summary_path="modality_comparison.md",
     )

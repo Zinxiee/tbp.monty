@@ -223,7 +223,6 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
 
     sections.append("\n".join(f"![]({rel})" for rel in figures_rel))
     tables.write_md(out / "continual_summary.md", sections)
-    tables.write_md(out / "summary.md", sections)
     combined.to_csv(out / "summary.csv", index=False)
     return ExperimentReport(
         name="exp4",
@@ -231,4 +230,5 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
         title="Distant Agent — Exp 4 Continual Learning",
         sections=sections,
         figures=figures_rel,
+        summary_path="continual_summary.md",
     )

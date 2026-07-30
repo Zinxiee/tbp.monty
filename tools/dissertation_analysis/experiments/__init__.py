@@ -18,5 +18,6 @@ class ExperimentReport:
     title: str
     sections: list[str] = field(default_factory=list)
     figures: list[str] = field(default_factory=list)  # relative paths for index.md
+    summary_path: str = "summary.md"
     missing: bool = False
     missing_reason: str = ""

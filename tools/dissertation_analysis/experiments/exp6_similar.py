@@ -133,11 +133,11 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
     sections.append("![](confusion_pairs.png)")
 
     tables.write_md(out / "confusion_pairs.md", sections)
-    tables.write_md(out / "summary.md", sections)
     return ExperimentReport(
         name="exp6",
         relative_dir="exp6",
         title="Distant Agent — Exp 6 Similar Object Discrimination",
         sections=sections,
         figures=["confusion_pairs.png"],
+        summary_path="confusion_pairs.md",
     )

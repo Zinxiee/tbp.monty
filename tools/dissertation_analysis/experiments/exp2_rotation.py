@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from pathlib import Path
 
 from tools.dissertation_analysis import discovery, figures, loaders, tables
 from tools.dissertation_analysis.experiments import ExperimentReport
@@ -120,7 +121,6 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
 
     sections.append("\n".join(f"![]({rel})" for rel in figures_rel))
     tables.write_md(out / "accuracy_vs_orientation.md", sections)
-    tables.write_md(out / "summary.md", sections)
 
     return ExperimentReport(
         name="exp2",
@@ -128,4 +128,5 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:
         title="Distant Agent — Exp 2 Rotation Invariance",
         sections=sections,
         figures=figures_rel,
+        summary_path="accuracy_vs_orientation.md",
     )

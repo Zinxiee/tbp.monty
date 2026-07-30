@@ -27,11 +27,11 @@ def run(results_dir: Path, output_dir: Path) -> ExperimentReport:  # noqa: ARG00
     ]
 
     tables.write_md(out / "discussion.md", matrix_md)
-    tables.write_md(out / "summary.md", matrix_md)
     return ExperimentReport(
         name="exp5",
         relative_dir="exp5",
         title="Cross-agent Transfer (Exp 5) — Discussion Only",
         sections=matrix_md,
         figures=[],
+        summary_path="discussion.md",
     )

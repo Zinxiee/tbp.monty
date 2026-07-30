@@ -14,6 +14,7 @@ from tools.dissertation_analysis.experiments import ExperimentReport
 REPORT_ORDER = {
     "exp1": 10,
     "exp2": 20,
+    "exp2_objects": 21,
     "exp4": 30,
     "exp6": 40,
     "exp3": 50,
@@ -41,7 +42,7 @@ def build_index(reports: list[ExperimentReport], output_dir: Path) -> Path:
                 lines.append(f"_{r.missing_reason}_")
         else:
             lines.append(
-                f"See [{r.relative_dir}/summary.md]({r.relative_dir}/summary.md)."
+                f"See [{r.relative_dir}/{r.summary_path}]({r.relative_dir}/{r.summary_path})."
             )
             for fig in r.figures:
                 lines.append(f"![]({r.relative_dir}/{fig})")
